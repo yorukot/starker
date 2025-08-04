@@ -12,7 +12,7 @@ import (
 	"github.com/yorukot/stargo/internal/config"
 	"github.com/yorukot/stargo/internal/models"
 	"github.com/yorukot/stargo/internal/service"
-	"github.com/yorukot/stargo/pkg/utils"
+	"github.com/yorukot/stargo/internal/utils"
 )
 
 // OAuthHandler is the handler for the OAuth providers

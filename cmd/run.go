@@ -12,7 +12,7 @@ import (
 	"github.com/yorukot/stargo/internal/handler"
 	"github.com/yorukot/stargo/internal/middleware"
 	"github.com/yorukot/stargo/internal/router"
-	"github.com/yorukot/stargo/pkg/logger"
+	"github.com/yorukot/stargo/internal/logger"
 
 	_ "github.com/joho/godotenv/autoload"
 )
