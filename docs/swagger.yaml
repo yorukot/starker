@@ -1,0 +1,83 @@
+basePath: /api
+host: localhost:8080
+info:
+  contact: {}
+  description: OAuth API for Stargo application
+  title: Stargo API
+  version: "1.0"
+paths:
+  /auth/oauth/{provider}:
+    get:
+      description: Redirects user to OAuth provider for authentication
+      parameters:
+      - description: OAuth provider (e.g., google, github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Redirect URL after successful authentication
+        in: query
+        name: from
+        type: string
+      responses:
+        "307":
+          description: Redirect to OAuth provider
+          schema:
+            type: string
+        "400":
+          description: Invalid provider or bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Initiate OAuth flow
+      tags:
+      - oauth
+  /auth/oauth/{provider}/callback:
+    get:
+      description: Processes OAuth callback from provider and authenticates user
+      parameters:
+      - description: OAuth provider (e.g., google, github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Authorization code from OAuth provider
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: State parameter for CSRF protection
+        in: query
+        name: state
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Successful authentication with access token
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid provider, code, or state
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid or expired token
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Handle OAuth callback
+      tags:
+      - oauth
+swagger: "2.0"

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgres17
+    environment:
+      POSTGRES_DB: stargo
+      POSTGRES_USER: stargo
+      POSTGRES_PASSWORD: stargo-this-is-a-really-long-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
