@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/segmentio/ksuid"
+	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
 	"github.com/yorukot/stargo/internal/models"
@@ -150,6 +151,8 @@ func OAuthRegisterOrLoginUser(ctx context.Context, pool *pgxpool.Pool, userInfo 
 		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
 
+	zap.L().Info("user created", zap.String("userID", newUser.ID))
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -190,6 +193,8 @@ func OAuthCreateRefreshTokenAndAccessToken(ctx context.Context, r *http.Request,
 	if err := repository.CreateRefreshToken(ctx, tx, refreshToken); err != nil {
 		return nil, fmt.Errorf("failed to create refresh token: %w", err)
 	}
+
+	zap.L().Info("refresh token created for user", zap.String("userID", userID), zap.String("refreshToken", refreshToken.ID))
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/stargo/internal/database"
@@ -35,6 +36,7 @@ func Run() {
 	defer db.Close()
 
 	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
+	r.Use(chiMiddleware.StripSlashes)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello stargo!"))
