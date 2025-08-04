@@ -2,27 +2,6 @@
 
 A modern Go web API template built with Chi router and PostgreSQL, featuring OAuth 2.0 authentication and clean architecture patterns.
 
-## Architecture
-
-Stargo follows clean architecture principles:
-
-```
-internal/
-├── config/          # Configuration management
-├── database/        # Database connection and migrations
-├── handler/         # HTTP handlers (controllers)
-├── logger/          # Logging configuration
-├── middleware/      # HTTP middleware
-├── models/          # Data models and types
-├── repository/      # Data access layer
-├── router/          # Route definitions
-├── service/         # Business logic layer
-└── utils/           # Utility functions
-
-pkg/
-└── encrypt/         # Encryption utilities
-```
-
 ## Getting Started
 
 ### Prerequisites
@@ -73,22 +52,6 @@ The API is documented using Swagger/OpenAPI. After starting the server, you can:
 - Access the Swagger UI (if configured)
 
 ## Development
-
-### Project Structure
-
-```
-internal/
-├── config/          # Configuration management
-├── database/        # Database connections and migrations
-├── handler/         # HTTP handlers (controllers)
-├── logger/          # Logging setup
-├── middleware/      # HTTP middleware
-├── models/          # Data models and type definitions
-├── repository/      # Data access layer (DB operations)
-├── router/          # Route definitions
-├── service/         # Business logic layer
-└── utils/           # Utility functions
-```
 
 ### Adding a New Endpoint
 
