@@ -22,5 +22,7 @@ func InitLogger() {
 
 	zap.ReplaceGlobals(logger)
 
+	zap.L().Info("Logger initialized")
+
 	defer logger.Sync()
 }

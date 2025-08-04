@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -39,8 +40,8 @@ func OAuthGenerateStateWithPayload(from string) (string, error) {
 		"from":  from,
 	}
 
-	key := os.Getenv("JWT_SECRET")
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, payload)
+	key := []byte(os.Getenv("JWT_SECRET"))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
 	tokenString, err := token.SignedString(key)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign JWT: %w", err)
@@ -102,9 +103,11 @@ func OAuthRegisterOrLoginUser(ctx context.Context, pool *pgxpool.Pool, userInfo 
 
 	// Check if the account already exists
 	account, err := repository.GetAccountByProviderAndProviderUserID(ctx, tx, provider, userInfo.Subject)
-	if err != nil && err != pgx.ErrNoRows {
+	if err != nil {
 		return nil, fmt.Errorf("failed to get account: %w", err)
-	} else if err == nil {
+	}
+
+	if account != nil {
 		return account, nil
 	}
 
@@ -167,12 +170,19 @@ func OAuthCreateRefreshTokenAndAccessToken(ctx context.Context, r *http.Request,
 		return nil, fmt.Errorf("failed to generate secure refresh token: %w", err)
 	}
 
+	// Extract IP address without port from RemoteAddr
+	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		// If SplitHostPort fails, use RemoteAddr as-is (might be just an IP without port)
+		clientIP = r.RemoteAddr
+	}
+
 	refreshToken := models.RefreshToken{
 		ID:        ksuid.New().String(),
 		UserID:    userID,
 		Token:     token,
 		UserAgent: r.Header.Get("User-Agent"),
-		IP:        r.RemoteAddr,
+		IP:        clientIP,
 		UsedAt:    nil,
 		CreatedAt: time.Now(),
 	}

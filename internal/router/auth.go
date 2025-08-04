@@ -26,8 +26,8 @@ func AuthRouter(r chi.Router, app *handler.App) {
 	r.Route("/auth", func(r chi.Router) {
 
 		r.Route("/oauth", func(r chi.Router) {
-			r.Post("/{provider}", oauthHandler.OauthEntry)
-			r.Post("/{provider}/callback", oauthHandler.OauthCallback)
+			r.Get("/{provider}", oauthHandler.OauthEntry)
+			r.Get("/{provider}/callback", oauthHandler.OauthCallback)
 		})
 
 		// TODO: add refresh token route

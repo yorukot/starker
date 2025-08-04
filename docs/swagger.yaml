@@ -1,10 +1,5 @@
-basePath: /api
-host: localhost:8080
 info:
   contact: {}
-  description: OAuth API for Stargo application
-  title: Stargo API
-  version: "1.0"
 paths:
   /auth/oauth/{provider}:
     get:
@@ -58,7 +53,7 @@ paths:
         type: string
       responses:
         "200":
-          description: Successful authentication with access token
+          description: Successful authentication with refresh token
           schema:
             additionalProperties: true
             type: object

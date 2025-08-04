@@ -5,7 +5,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
+
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func InitDatabase() (*pgxpool.Pool, error) {
@@ -18,6 +23,11 @@ func InitDatabase() (*pgxpool.Pool, error) {
 		pool.Close()
 		return nil, err
 	}
+
+	zap.L().Info("Database initialized")
+
+	Migrator()
+
 	return pool, nil
 }
 
@@ -36,4 +46,24 @@ func getDatabaseURL() string {
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME, DB_SSL_MODE,
 	)
+}
+
+func Migrator() {
+	zap.L().Info("Migrating database")
+
+	wd, _ := os.Getwd()
+
+	databaseURL := getDatabaseURL()
+	migrationsPath := "file://" + wd + "/migrations"
+
+	m, err := migrate.New(migrationsPath, databaseURL)
+	if err != nil {
+		zap.L().Fatal("failed to create migrator", zap.Error(err))
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		zap.L().Fatal("failed to migrate database", zap.Error(err))
+	}
+
+	zap.L().Info("Database migrated")
 }

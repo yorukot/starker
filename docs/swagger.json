@@ -1,13 +1,8 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "OAuth API for Stargo application",
-        "title": "Stargo API",
-        "contact": {},
-        "version": "1.0"
+        "contact": {}
     },
-    "host": "localhost:8080",
-    "basePath": "/api",
     "paths": {
         "/auth/oauth/{provider}": {
             "get": {
@@ -87,7 +82,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful authentication with access token",
+                        "description": "Successful authentication with refresh token",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

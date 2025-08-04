@@ -7,10 +7,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/stargo/internal/database"
 	"github.com/yorukot/stargo/internal/handler"
 	"github.com/yorukot/stargo/internal/middleware"
 	"github.com/yorukot/stargo/internal/router"
-	"github.com/yorukot/stargo/pkg/database"
 	"github.com/yorukot/stargo/pkg/logger"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -42,6 +42,8 @@ func Run() {
 
 	setupRouter(r, &handler.App{DB: db})
 
+	zap.L().Info("Starting server on port " + os.Getenv("PORT"))
+
 	http.ListenAndServe(":"+os.Getenv("PORT"), r)
 }
 
@@ -50,4 +52,6 @@ func setupRouter(r chi.Router, app *handler.App) {
 	r.Route("/api", func(r chi.Router) {
 		router.AuthRouter(r, app)
 	})
+
+	zap.L().Info("Router setup complete")
 }

@@ -95,11 +95,11 @@ func (h *OAuthHandler) OauthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: save the refresh token and access token to the database
 	// Exchange the code for a token
 	token, err := oauthConfig.Exchange(r.Context(), code)
 	if err != nil {
-		zap.L().Error("failed to exchange code", zap.Error(err))
-		utils.RespondWithError(w, http.StatusInternalServerError, "failed to exchange code", "INTERNAL_SERVER_ERROR")
+		utils.RespondWithError(w, http.StatusBadRequest, "failed to exchange code", "INVALID_GRANT")
 		return
 	}
 

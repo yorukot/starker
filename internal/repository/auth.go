@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
@@ -16,9 +17,12 @@ func GetAccountByProviderAndProviderUserID(ctx context.Context, db pgx.Tx, provi
 	`
 	var account models.Account
 	err := pgxscan.Get(ctx, db, &account, query, provider, providerUserID)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
+
 	return &account, nil
 }
 
