@@ -11,5 +11,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+# TODO: Add stargo to the services
+
 volumes:
   postgres_data:
