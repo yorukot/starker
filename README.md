@@ -23,18 +23,6 @@ pkg/
 └── encrypt/         # Encryption utilities
 ```
 
-## Technology Stack
-
-- **Go 1.24.3+** - Programming language
-- **Chi v5** - HTTP router
-- **PostgreSQL** - Primary database
-- **pgx/v5** - PostgreSQL driver
-- **golang-migrate** - Database migrations
-- **Zap** - Structured logging
-- **JWT** - Token-based authentication
-- **OAuth2 + OIDC** - Authentication protocols
-- **Swagger** - API documentation
-
 ## Getting Started
 
 ### Prerequisites
@@ -42,32 +30,6 @@ pkg/
 - Go 1.24.3 or higher
 - PostgreSQL 17+
 - Docker and Docker Compose (optional, for local development)
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-# Server Configuration
-PORT=8080
-APP_ENV=dev
-
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=stargo
-DB_PASSWORD=stargo-this-is-a-really-long-password
-DB_NAME=stargo
-DB_SSL_MODE=disable
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-here
-
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URL=http://localhost:8080/api/auth/oauth/google/callback
-```
 
 ### Installation & Running
 
@@ -79,11 +41,13 @@ cd stargo
 # Install dependencies
 go mod download
 
+# Fill the `.env` file with your own values
+
 # Run the application
 go run main.go
 ```
 
-The server will start on `http://localhost:8080`
+The server will start on `http://localhost:8000` (If you use the default port)
 
 ### Database Setup
 
@@ -96,8 +60,10 @@ docker compose up -d postgres
 
 Migrations are automatically applied when the application starts. Migration files are located in the `migrations/` directory:
 
-- `1_initialize_schema.up.sql` - Creates all tables and indexes
-- `1_initialize_schema.down.sql` - Drops all tables (currently empty)
+- `1_initialize_schema.up.sql`
+- `1_initialize_schema.down.sql`
+
+> More about migrations: [What are database migrations?](https://www.prisma.io/dataguide/types/relational/what-are-database-migrations)
 
 ## API Documentation
 
