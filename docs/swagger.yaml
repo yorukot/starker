@@ -1,78 +1,114 @@
+basePath: /api
+definitions:
+  auth.LoginRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      password:
+        maxLength: 255
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      password:
+        maxLength: 255
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  response.ErrorResponse:
+    properties:
+      err_code:
+        type: string
+      message:
+        type: string
+    type: object
+host: localhost:8000
 info:
-  contact: {}
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Stargo Go API Template
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Stargo Go API Template
+  version: "1.0"
 paths:
-  /auth/oauth/{provider}:
-    get:
-      description: Redirects user to OAuth provider for authentication
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with email and password, returns a refresh
+        token cookie
       parameters:
-      - description: OAuth provider (e.g., google, github)
-        in: path
-        name: provider
+      - description: Login request
+        in: body
+        name: request
         required: true
-        type: string
-      - description: Redirect URL after successful authentication
-        in: query
-        name: from
-        type: string
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
       responses:
-        "307":
-          description: Redirect to OAuth provider
+        "200":
+          description: Login successful
           schema:
             type: string
         "400":
-          description: Invalid provider or bad request
+          description: Invalid request body, user not found, or invalid password
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
-      summary: Initiate OAuth flow
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: User login
       tags:
-      - oauth
-  /auth/oauth/{provider}/callback:
-    get:
-      description: Processes OAuth callback from provider and authenticates user
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with email and password
       parameters:
-      - description: OAuth provider (e.g., google, github)
-        in: path
-        name: provider
+      - description: Registration request
+        in: body
+        name: request
         required: true
-        type: string
-      - description: Authorization code from OAuth provider
-        in: query
-        name: code
-        required: true
-        type: string
-      - description: State parameter for CSRF protection
-        in: query
-        name: state
-        required: true
-        type: string
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
       responses:
         "200":
-          description: Successful authentication with refresh token
+          description: User registered successfully
           schema:
-            additionalProperties: true
-            type: object
+            type: string
         "400":
-          description: Invalid provider, code, or state
+          description: Invalid request body or email already in use
           schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Invalid or expired token
-          schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/response.ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
-      summary: Handle OAuth callback
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Register a new user
       tags:
-      - oauth
+      - auth
+schemes:
+- http
+- https
 swagger: "2.0"

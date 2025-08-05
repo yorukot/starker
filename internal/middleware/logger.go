@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -16,21 +18,37 @@ func ZapLoggerMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 
 			start := time.Now()
 
-			logger.Info("incoming request",
-				zap.String("requestID", requestID),
-				zap.String("method", r.Method),
-				zap.String("path", r.URL.Path),
-				zap.String("remote", r.RemoteAddr),
-			)
-
 			next.ServeHTTP(w, r)
 
-			logger.Info("request completed",
+			logger.Info(GenerateDiffrentColorForMethod(r.Method)+" request completed",
 				zap.String("requestID", requestID),
-				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
 				zap.Duration("duration", time.Since(start)),
 			)
 		})
 	}
+}
+
+func GenerateDiffrentColorForMethod(method string) string {
+	if os.Getenv("APP_ENV") == "dev" {
+		switch method {
+		case "GET":
+			return color.GreenString(method)
+		case "POST":
+			return color.BlueString(method)
+		case "PUT":
+			return color.YellowString(method)
+		case "PATCH":
+			return color.MagentaString(method)
+		case "DELETE":
+			return color.RedString(method)
+		case "OPTIONS":
+			return color.CyanString(method)
+		case "HEAD":
+			return color.WhiteString(method)
+		default:
+			return method
+		}
+	}
+	return method
 }

@@ -6,22 +6,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/stargo/internal/database"
 	"github.com/yorukot/stargo/internal/handler"
 	"github.com/yorukot/stargo/internal/middleware"
 	"github.com/yorukot/stargo/internal/router"
-	"github.com/yorukot/stargo/internal/logger"
+	"github.com/yorukot/stargo/pkg/logger"
 
 	_ "github.com/joho/godotenv/autoload"
+	_ "github.com/yorukot/stargo/docs"
 )
-
-// @title Stargo API
-// @version 1.0
-// @description OAuth API for Stargo application
-// @host localhost:8080
-// @BasePath /api
 
 // Run starts the server
 func Run() {
@@ -44,7 +40,8 @@ func Run() {
 
 	setupRouter(r, &handler.App{DB: db})
 
-	zap.L().Info("Starting server on port " + os.Getenv("PORT"))
+	zap.L().Info("Starting server on http://localhost:" + os.Getenv("PORT"))
+	zap.L().Info("Environment: " + os.Getenv("APP_ENV"))
 
 	http.ListenAndServe(":"+os.Getenv("PORT"), r)
 }
@@ -54,6 +51,10 @@ func setupRouter(r chi.Router, app *handler.App) {
 	r.Route("/api", func(r chi.Router) {
 		router.AuthRouter(r, app)
 	})
+
+	if os.Getenv("APP_ENV") == "dev" {
+		r.Get("/swagger/*", httpSwagger.WrapHandler)
+	}
 
 	zap.L().Info("Router setup complete")
 }

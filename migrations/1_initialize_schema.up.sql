@@ -1,7 +1,7 @@
 -- Create users table
 CREATE TABLE users (
     id VARCHAR(27) PRIMARY KEY,
-    password TEXT,
+    password_hash TEXT,
     avatar TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
