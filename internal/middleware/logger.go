@@ -21,8 +21,10 @@ func ZapLoggerMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 
 			logger.Info(GenerateDiffrentColorForMethod(r.Method)+" request completed",
-				zap.String("requestID", requestID),
+				zap.String("request_id", requestID),
 				zap.String("path", r.URL.Path),
+				zap.String("user_agent", r.UserAgent()),
+				zap.String("remote_addr", r.RemoteAddr),
 				zap.Duration("duration", time.Since(start)),
 			)
 		})
