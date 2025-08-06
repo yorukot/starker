@@ -5,11 +5,13 @@ import (
 	"net/http"
 )
 
+// ErrorResponse is the response for an error
 type ErrorResponse struct {
 	Message string `json:"message"`
 	ErrCode string `json:"err_code"`
 }
 
+// SuccessResponse is the response for a success
 type SuccessResponse struct {
 	Message string `json:"message"`
 	Data    any    `json:"data"`

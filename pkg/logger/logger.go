@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// InitLogger initialize the logger
 func InitLogger() {
 	logLevel := os.Getenv("APP_ENV")
 

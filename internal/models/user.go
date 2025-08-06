@@ -14,6 +14,7 @@ type User struct {
 // Provider represents the authentication provider type
 type Provider string
 
+// Provider constants
 const (
 	ProviderEmail  Provider = "email"  // Email/password authentication
 	ProviderGoogle Provider = "google" // Google OAuth authentication

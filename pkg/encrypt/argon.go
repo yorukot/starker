@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// params is the parameters for the Argon2id hash
 type params struct {
 	memory      uint32
 	iterations  uint32
@@ -18,7 +19,7 @@ type params struct {
 	keyLength   uint32
 }
 
-// Generate a Argon2id hash for the password
+// CreateArgon2idHash generate a Argon2id hash for the password
 func CreateArgon2idHash(password string) (string, error) {
 	p := &params{
 		memory:      128 * 1024,
@@ -43,6 +44,7 @@ func CreateArgon2idHash(password string) (string, error) {
 	return encodedHash, nil
 }
 
+// ComparePasswordAndHash compare the password and the hash
 func ComparePasswordAndHash(password, encodedHash string) (match bool, err error) {
 	p, salt, hash, err := decodeHash(encodedHash)
 	if err != nil {
@@ -58,6 +60,7 @@ func ComparePasswordAndHash(password, encodedHash string) (match bool, err error
 	return false, nil
 }
 
+// decodeHash decode the hash
 func decodeHash(encodedHash string) (p *params, salt, hash []byte, err error) {
 	vals := strings.Split(encodedHash, "$")
 	if len(vals) != 8 {

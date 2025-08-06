@@ -10,7 +10,7 @@ import (
 	"github.com/yorukot/stargo/internal/models"
 )
 
-// Check if the account already exists
+// GetAccountByProviderAndProviderUserID check if the account already exists
 func GetAccountByProviderAndProviderUserID(ctx context.Context, db pgx.Tx, provider models.Provider, providerUserID string) (*models.Account, error) {
 	query := `
 		SELECT * FROM accounts WHERE provider = $1 AND provider_user_id = $2

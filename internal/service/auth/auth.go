@@ -20,8 +20,7 @@ type RegisterRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=255"`
 }
 
-// TODO: write tests for this function
-// We separate the validation logic from the handler to make it easier to test
+// RegisterValidate validate the register request
 func RegisterValidate(registerRequest RegisterRequest) error {
 	return validator.New().Struct(registerRequest)
 }
@@ -38,10 +37,10 @@ func GenerateUser(registerRequest RegisterRequest) (models.User, models.Account,
 
 	// create the user
 	user := models.User{
-		ID:        userID,
-		PasswordHash:  &passwordHash,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:           userID,
+		PasswordHash: &passwordHash,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 
 	// Create the account
@@ -64,8 +63,7 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=255"`
 }
 
-// TODO: write tests for this function
-// LoginValidate validates the login request
+// LoginValidate validate the login request
 func LoginValidate(loginRequest LoginRequest) error {
 	return validator.New().Struct(loginRequest)
 }
@@ -93,9 +91,9 @@ func GenerateRefreshToken(userID string, userAgent string, ip string) (models.Re
 	}, nil
 }
 
-// TODO: might need change this to configurable
 // GenerateRefreshTokenCookie generates a refresh token cookie
-func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) (http.Cookie) {
+// TODO: might need change this to configurable
+func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) http.Cookie {
 	return http.Cookie{
 		Name:     "refresh_token",
 		Path:     "/api/auth/refresh",

@@ -29,6 +29,7 @@ func ZapLoggerMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 	}
 }
 
+// GenerateDiffrentColorForMethod generate a different color for the method
 func GenerateDiffrentColorForMethod(method string) string {
 	if os.Getenv("APP_ENV") == "dev" {
 		switch method {

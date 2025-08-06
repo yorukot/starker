@@ -8,11 +8,9 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
-
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
+// InitDatabase initialize the database connection pool and return the pool and also migrate the database
 func InitDatabase() (*pgxpool.Pool, error) {
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, getDatabaseURL())
@@ -31,23 +29,25 @@ func InitDatabase() (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+// getDatabaseURL return a pgsql connection uri by the environment variables
 func getDatabaseURL() string {
-	DB_HOST := os.Getenv("DB_HOST")
-	DB_PORT := os.Getenv("DB_PORT")
-	DB_USER := os.Getenv("DB_USER")
-	DB_PASSWORD := os.Getenv("DB_PASSWORD")
-	DB_NAME := os.Getenv("DB_NAME")
-	DB_SSL_MODE := os.Getenv("DB_SSL_MODE")
-	if DB_SSL_MODE == "" {
-		DB_SSL_MODE = "disable"
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	if dbSSLMode == "" {
+		dbSSLMode = "disable"
 	}
 
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME, DB_SSL_MODE,
+		dbUser, dbPassword, dbHost, dbPort, dbName, dbSSLMode,
 	)
 }
 
+// Migrator migrate the database
 func Migrator() {
 	zap.L().Info("Migrating database")
 

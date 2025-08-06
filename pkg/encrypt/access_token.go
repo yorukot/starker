@@ -6,10 +6,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// JWTSecret is the secret for the JWT
+// We doing this because this make the function more testable
 type JWTSecret struct {
 	Secret string
 }
 
+// AccessTokenClaims is the claims for the access token
 type AccessTokenClaims struct {
 	Issuer    string `json:"iss"`
 	Subject   string `json:"sub"`
@@ -17,6 +20,7 @@ type AccessTokenClaims struct {
 	IssuedAt  int64  `json:"iat"`
 }
 
+// GenerateAccessToken generate an access token
 func (j *JWTSecret) GenerateAccessToken(issuer string, subject string, expiresAt time.Time) (string, error) {
 	claims := AccessTokenClaims{
 		Issuer:    issuer,
@@ -35,6 +39,7 @@ func (j *JWTSecret) GenerateAccessToken(issuer string, subject string, expiresAt
 	return token.SignedString([]byte(j.Secret))
 }
 
+// ValidateAccessTokenAndGetClaims validate the access token and get the claims
 func (j *JWTSecret) ValidateAccessTokenAndGetClaims(token string) (bool, AccessTokenClaims, error) {
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
