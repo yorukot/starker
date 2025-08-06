@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17
-    container_name: postgres17
+    container_name: stargo-postgres
     environment:
       POSTGRES_DB: stargo
       POSTGRES_USER: stargo
