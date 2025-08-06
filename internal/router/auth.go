@@ -16,7 +16,6 @@ func AuthRouter(r chi.Router, app *handler.App) {
 
 		r.Post("/register", app.Register)
 		r.Post("/login", app.Login)
-		// TODO: add refresh token route
-		// r.Post("/refresh", oauthHandler.RefreshToken)
+		r.Post("/refresh", app.RefreshToken)
 	})
 }

@@ -3,6 +3,8 @@ package auth
 import (
 	"fmt"
 	"net"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -89,4 +91,18 @@ func GenerateRefreshToken(userID string, userAgent string, ip string) (models.Re
 		UsedAt:    nil,
 		CreatedAt: time.Now(),
 	}, nil
+}
+
+// TODO: might need change this to configurable
+// GenerateRefreshTokenCookie generates a refresh token cookie
+func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) (http.Cookie) {
+	return http.Cookie{
+		Name:     "refresh_token",
+		Path:     "/api/auth/refresh",
+		Value:    refreshToken.Token,
+		HttpOnly: true,
+		Secure:   os.Getenv("APP_ENV") == "production",
+		Expires:  refreshToken.CreatedAt.Add(time.Hour * 24 * 365),
+		SameSite: http.SameSiteStrictMode,
+	}
 }

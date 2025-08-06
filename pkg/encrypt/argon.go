@@ -21,8 +21,8 @@ type params struct {
 // Generate a Argon2id hash for the password
 func CreateArgon2idHash(password string) (string, error) {
 	p := &params{
-		memory:      64 * 1024,
-		iterations:  3,
+		memory:      128 * 1024,
+		iterations:  15,
 		parallelism: 4,
 		saltLength:  16,
 		keyLength:   32,

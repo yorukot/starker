@@ -78,6 +78,30 @@ paths:
       summary: User login
       tags:
       - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refreshes the access token and returns a new refresh token cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Access token generated successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request body, refresh token not found, or refresh token
+            already used
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Refresh token
+      tags:
+      - auth
   /auth/register:
     post:
       consumes:

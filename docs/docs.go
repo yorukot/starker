@@ -70,6 +70,41 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/refresh": {
+            "post": {
+                "description": "Refreshes the access token and returns a new refresh token cookie",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Refresh token",
+                "responses": {
+                    "200": {
+                        "description": "Access token generated successfully",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, refresh token not found, or refresh token already used",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/register": {
             "post": {
                 "description": "Creates a new user account with email and password",

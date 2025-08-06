@@ -33,3 +33,10 @@ func RespondWithJSON(w http.ResponseWriter, statusCode int, message string, data
 		Data:    data,
 	})
 }
+
+// RespondWithData responds with a JSON object
+func RespondWithData(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(data)
+}

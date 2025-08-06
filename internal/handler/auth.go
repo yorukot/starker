@@ -74,6 +74,13 @@ func (h *App) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	refreshToken, err := h.GenerateTokenAndSaveRefreshToken(r.Context(), tx, user.ID, r.UserAgent(), r.RemoteAddr)
+	if err != nil {
+		zap.L().Error("Failed to generate refresh token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate refresh token", "FAILED_TO_GENERATE_REFRESH_TOKEN")
+		return
+	}
+
 	// Commit the transaction
 	if err = tx.Commit(r.Context()); err != nil {
 		zap.L().Error("Failed to commit transaction", zap.Error(err))
@@ -81,6 +88,8 @@ func (h *App) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cookie := auth.GenerateRefreshTokenCookie(refreshToken)
+	http.SetCookie(w, &cookie)
 	response.RespondWithJSON(w, http.StatusOK, "User registered successfully", nil)
 }
 
@@ -149,17 +158,98 @@ func (h *App) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := http.Cookie{
-		Name:     "refresh_token",
-		Path:     "/api/auth/refresh",
-		Value:    refreshToken.Token,
-		HttpOnly: true,
-		Secure:   os.Getenv("APP_ENV") == "production",
-		Expires:  refreshToken.CreatedAt.Add(time.Hour * 24 * 30),
-		SameSite: http.SameSiteStrictMode,
+	if err = tx.Commit(r.Context()); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
+		return
 	}
 
+	cookie := auth.GenerateRefreshTokenCookie(refreshToken)
+	http.SetCookie(w, &cookie)
+	response.RespondWithJSON(w, http.StatusOK, "Login successful", nil)
+}
+
+// RefreshToken godoc
+// @Summary Refresh token
+// @Description Refreshes the access token and returns a new refresh token cookie
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} string "Access token generated successfully"
+// @Failure 400 {object} response.ErrorResponse "Invalid request body, refresh token not found, or refresh token already used"
+// @Failure 500 {object} response.ErrorResponse "Internal server error"
+// @Router /auth/refresh [post]
+func (h *App) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := r.Cookie("refresh_token")
+	if err != nil {
+		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token not found", "REFRESH_TOKEN_NOT_FOUND")
+		return
+	}
+
+	tx, err := h.DB.Begin(r.Context())
+	if err != nil {
+		zap.L().Error("Failed to begin transaction", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	checkedRefreshToken, err := repository.GetRefreshTokenByToken(r.Context(), tx, refreshToken.Value)
+	if err != nil {
+		zap.L().Error("Failed to get refresh token by token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get refresh token by token", "FAILED_TO_GET_REFRESH_TOKEN_BY_TOKEN")
+		return
+	}
+
+	if checkedRefreshToken == nil {
+		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token not found", "REFRESH_TOKEN_NOT_FOUND")
+		return
+	}
+
+	// TODO: Need to tell the user might just been hacked
+	if checkedRefreshToken.UsedAt != nil {
+		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token already used", "REFRESH_TOKEN_ALREADY_USED")
+		return
+	}
+	// Update the refresh token used_at
+	now := time.Now()
+	checkedRefreshToken.UsedAt = &now
+	if err = repository.UpdateRefreshTokenUsedAt(r.Context(), tx, *checkedRefreshToken); err != nil {
+		zap.L().Error("Failed to update refresh token used_at", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update refresh token used_at", "FAILED_TO_UPDATE_REFRESH_TOKEN_USED_AT")
+		return
+	}
+
+	// Generate new refresh token
+	newRefreshToken, err := h.GenerateTokenAndSaveRefreshToken(r.Context(), tx, checkedRefreshToken.UserID, r.UserAgent(), r.RemoteAddr)
+	if err != nil {
+		zap.L().Error("Failed to generate refresh token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate refresh token", "FAILED_TO_GENERATE_REFRESH_TOKEN")
+		return
+	}
+
+	// Generate AccessTokenClaims
+	accessTokenClaims := encrypt.JWTSecret{
+		Secret: os.Getenv("ACCESS_TOKEN_SECRET"),
+	}
+
+	// TODO: need to change this to configurable
+	accessToken, err := accessTokenClaims.GenerateAccessToken("stargo", checkedRefreshToken.UserID, time.Now().Add(time.Minute*30))
+	if err != nil {
+		zap.L().Error("Failed to generate access token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate access token", "FAILED_TO_GENERATE_ACCESS_TOKEN")
+		return
+	}
+
+	// Commit the transaction
+	if err = tx.Commit(r.Context()); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
+		return
+	}
+
+	cookie := auth.GenerateRefreshTokenCookie(newRefreshToken)
 	http.SetCookie(w, &cookie)
 
-	response.RespondWithJSON(w, http.StatusOK, "Login successful", nil)
+	response.RespondWithData(w, map[string]string{"access_token": accessToken})
 }

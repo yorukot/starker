@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+
+	"github.com/segmentio/ksuid"
 )
 
 func GenerateSecureRefreshToken() (string, error) {
@@ -12,5 +14,5 @@ func GenerateSecureRefreshToken() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes), nil
+	return ksuid.New().String() + "_" + base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes), nil
 }

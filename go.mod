@@ -8,13 +8,12 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/segmentio/ksuid v1.0.4
 	go.uber.org/zap v1.27.0
+	golang.org/x/crypto v0.40.0
 )
 
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/PuerkitoBio/purell v1.1.1 // indirect
-	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
@@ -36,7 +35,6 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
@@ -51,7 +49,6 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/go-playground/validator/v10 v10.27.0
-	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.18.3
 	github.com/google/uuid v1.6.0
