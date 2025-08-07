@@ -11,16 +11,6 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`                 // Timestamp when the user was last updated
 }
 
-// Provider represents the authentication provider type
-type Provider string
-
-// Provider constants
-const (
-	ProviderEmail  Provider = "email"  // Email/password authentication
-	ProviderGoogle Provider = "google" // Google OAuth authentication
-	// You can add more providers here
-)
-
 // Account represents how a user can login to the system
 type Account struct {
 	ID             string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`      // Unique identifier for the account

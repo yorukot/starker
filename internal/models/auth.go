@@ -12,3 +12,13 @@ type RefreshToken struct {
 	UsedAt    *time.Time `json:"used_at,omitempty" example:"2023-01-01T12:00:00Z"`                                  // Timestamp when the token was last used
 	CreatedAt time.Time  `json:"created_at" example:"2023-01-01T12:00:00Z"`                                         // Timestamp when the token was created
 }
+
+// Provider represents the authentication provider type
+type Provider string
+
+// Provider constants
+const (
+	ProviderEmail  Provider = "email"  // Email/password authentication
+	ProviderGoogle Provider = "google" // Google OAuth authentication
+	// You can add more providers here
+)

@@ -1,4 +1,4 @@
-package handler
+package auth
 
 import (
 	"context"
@@ -7,12 +7,12 @@ import (
 
 	"github.com/yorukot/stargo/internal/models"
 	"github.com/yorukot/stargo/internal/repository"
-	"github.com/yorukot/stargo/internal/service/auth"
+	"github.com/yorukot/stargo/internal/service/authsvc"
 )
 
 // GenerateTokenAndSaveRefreshToken generate a refresh token and save it to the database
-func (h *App) GenerateTokenAndSaveRefreshToken(ctx context.Context, db pgx.Tx, userID string, userAgent string, ip string) (models.RefreshToken, error) {
-	refreshToken, err := auth.GenerateRefreshToken(userID, userAgent, ip)
+func (h *AuthHandler) GenerateTokenAndSaveRefreshToken(ctx context.Context, db pgx.Tx, userID string, userAgent string, ip string) (models.RefreshToken, error) {
+	refreshToken, err := authsvc.GenerateRefreshToken(userID, userAgent, ip)
 	if err != nil {
 		return models.RefreshToken{}, err
 	}

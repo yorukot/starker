@@ -1,4 +1,4 @@
-package handler
+package auth
 
 import (
 	"encoding/json"
@@ -6,13 +6,19 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/stargo/internal/repository"
-	"github.com/yorukot/stargo/internal/service/auth"
+	"github.com/yorukot/stargo/internal/service/authsvc"
 	"github.com/yorukot/stargo/pkg/encrypt"
 	"github.com/yorukot/stargo/pkg/response"
 )
+
+// AuthHandler is the handler for the auth routes
+type AuthHandler struct {
+	DB *pgxpool.Pool
+}
 
 // Register godoc
 // @Summary Register a new user
@@ -25,15 +31,15 @@ import (
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or email already in use"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/register [post]
-func (h *App) Register(w http.ResponseWriter, r *http.Request) {
-	var registerRequest auth.RegisterRequest
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var registerRequest authsvc.RegisterRequest
 	err := json.NewDecoder(r.Body).Decode(&registerRequest)
 	if err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	if err = auth.RegisterValidate(registerRequest); err != nil {
+	if err = authsvc.RegisterValidate(registerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -60,7 +66,7 @@ func (h *App) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate the full user object
-	user, account, err := auth.GenerateUser(registerRequest)
+	user, account, err := authsvc.GenerateUser(registerRequest)
 	if err != nil {
 		zap.L().Error("Failed to generate user", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate user", "FAILED_TO_GENERATE_USER")
@@ -88,7 +94,7 @@ func (h *App) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := auth.GenerateRefreshTokenCookie(refreshToken)
+	cookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
 	http.SetCookie(w, &cookie)
 	response.RespondWithJSON(w, http.StatusOK, "User registered successfully", nil)
 }
@@ -104,15 +110,15 @@ func (h *App) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, user not found, or invalid password"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/login [post]
-func (h *App) Login(w http.ResponseWriter, r *http.Request) {
-	var loginRequest auth.LoginRequest
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var loginRequest authsvc.LoginRequest
 	err := json.NewDecoder(r.Body).Decode(&loginRequest)
 	if err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	if err = auth.LoginValidate(loginRequest); err != nil {
+	if err = authsvc.LoginValidate(loginRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -164,7 +170,7 @@ func (h *App) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := auth.GenerateRefreshTokenCookie(refreshToken)
+	cookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
 	http.SetCookie(w, &cookie)
 	response.RespondWithJSON(w, http.StatusOK, "Login successful", nil)
 }
@@ -179,7 +185,7 @@ func (h *App) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, refresh token not found, or refresh token already used"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/refresh [post]
-func (h *App) RefreshToken(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := r.Cookie("refresh_token")
 	if err != nil {
 		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token not found", "REFRESH_TOKEN_NOT_FOUND")
@@ -248,7 +254,7 @@ func (h *App) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := auth.GenerateRefreshTokenCookie(newRefreshToken)
+	cookie := authsvc.GenerateRefreshTokenCookie(newRefreshToken)
 	http.SetCookie(w, &cookie)
 
 	response.RespondWithData(w, map[string]string{"access_token": accessToken})
