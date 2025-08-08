@@ -102,6 +102,6 @@ func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) http.Cookie {
 		HttpOnly: true,
 		Secure:   config.Env().AppEnv == config.AppEnvProd,
 		Expires:  refreshToken.CreatedAt.Add(time.Duration(config.Env().RefreshTokenExpiresAt) * time.Second),
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	}
 }

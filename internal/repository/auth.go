@@ -44,6 +44,43 @@ func CreateRefreshToken(ctx context.Context, db pgx.Tx, refreshToken models.Refr
 	return err
 }
 
+// CreateOAuthToken creates a new OAuth token
+func CreateOAuthToken(ctx context.Context, db pgx.Tx, oauthToken models.OAuthToken) error {
+	query := `
+		INSERT INTO oauth_tokens (
+			account_id,
+			access_token,
+			refresh_token,
+			expiry,
+			token_type,
+			provider,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (account_id)
+		DO UPDATE SET
+			access_token = EXCLUDED.access_token,
+			refresh_token = EXCLUDED.refresh_token,
+			expiry = EXCLUDED.expiry,
+			token_type = EXCLUDED.token_type,
+			updated_at = EXCLUDED.updated_at
+	`
+
+	_, err := db.Exec(ctx,
+		query,
+		oauthToken.AccountID,
+		oauthToken.AccessToken,
+		oauthToken.RefreshToken,
+		oauthToken.Expiry,
+		oauthToken.TokenType,
+		oauthToken.Provider,
+		oauthToken.CreatedAt,
+		oauthToken.UpdatedAt,
+	)
+	return err
+}
+
 // UpdateRefreshTokenUsedAt updates the used_at of a refresh token
 func UpdateRefreshTokenUsedAt(ctx context.Context, db pgx.Tx, refreshToken models.RefreshToken) error {
 	query := `

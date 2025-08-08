@@ -32,8 +32,7 @@ func AuthRouter(r chi.Router, app *handler.App) {
 
 		r.Route("/oauth", func(r chi.Router) {
 			// We use AuthOptionalMiddleware because we want to allow users to access the OAuth session without being authenticated (first time login/register)
-			r.With(middleware.AuthOptionalMiddleware).Post("/session", oauthHandler.OAuthSession)
-			r.Get("/{provider}", oauthHandler.OAuthEntry)
+			r.With(middleware.AuthOptionalMiddleware).Get("/{provider}", oauthHandler.OAuthEntry)
 			r.Get("/{provider}/callback", oauthHandler.OAuthCallback)
 		})
 

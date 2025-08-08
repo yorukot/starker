@@ -26,10 +26,10 @@ func ParseProvider(provider string) (models.Provider, error) {
 }
 
 // OAuthGenerateStateWithPayload generate the oauth state with the payload
-func OAuthGenerateStateWithPayload(redirectURI string, expiresAt time.Time, userID string) (string, error) {
+func OAuthGenerateStateWithPayload(redirectURI string, expiresAt time.Time, userID string) (string, string, error) {
 	OAuthState, err := encrypt.GenerateRandomString(32)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate random string: %w", err)
+		return "", "", fmt.Errorf("failed to generate random string: %w", err)
 	}
 
 	secret := encrypt.JWTSecret{
@@ -38,12 +38,10 @@ func OAuthGenerateStateWithPayload(redirectURI string, expiresAt time.Time, user
 
 	tokenString, err := secret.GenerateOAuthState(OAuthState, redirectURI, expiresAt, userID)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate oauth state: %w", err)
+		return "", "", fmt.Errorf("failed to generate oauth state: %w", err)
 	}
 
-
-
-	return tokenString, nil
+	return tokenString, OAuthState, nil
 }
 
 // OAuthValidateStateWithPayload validate the oauth state with the payload

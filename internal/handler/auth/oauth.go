@@ -25,52 +25,6 @@ type OAuthHandler struct {
 }
 
 // +----------------------------------------------+
-// | OAuth Session                                |
-// +----------------------------------------------+
-
-// OAuthSession godoc
-// @Summary Create OAuth session
-// @Description Creates an OAuth session for linking accounts. Required for authenticated users who want to link external OAuth accounts
-// @Tags oauth
-// @Accept json
-// @Produce json
-// @Param next query string false "Redirect URL after successful OAuth linking"
-// @Success 200 {object} string "OAuth session created"
-// @Failure 500 {object} response.ErrorResponse "Failed to generate oauth state"
-// @Security BearerAuth
-// @Router /auth/oauth/session [post]
-func (h *OAuthHandler) OAuthSession(w http.ResponseWriter, r *http.Request) {
-	// We dont need to check if the user ID is nil because it is fine for the user first time login/register
-	var userID *string
-	if userIDValue := r.Context().Value(middleware.UserIDKey); userIDValue != nil {
-		userID = userIDValue.(*string)
-	}
-
-	expiresAt := time.Now().Add(time.Duration(config.Env().OAuthStateExpiresAt) * time.Second)
-
-	next := r.URL.Query().Get("next")
-	if next == "" {
-		next = "/"
-	}
-
-	var userIDStr string
-	if userID != nil {
-		userIDStr = *userID
-	}
-
-	oauthState, err := authsvc.OAuthGenerateStateWithPayload(next, expiresAt, userIDStr)
-	if err != nil {
-		zap.L().Error("Failed to generate oauth state", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate oauth state", "FAILED_TO_GENERATE_OAUTH_STATE")
-		return
-	}
-	oauthSessionCookie := authsvc.GenerateOAuthSessionCookie(oauthState)
-	http.SetCookie(w, &oauthSessionCookie)
-
-	response.RespondWithJSON(w, http.StatusOK, "OAuth session created", nil)
-}
-
-// +----------------------------------------------+
 // | OAuth Entry                                  |
 // +----------------------------------------------+
 
@@ -79,6 +33,7 @@ func (h *OAuthHandler) OAuthSession(w http.ResponseWriter, r *http.Request) {
 // @Description Redirects user to OAuth provider for authentication
 // @Tags oauth
 // @Param provider path string true "OAuth provider (e.g., google, github)"
+// @Param next query string false "Redirect URL after successful OAuth linking"
 // @Success 307 {string} string "Redirect to OAuth provider"
 // @Failure 400 {object} map[string]interface{} "Invalid provider or bad request"
 // @Failure 500 {object} map[string]interface{} "Internal server error"
@@ -91,23 +46,22 @@ func (h *OAuthHandler) OAuthEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the oauth session cookie
-	oauthSessionCookie, err := r.Cookie(models.CookieNameOAuthSession)
+	var userID string
+	if userIDValue := r.Context().Value(middleware.UserIDKey); userIDValue != nil {
+		userID = userIDValue.(string)
+	}
+
+	expiresAt := time.Now().Add(time.Duration(config.Env().OAuthStateExpiresAt) * time.Second)
+
+	next := r.URL.Query().Get("next")
+	if next == "" {
+		next = "/"
+	}
+
+	oauthStateJwt, oauthState, err := authsvc.OAuthGenerateStateWithPayload(next, expiresAt, userID)
 	if err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "OAuth session not found", "OAUTH_SESSION_NOT_FOUND")
-		return
-	}
-
-	// Check if the oauth session cookie is nil
-	if oauthSessionCookie == nil {
-		response.RespondWithError(w, http.StatusBadRequest, "OAuth session not found", "OAUTH_SESSION_NOT_FOUND")
-		return
-	}
-
-	// Validate the oauth state
-	valid, payload, err := authsvc.OAuthValidateStateWithPayload(oauthSessionCookie.Value)
-	if err != nil || !valid {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid oauth state", "INVALID_OAUTH_STATE")
+		zap.L().Error("Failed to generate oauth state", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate oauth state", "FAILED_TO_GENERATE_OAUTH_STATE")
 		return
 	}
 
@@ -115,7 +69,10 @@ func (h *OAuthHandler) OAuthEntry(w http.ResponseWriter, r *http.Request) {
 	oauthConfig := h.OAuthConfig.Providers[provider]
 
 	// Generate the auth URL
-	authURL := oauthConfig.AuthCodeURL(payload.State, oauth2.AccessTypeOffline)
+	authURL := oauthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
+
+	oauthSessionCookie := authsvc.GenerateOAuthSessionCookie(oauthStateJwt)
+	http.SetCookie(w, &oauthSessionCookie)
 
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
@@ -176,9 +133,10 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the user ID from the session cookie
-	var userID *string
+	var userID string
+	var accountID string
 	if payload.Subject != "" {
-		userID = &payload.Subject
+		userID = payload.Subject
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -224,14 +182,16 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	// If the account is not found and the userID is not nil, it means the user is already registered
 	// so we need to link the account to the user
-	if user == nil && userID != nil {
+	if user == nil && userID != "" {
 		// Link the account to the user
-		account, err := authsvc.GenerateUserAccountFromOAuthUserInfo(userInfo, provider, *userID)
+		account, err := authsvc.GenerateUserAccountFromOAuthUserInfo(userInfo, provider, userID)
 		if err != nil {
 			zap.L().Error("Failed to link account", zap.Error(err))
 			response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate user and account", "FAILED_TO_GENERATE_USER_AND_ACCOUNT")
 			return
 		}
+
+		accountID = account.ID
 
 		// Create the account
 		if err = repository.CreateAccount(r.Context(), tx, account); err != nil {
@@ -241,9 +201,9 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 		}
 		zap.L().Info("OAuth new user registered",
 			zap.String("provider", string(provider)),
-			zap.String("user_id", *userID),
+			zap.String("user_id", userID),
 			zap.String("ip", r.RemoteAddr))
-	} else if account == nil && userID == nil {
+	} else if account == nil && userID == "" {
 		// Generate the full user object
 		user, account, err := authsvc.GenerateUserFromOAuthUserInfo(userInfo, provider)
 		if err != nil {
@@ -259,28 +219,49 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		accountID = account.ID
+
 		// Set the user ID to the user ID
-		userID = &user.ID
+		userID = user.ID
 		zap.L().Info("OAuth link account successful",
 			zap.String("provider", string(provider)),
-			zap.String("user_id", *userID),
+			zap.String("user_id", userID),
 			zap.String("ip", r.RemoteAddr))
 	} else {
+		accountID = account.ID
+		userID = user.ID
 		zap.L().Info("OAuth login successful",
 			zap.String("provider", string(provider)),
-			zap.String("user_id", *userID),
+			zap.String("user_id", userID),
 			zap.String("ip", r.RemoteAddr))
 	}
 
-	// If the user ID is nil, it means something went wrong (it should not happen)
-	if userID == nil {
+	// If the user ID is empty, it means something went wrong (it should not happen)
+	if userID == "" {
 		zap.L().Error("User ID is nil", zap.Any("user", user))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create user and account", "FAILED_TO_CREATE_USER_AND_ACCOUNT")
 		return
 	}
 
+	// Create the oauth token
+	err = repository.CreateOAuthToken(r.Context(), tx, models.OAuthToken{
+		AccountID:    accountID,
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       token.Expiry,
+		TokenType:    token.TokenType,
+		Provider:     provider,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	})
+	if err != nil {
+		zap.L().Error("Failed to create oauth token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create oauth token", "FAILED_TO_CREATE_OAUTH_TOKEN")
+		return
+	}
+
 	// Generate the refresh token
-	refreshToken, err := GenerateTokenAndSaveRefreshToken(r.Context(), tx, *userID, r.UserAgent(), r.RemoteAddr)
+	refreshToken, err := GenerateTokenAndSaveRefreshToken(r.Context(), tx, userID, r.UserAgent(), r.RemoteAddr)
 	if err != nil {
 		zap.L().Error("Failed to create refresh token and access token", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create refresh token and access token", "FAILED_TO_CREATE_REFRESH_TOKEN_AND_ACCESS_TOKEN")

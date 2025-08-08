@@ -10,7 +10,7 @@ import (
 
 // GenerateSecureRefreshToken generate a secure refresh token
 func GenerateSecureRefreshToken() (string, error) {
-	bytes := make([]byte, 32) // 256-bit
+	bytes := make([]byte, 256) // 256-bit
 	_, err := rand.Read(bytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate token: %w", err)

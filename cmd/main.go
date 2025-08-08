@@ -14,6 +14,7 @@ import (
 	"github.com/yorukot/stargo/internal/middleware"
 	"github.com/yorukot/stargo/internal/router"
 	"github.com/yorukot/stargo/pkg/logger"
+	"github.com/yorukot/stargo/pkg/response"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -82,6 +83,19 @@ func setupRouter(r chi.Router, app *handler.App) {
 	if config.Env().AppEnv == config.AppEnvDev {
 		r.Get("/swagger/*", httpSwagger.WrapHandler)
 	}
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	})
+
+	// Not found handler
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		response.RespondWithError(w, http.StatusNotFound, "Not Found", "NOT_FOUND")
+	})
+
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		response.RespondWithError(w, http.StatusMethodNotAllowed, "Method Not Allowed", "METHOD_NOT_ALLOWED")
+	})
 
 	zap.L().Info("Router setup complete")
 }

@@ -70,48 +70,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/oauth/session": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Creates an OAuth session for linking accounts. Required for authenticated users who want to link external OAuth accounts",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "oauth"
-                ],
-                "summary": "Create OAuth session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Redirect URL after successful OAuth linking",
-                        "name": "next",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OAuth session created",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to generate oauth state",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/auth/oauth/{provider}": {
             "get": {
                 "description": "Redirects user to OAuth provider for authentication",
@@ -126,6 +84,12 @@ const docTemplate = `{
                         "name": "provider",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URL after successful OAuth linking",
+                        "name": "next",
+                        "in": "query"
                     }
                 ],
                 "responses": {

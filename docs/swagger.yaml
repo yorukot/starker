@@ -87,6 +87,10 @@ paths:
         name: provider
         required: true
         type: string
+      - description: Redirect URL after successful OAuth linking
+        in: query
+        name: next
+        type: string
       responses:
         "307":
           description: Redirect to OAuth provider
@@ -143,33 +147,6 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       summary: OAuth callback handler
-      tags:
-      - oauth
-  /auth/oauth/session:
-    post:
-      consumes:
-      - application/json
-      description: Creates an OAuth session for linking accounts. Required for authenticated
-        users who want to link external OAuth accounts
-      parameters:
-      - description: Redirect URL after successful OAuth linking
-        in: query
-        name: next
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OAuth session created
-          schema:
-            type: string
-        "500":
-          description: Failed to generate oauth state
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create OAuth session
       tags:
       - oauth
   /auth/refresh:
