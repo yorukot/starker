@@ -2,6 +2,12 @@ package models
 
 import "time"
 
+// CookieName constants
+const (
+	CookieNameOAuthSession = "oauth_session"
+	CookieNameRefreshToken = "refresh_token"
+)
+
 // RefreshToken represents a refresh token for user authentication
 type RefreshToken struct {
 	ID        string     `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                                           // Unique identifier for the refresh token

@@ -2,12 +2,15 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/yorukot/stargo/internal/config"
 )
 
 // InitDatabase initialize the database connection pool and return the pool and also migrate the database
@@ -31,12 +34,12 @@ func InitDatabase() (*pgxpool.Pool, error) {
 
 // getDatabaseURL return a pgsql connection uri by the environment variables
 func getDatabaseURL() string {
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	dbHost := config.Env().DBHost
+	dbPort := config.Env().DBPort
+	dbUser := config.Env().DBUser
+	dbPassword := config.Env().DBPassword
+	dbName := config.Env().DBName
+	dbSSLMode := config.Env().DBSSLMode
 	if dbSSLMode == "" {
 		dbSSLMode = "disable"
 	}
@@ -47,7 +50,7 @@ func getDatabaseURL() string {
 	)
 }
 
-// Migrator migrate the database
+// Migrator the database
 func Migrator() {
 	zap.L().Info("Migrating database")
 
@@ -61,7 +64,7 @@ func Migrator() {
 		zap.L().Fatal("failed to create migrator", zap.Error(err))
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		zap.L().Fatal("failed to migrate database", zap.Error(err))
 	}
 

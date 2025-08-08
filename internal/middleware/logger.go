@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/yorukot/stargo/internal/config"
 )
 
 // ZapLoggerMiddleware is a middleware that logs the incoming request and the response time
@@ -33,7 +34,7 @@ func ZapLoggerMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 
 // GenerateDiffrentColorForMethod generate a different color for the method
 func GenerateDiffrentColorForMethod(method string) string {
-	if os.Getenv("APP_ENV") == "dev" {
+	if config.Env().AppEnv == config.AppEnvDev {
 		switch method {
 		case "GET":
 			return color.GreenString(method)

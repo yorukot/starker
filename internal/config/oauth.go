@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"os"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"go.uber.org/zap"
@@ -18,12 +17,12 @@ type OAuthConfig struct {
 	OIDCProviders map[models.Provider]*oidc.Provider
 }
 
-// OauthConfig returns the OAuth2 configuration for Google
-func OauthConfig() (*OAuthConfig, error) {
+// GetOAuthConfig returns the OAuth2 configuration for Google
+func GetOAuthConfig() (*OAuthConfig, error) {
 	googleOauthConfig := &oauth2.Config{
-		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  Env().GoogleRedirectURL,
+		ClientID:     Env().GoogleClientID,
+		ClientSecret: Env().GoogleClientSecret,
 		Scopes:       []string{"openid", "email", "profile"},
 		Endpoint:     google.Endpoint,
 	}

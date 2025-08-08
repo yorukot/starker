@@ -2,13 +2,13 @@ package main
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/stargo/internal/config"
 	"github.com/yorukot/stargo/internal/database"
 	"github.com/yorukot/stargo/internal/handler"
 	"github.com/yorukot/stargo/internal/middleware"
@@ -39,9 +39,15 @@ import (
 
 // Run starts the server
 func main() {
-	r := chi.NewRouter()
-
 	logger.InitLogger()
+
+	_, err := config.InitConfig()
+	if err != nil {
+		zap.L().Fatal("Error initializing config", zap.Error(err))
+		return
+	}
+
+	r := chi.NewRouter()
 
 	db, err := database.InitDatabase()
 	if err != nil {
@@ -58,10 +64,13 @@ func main() {
 
 	setupRouter(r, &handler.App{DB: db})
 
-	zap.L().Info("Starting server on http://localhost:" + os.Getenv("PORT"))
-	zap.L().Info("Environment: " + os.Getenv("APP_ENV"))
+	zap.L().Info("Starting server on http://localhost:" + config.Env().Port)
+	zap.L().Info("Environment: " + string(config.Env().AppEnv))
 
-	http.ListenAndServe(":"+os.Getenv("PORT"), r)
+	err = http.ListenAndServe(":"+config.Env().Port, r)
+	if err != nil {
+		zap.L().Fatal("Failed to start server", zap.Error(err))
+	}
 }
 
 // setupRouter sets up the router
@@ -70,7 +79,7 @@ func setupRouter(r chi.Router, app *handler.App) {
 		router.AuthRouter(r, app)
 	})
 
-	if os.Getenv("APP_ENV") == "dev" {
+	if config.Env().AppEnv == config.AppEnvDev {
 		r.Get("/swagger/*", httpSwagger.WrapHandler)
 	}
 

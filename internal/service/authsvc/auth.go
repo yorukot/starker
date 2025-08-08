@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/segmentio/ksuid"
 
+	"github.com/yorukot/stargo/internal/config"
 	"github.com/yorukot/stargo/internal/models"
 	"github.com/yorukot/stargo/pkg/encrypt"
 )
@@ -92,15 +92,16 @@ func GenerateRefreshToken(userID string, userAgent string, ip string) (models.Re
 }
 
 // GenerateRefreshTokenCookie generates a refresh token cookie
-// TODO: might need change this to configurable
 func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) http.Cookie {
 	return http.Cookie{
-		Name:     "refresh_token",
-		Path:     "/api/auth/refresh",
+		Name: models.CookieNameRefreshToken,
+		Path: "/api/auth/refresh",
+		// TODO: Add config for frontend domain
+		// Domain:   "localhost",
 		Value:    refreshToken.Token,
 		HttpOnly: true,
-		Secure:   os.Getenv("APP_ENV") == "production",
-		Expires:  refreshToken.CreatedAt.Add(time.Hour * 24 * 365),
+		Secure:   config.Env().AppEnv == config.AppEnvProd,
+		Expires:  refreshToken.CreatedAt.Add(time.Duration(config.Env().RefreshTokenExpiresAt) * time.Second),
 		SameSite: http.SameSiteStrictMode,
 	}
 }

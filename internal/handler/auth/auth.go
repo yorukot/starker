@@ -1,14 +1,15 @@
+// Package auth provides the auth handler.
 package auth
 
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/stargo/internal/config"
 	"github.com/yorukot/stargo/internal/repository"
 	"github.com/yorukot/stargo/internal/service/authsvc"
 	"github.com/yorukot/stargo/pkg/encrypt"
@@ -20,30 +21,36 @@ type AuthHandler struct {
 	DB *pgxpool.Pool
 }
 
+// +----------------------------------------------+
+// | Register                                     |
+// +----------------------------------------------+
+
 // Register godoc
 // @Summary Register a new user
 // @Description Creates a new user account with email and password
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param request body auth.RegisterRequest true "Registration request"
+// @Param request body authsvc.RegisterRequest true "Registration request"
 // @Success 200 {object} string "User registered successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or email already in use"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	// Decode the request body
 	var registerRequest authsvc.RegisterRequest
-	err := json.NewDecoder(r.Body).Decode(&registerRequest)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&registerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	if err = authsvc.RegisterValidate(registerRequest); err != nil {
+	// Validate the request body
+	if err := authsvc.RegisterValidate(registerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
+	// Begin the transaction
 	tx, err := h.DB.Begin(r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
@@ -52,7 +59,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	// Check if the user already exists
+	// Get the account by email
 	checkedAccount, err := repository.GetAccountByEmail(r.Context(), tx, registerRequest.Email)
 	if err != nil {
 		zap.L().Error("Failed to check if user already exists", zap.Error(err))
@@ -60,12 +67,13 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the account is found, return an error
 	if checkedAccount != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "This email is already in use", "EMAIL_ALREADY_IN_USE")
 		return
 	}
 
-	// Generate the full user object
+	// Generate the user and account
 	user, account, err := authsvc.GenerateUser(registerRequest)
 	if err != nil {
 		zap.L().Error("Failed to generate user", zap.Error(err))
@@ -73,14 +81,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create the user and account
+	// Create the user and account in the database
 	if err = repository.CreateUserAndAccount(r.Context(), tx, user, account); err != nil {
 		zap.L().Error("Failed to create user", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create user", "FAILED_TO_CREATE_USER")
 		return
 	}
 
-	refreshToken, err := h.GenerateTokenAndSaveRefreshToken(r.Context(), tx, user.ID, r.UserAgent(), r.RemoteAddr)
+	// Generate the refresh token
+	refreshToken, err := GenerateTokenAndSaveRefreshToken(r.Context(), tx, user.ID, r.UserAgent(), r.RemoteAddr)
 	if err != nil {
 		zap.L().Error("Failed to generate refresh token", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate refresh token", "FAILED_TO_GENERATE_REFRESH_TOKEN")
@@ -94,10 +103,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
-	http.SetCookie(w, &cookie)
+	// Generate the refresh token cookie
+	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
+	http.SetCookie(w, &refreshTokenCookie)
+
+	// Respond with the success message
 	response.RespondWithJSON(w, http.StatusOK, "User registered successfully", nil)
 }
+
+// +----------------------------------------------+
+// | Login                                        |
+// +----------------------------------------------+
 
 // Login godoc
 // @Summary User login
@@ -105,24 +121,26 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param request body auth.LoginRequest true "Login request"
+// @Param request body authsvc.LoginRequest true "Login request"
 // @Success 200 {object} string "Login successful"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, user not found, or invalid password"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	// Decode the request body
 	var loginRequest authsvc.LoginRequest
-	err := json.NewDecoder(r.Body).Decode(&loginRequest)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	if err = authsvc.LoginValidate(loginRequest); err != nil {
+	// Validate the request body
+	if err := authsvc.LoginValidate(loginRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
+	// Begin the transaction
 	tx, err := h.DB.Begin(r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
@@ -139,12 +157,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: Need to change this
+	// If the user is not found, return an error
 	if user == nil {
-		response.RespondWithError(w, http.StatusBadRequest, "User not found", "USER_NOT_FOUND")
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid credentials", "INVALID_CREDENTIALS")
 		return
 	}
 
-	// Check if the password is correct
+	// Compare the password and hash
 	match, err := encrypt.ComparePasswordAndHash(loginRequest.Password, *user.PasswordHash)
 	if err != nil {
 		zap.L().Error("Failed to compare password and hash", zap.Error(err))
@@ -152,28 +172,37 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the password is not correct, return an error
 	if !match {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid password", "INVALID_PASSWORD")
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid credentials", "INVALID_CREDENTIALS")
 		return
 	}
 
-	refreshToken, err := h.GenerateTokenAndSaveRefreshToken(r.Context(), tx, user.ID, r.UserAgent(), r.RemoteAddr)
+	// Generate the refresh token
+	refreshToken, err := GenerateTokenAndSaveRefreshToken(r.Context(), tx, user.ID, r.UserAgent(), r.RemoteAddr)
 	if err != nil {
 		zap.L().Error("Failed to generate refresh token", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate refresh token", "FAILED_TO_GENERATE_REFRESH_TOKEN")
 		return
 	}
 
+	// Commit the transaction
 	if err = tx.Commit(r.Context()); err != nil {
 		zap.L().Error("Failed to commit transaction", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
 		return
 	}
 
-	cookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
-	http.SetCookie(w, &cookie)
+	// Generate the refresh token cookie
+	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
+	http.SetCookie(w, &refreshTokenCookie)
+
 	response.RespondWithJSON(w, http.StatusOK, "Login successful", nil)
 }
+
+// +----------------------------------------------+
+// | Refresh Token                                |
+// +----------------------------------------------+
 
 // RefreshToken godoc
 // @Summary Refresh token
@@ -186,12 +215,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/refresh [post]
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	refreshToken, err := r.Cookie("refresh_token")
+	userRefreshToken, err := r.Cookie("refresh_token")
 	if err != nil {
 		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token not found", "REFRESH_TOKEN_NOT_FOUND")
 		return
 	}
 
+	// Begin the transaction
 	tx, err := h.DB.Begin(r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
@@ -200,13 +230,15 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 
-	checkedRefreshToken, err := repository.GetRefreshTokenByToken(r.Context(), tx, refreshToken.Value)
+	// Get the refresh token by token
+	checkedRefreshToken, err := repository.GetRefreshTokenByToken(r.Context(), tx, userRefreshToken.Value)
 	if err != nil {
 		zap.L().Error("Failed to get refresh token by token", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get refresh token by token", "FAILED_TO_GET_REFRESH_TOKEN_BY_TOKEN")
 		return
 	}
 
+	// If the refresh token is not found, return an error
 	if checkedRefreshToken == nil {
 		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token not found", "REFRESH_TOKEN_NOT_FOUND")
 		return
@@ -214,6 +246,11 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Need to tell the user might just been hacked
 	if checkedRefreshToken.UsedAt != nil {
+		zap.L().Warn("Refresh token already used",
+			zap.String("refresh_token_id", checkedRefreshToken.ID),
+			zap.String("ip", r.RemoteAddr),
+			zap.String("user_agent", r.UserAgent()),
+		)
 		response.RespondWithError(w, http.StatusUnauthorized, "Refresh token already used", "REFRESH_TOKEN_ALREADY_USED")
 		return
 	}
@@ -227,23 +264,10 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate new refresh token
-	newRefreshToken, err := h.GenerateTokenAndSaveRefreshToken(r.Context(), tx, checkedRefreshToken.UserID, r.UserAgent(), r.RemoteAddr)
+	newRefreshToken, err := GenerateTokenAndSaveRefreshToken(r.Context(), tx, checkedRefreshToken.UserID, r.UserAgent(), r.RemoteAddr)
 	if err != nil {
 		zap.L().Error("Failed to generate refresh token", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate refresh token", "FAILED_TO_GENERATE_REFRESH_TOKEN")
-		return
-	}
-
-	// Generate AccessTokenClaims
-	accessTokenClaims := encrypt.JWTSecret{
-		Secret: os.Getenv("ACCESS_TOKEN_SECRET"),
-	}
-
-	// TODO: need to change this to configurable
-	accessToken, err := accessTokenClaims.GenerateAccessToken("stargo", checkedRefreshToken.UserID, time.Now().Add(time.Minute*30))
-	if err != nil {
-		zap.L().Error("Failed to generate access token", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to generate access token", "FAILED_TO_GENERATE_ACCESS_TOKEN")
 		return
 	}
 
@@ -254,8 +278,24 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := authsvc.GenerateRefreshTokenCookie(newRefreshToken)
-	http.SetCookie(w, &cookie)
+	// Generate the refresh token cookie
+	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(newRefreshToken)
+	http.SetCookie(w, &refreshTokenCookie)
 
-	response.RespondWithData(w, map[string]string{"access_token": accessToken})
+	// Generate AccessTokenClaims
+	accessTokenClaims := encrypt.JWTSecret{
+		Secret: config.Env().JWTSecretKey,
+	}
+
+	// Generate the access token
+	accessToken, err := accessTokenClaims.GenerateAccessToken(config.Env().AppName, checkedRefreshToken.UserID, time.Now().Add(time.Duration(config.Env().AccessTokenExpiresAt)*time.Second))
+	if err != nil {
+		zap.L().Error("Failed to generate access token", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Internal server error", "INTERNAL_SERVER_ERROR")
+		return
+	}
+
+	response.RespondWithJSON(w, 200, "Access token generated successfully", map[string]string{
+		"access_token": accessToken,
+	})
 }

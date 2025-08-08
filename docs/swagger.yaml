@@ -1,6 +1,6 @@
 basePath: /api
 definitions:
-  auth.LoginRequest:
+  authsvc.LoginRequest:
     properties:
       email:
         maxLength: 255
@@ -13,7 +13,7 @@ definitions:
     - email
     - password
     type: object
-  auth.RegisterRequest:
+  authsvc.RegisterRequest:
     properties:
       email:
         maxLength: 255
@@ -59,7 +59,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/authsvc.LoginRequest'
       produces:
       - application/json
       responses:
@@ -78,6 +78,100 @@ paths:
       summary: User login
       tags:
       - auth
+  /auth/oauth/{provider}:
+    get:
+      description: Redirects user to OAuth provider for authentication
+      parameters:
+      - description: OAuth provider (e.g., google, github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "307":
+          description: Redirect to OAuth provider
+          schema:
+            type: string
+        "400":
+          description: Invalid provider or bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Initiate OAuth flow
+      tags:
+      - oauth
+  /auth/oauth/{provider}/callback:
+    get:
+      consumes:
+      - application/json
+      description: Handles OAuth provider callback, processes authorization code,
+        creates/links user accounts, and issues authentication tokens
+      parameters:
+      - description: OAuth provider (e.g., google, github)
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: Authorization code from OAuth provider
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state parameter for CSRF protection
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "307":
+          description: Redirect to success URL with authentication cookies set
+          schema:
+            type: string
+        "400":
+          description: Invalid provider, oauth state, or verification failed
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error during user creation or token generation
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: OAuth callback handler
+      tags:
+      - oauth
+  /auth/oauth/session:
+    post:
+      consumes:
+      - application/json
+      description: Creates an OAuth session for linking accounts. Required for authenticated
+        users who want to link external OAuth accounts
+      parameters:
+      - description: Redirect URL after successful OAuth linking
+        in: query
+        name: next
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OAuth session created
+          schema:
+            type: string
+        "500":
+          description: Failed to generate oauth state
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create OAuth session
+      tags:
+      - oauth
   /auth/refresh:
     post:
       consumes:
@@ -113,7 +207,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.RegisterRequest'
+          $ref: '#/definitions/authsvc.RegisterRequest'
       produces:
       - application/json
       responses:

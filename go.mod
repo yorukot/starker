@@ -3,6 +3,7 @@ module github.com/yorukot/stargo
 go 1.24.3
 
 require (
+	github.com/caarlos0/env/v10 v10.0.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/joho/godotenv v1.5.1

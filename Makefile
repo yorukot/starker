@@ -17,6 +17,9 @@ lint:
 	go vet ./...
 	golint ./...
 
+generate-docs:
+	swag init -g cmd/main.go -o ./docs
+
 clean:
 	rm -rf tmp/
 
