@@ -1,5 +1,8 @@
 # Stargo
 
+> This readme is outdated. It's not updated to the latest version of the project.
+> I will update it soon. August 8, 2026.
+
 A modern Go web API template built with Chi router and PostgreSQL, featuring OAuth 2.0 authentication and clean architecture patterns.
 
 ## Getting Started
