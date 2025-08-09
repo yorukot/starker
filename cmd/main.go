@@ -59,10 +59,6 @@ func main() {
 	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
 	r.Use(chiMiddleware.StripSlashes)
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello stargo!"))
-	})
-
 	setupRouter(r, &handler.App{DB: db})
 
 	zap.L().Info("Starting server on http://localhost:" + config.Env().Port)
