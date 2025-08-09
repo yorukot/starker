@@ -5,9 +5,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/yorukot/stargo/internal/models"
-	"github.com/yorukot/stargo/internal/repository"
-	"github.com/yorukot/stargo/internal/service/authsvc"
+	"github.com/yorukot/starker/internal/models"
+	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/internal/service/authsvc"
 )
 
 // GenerateTokenAndSaveRefreshToken generate a refresh token and save it to the database

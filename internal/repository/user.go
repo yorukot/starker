@@ -7,7 +7,7 @@ import (
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/yorukot/stargo/internal/models"
+	"github.com/yorukot/starker/internal/models"
 )
 
 // GetAccountByEmail checks if the user already exists

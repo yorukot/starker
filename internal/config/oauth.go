@@ -8,7 +8,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/yorukot/stargo/internal/models"
+	"github.com/yorukot/starker/internal/models"
 )
 
 // OAuthConfig is the configuration for the OAuth providers

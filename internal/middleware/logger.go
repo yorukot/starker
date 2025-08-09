@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/stargo/internal/config"
+	"github.com/yorukot/starker/internal/config"
 )
 
 // ZapLoggerMiddleware is a middleware that logs the incoming request and the response time

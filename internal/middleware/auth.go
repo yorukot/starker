@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/pkg/encrypt"
-	"github.com/yorukot/stargo/pkg/response"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/pkg/encrypt"
+	"github.com/yorukot/starker/pkg/response"
 )
 
 // authMiddlewareLogic is the logic for the auth middleware

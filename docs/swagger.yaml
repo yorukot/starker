@@ -39,12 +39,12 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: Stargo Go API Template
+  description: starker Go API Template
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
   termsOfService: http://swagger.io/terms/
-  title: Stargo Go API Template
+  title: starker Go API Template
   version: "1.0"
 paths:
   /auth/login:

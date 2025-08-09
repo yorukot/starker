@@ -10,12 +10,12 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/middleware"
-	"github.com/yorukot/stargo/internal/models"
-	"github.com/yorukot/stargo/internal/repository"
-	"github.com/yorukot/stargo/internal/service/authsvc"
-	"github.com/yorukot/stargo/pkg/response"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
+	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/internal/service/authsvc"
+	"github.com/yorukot/starker/pkg/response"
 )
 
 // OAuthHandler is the handler for the oauth routes

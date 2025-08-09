@@ -37,7 +37,7 @@ type EnvConfig struct {
 	Port    string `env:"PORT" envDefault:"8080"`
 	Debug   bool   `env:"DEBUG" envDefault:"false"`
 	AppEnv  AppEnv `env:"APP_ENV" envDefault:"prod"`
-	AppName string `env:"APP_NAME" envDefault:"stargo"`
+	AppName string `env:"APP_NAME" envDefault:"starker"`
 }
 
 var (

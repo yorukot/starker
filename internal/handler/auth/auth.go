@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/repository"
-	"github.com/yorukot/stargo/internal/service/authsvc"
-	"github.com/yorukot/stargo/pkg/encrypt"
-	"github.com/yorukot/stargo/pkg/response"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/internal/service/authsvc"
+	"github.com/yorukot/starker/pkg/encrypt"
+	"github.com/yorukot/starker/pkg/response"
 )
 
 // AuthHandler is the handler for the auth routes

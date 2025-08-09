@@ -10,9 +10,9 @@ import (
 	"github.com/segmentio/ksuid"
 	"golang.org/x/oauth2"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/models"
-	"github.com/yorukot/stargo/pkg/encrypt"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/models"
+	"github.com/yorukot/starker/pkg/encrypt"
 )
 
 // ParseProvider parse the provider from the request

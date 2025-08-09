@@ -1,4 +1,4 @@
-module github.com/yorukot/stargo
+module github.com/yorukot/starker
 
 go 1.24.3
 

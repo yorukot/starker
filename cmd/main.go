@@ -8,23 +8,23 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/database"
-	"github.com/yorukot/stargo/internal/handler"
-	"github.com/yorukot/stargo/internal/middleware"
-	"github.com/yorukot/stargo/internal/router"
-	"github.com/yorukot/stargo/pkg/logger"
-	"github.com/yorukot/stargo/pkg/response"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/database"
+	"github.com/yorukot/starker/internal/handler"
+	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/router"
+	"github.com/yorukot/starker/pkg/logger"
+	"github.com/yorukot/starker/pkg/response"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/yorukot/stargo/docs"
+	_ "github.com/yorukot/starker/docs"
 )
 
-// @title Stargo Go API Template
+// @title starker Go API Template
 // @version 1.0
-// @description Stargo Go API Template
+// @description starker Go API Template
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name API Support

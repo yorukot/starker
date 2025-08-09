@@ -9,9 +9,9 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/segmentio/ksuid"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/models"
-	"github.com/yorukot/stargo/pkg/encrypt"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/models"
+	"github.com/yorukot/starker/pkg/encrypt"
 )
 
 // RegisterRequest is the request body for the register endpoint

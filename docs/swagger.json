@@ -5,8 +5,8 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "Stargo Go API Template",
-        "title": "Stargo Go API Template",
+        "description": "starker Go API Template",
+        "title": "starker Go API Template",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "API Support",

@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/stargo/internal/config"
+	"github.com/yorukot/starker/internal/config"
 )
 
 // InitDatabase initialize the database connection pool and return the pool and also migrate the database

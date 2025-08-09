@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/yorukot/stargo/internal/config"
+	"github.com/yorukot/starker/internal/config"
 )
 
 // InitLogger initialize the logger

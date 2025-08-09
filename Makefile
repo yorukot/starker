@@ -1,4 +1,4 @@
-BINARY_NAME=stargo
+BINARY_NAME=starker
 
 build:
 	go build -o tmp/$(BINARY_NAME) cmd/main.go

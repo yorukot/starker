@@ -4,10 +4,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/stargo/internal/config"
-	"github.com/yorukot/stargo/internal/handler"
-	"github.com/yorukot/stargo/internal/handler/auth"
-	"github.com/yorukot/stargo/internal/middleware"
+	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/handler"
+	"github.com/yorukot/starker/internal/handler/auth"
+	"github.com/yorukot/starker/internal/middleware"
 )
 
 // AuthRouter sets up the authentication routes
