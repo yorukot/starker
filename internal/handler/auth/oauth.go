@@ -164,13 +164,13 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Begin the transaction
-	tx, err := h.DB.Begin(r.Context())
+	tx, err := repository.StartTransaction(h.DB, r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	defer tx.Rollback(r.Context())
+	defer repository.DeferRollback(tx, r.Context())
 
 	// Get the account and user by the provider and user ID for checking if the user is already linked/registered
 	account, user, err := repository.GetAccountWithUserByProviderUserID(r.Context(), tx, provider, userInfo.Subject)
@@ -269,11 +269,7 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Commit the transaction
-	if err := tx.Commit(r.Context()); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
-		return
-	}
+	repository.CommitTransaction(tx, r.Context())
 
 	// Generate the refresh token cookie
 	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)

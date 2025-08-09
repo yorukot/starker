@@ -51,13 +51,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Begin the transaction
-	tx, err := h.DB.Begin(r.Context())
+	tx, err := repository.StartTransaction(h.DB, r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	defer tx.Rollback(r.Context())
+
+	defer repository.DeferRollback(tx, r.Context())
 
 	// Get the account by email
 	checkedAccount, err := repository.GetAccountByEmail(r.Context(), tx, registerRequest.Email)
@@ -97,11 +98,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Commit the transaction
-	if err = tx.Commit(r.Context()); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
-		return
-	}
+	repository.CommitTransaction(tx, r.Context())
 
 	// Generate the refresh token cookie
 	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
@@ -141,13 +138,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Begin the transaction
-	tx, err := h.DB.Begin(r.Context())
+	tx, err := repository.StartTransaction(h.DB, r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	defer tx.Rollback(r.Context())
+	defer repository.DeferRollback(tx, r.Context())
 
 	// Get the user by email
 	user, err := repository.GetUserByEmail(r.Context(), tx, loginRequest.Email)
@@ -187,11 +184,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Commit the transaction
-	if err = tx.Commit(r.Context()); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
-		return
-	}
+	repository.CommitTransaction(tx, r.Context())
 
 	// Generate the refresh token cookie
 	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
@@ -222,13 +215,13 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Begin the transaction
-	tx, err := h.DB.Begin(r.Context())
+	tx, err := repository.StartTransaction(h.DB, r.Context())
 	if err != nil {
 		zap.L().Error("Failed to begin transaction", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	defer tx.Rollback(r.Context())
+	defer repository.DeferRollback(tx, r.Context())
 
 	// Get the refresh token by token
 	checkedRefreshToken, err := repository.GetRefreshTokenByToken(r.Context(), tx, userRefreshToken.Value)
@@ -272,11 +265,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Commit the transaction
-	if err = tx.Commit(r.Context()); err != nil {
-		zap.L().Error("Failed to commit transaction", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
-		return
-	}
+	repository.CommitTransaction(tx, r.Context())
 
 	// Generate the refresh token cookie
 	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(newRefreshToken)
