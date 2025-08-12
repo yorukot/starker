@@ -18,6 +18,7 @@ import (
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email,max=255"`
 	Password string `json:"password" validate:"required,min=8,max=255"`
+	DisplayName string `json:"display_name" validate:"required,min=3,max=255"`
 }
 
 // RegisterValidate validate the register request
@@ -39,6 +40,7 @@ func GenerateUser(registerRequest RegisterRequest) (models.User, models.Account,
 	user := models.User{
 		ID:           userID,
 		PasswordHash: &passwordHash,
+		DisplayName:  registerRequest.DisplayName,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}

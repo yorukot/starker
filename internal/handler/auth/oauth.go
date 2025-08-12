@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 
@@ -17,12 +16,6 @@ import (
 	"github.com/yorukot/starker/internal/service/authsvc"
 	"github.com/yorukot/starker/pkg/response"
 )
-
-// OAuthHandler is the handler for the oauth routes
-type OAuthHandler struct {
-	DB          *pgxpool.Pool
-	OAuthConfig *config.OAuthConfig
-}
 
 // +----------------------------------------------+
 // | OAuth Entry                                  |

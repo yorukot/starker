@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/config"
@@ -15,11 +14,6 @@ import (
 	"github.com/yorukot/starker/pkg/encrypt"
 	"github.com/yorukot/starker/pkg/response"
 )
-
-// AuthHandler is the handler for the auth routes
-type AuthHandler struct {
-	DB *pgxpool.Pool
-}
 
 // +----------------------------------------------+
 // | Register                                     |

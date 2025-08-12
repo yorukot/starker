@@ -94,17 +94,27 @@ func GenerateUserFromOAuthUserInfo(userInfo *oidc.UserInfo, provider models.Prov
 
 	// Get the picture from the user info
 	var picture *string
+	var displayName string
 	var claims struct {
-		Picture string `json:"picture"`
+		Picture     string `json:"picture"`
+		FamilyName  string `json:"family_name"`
+		GivenName   string `json:"given_name"`
 	}
 	if err := userInfo.Claims(&claims); err == nil && claims.Picture != "" {
 		picture = &claims.Picture
+	}
+
+	displayName = fmt.Sprintf("%s %s", claims.GivenName, claims.FamilyName)
+
+	if displayName == "" {
+		displayName = encrypt.GenerateRandomUserDisplayName()
 	}
 
 	// create the user
 	user := models.User{
 		ID:           userID,
 		PasswordHash: nil,
+		DisplayName:  displayName,
 		Avatar:       picture,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),

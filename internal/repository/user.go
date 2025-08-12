@@ -91,12 +91,13 @@ func GetAccountWithUserByProviderUserID(ctx context.Context, db pgx.Tx, provider
 // CreateUser creates a new user
 func CreateUser(ctx context.Context, db pgx.Tx, user models.User) error {
 	query := `
-		INSERT INTO users (id, password_hash, avatar, created_at, updated_at)
+		INSERT INTO users (id, password_hash, display_name, avatar, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`
 	_, err := db.Exec(ctx, query,
 		user.ID,
 		user.PasswordHash,
+		user.DisplayName,
 		user.Avatar,
 		user.CreatedAt,
 		user.UpdatedAt,

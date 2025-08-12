@@ -1,53 +1,97 @@
--- Create users table
-CREATE TABLE users (
-    id VARCHAR(27) PRIMARY KEY,
-    password_hash TEXT,
-    avatar TEXT,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+CREATE SCHEMA IF NOT EXISTS "public";
+
+CREATE TABLE "public"."users" (
+    "id" character varying(27) NOT NULL,
+    "password_hash" text,
+    "avatar" text,
+    "display_name" text NOT NULL,
+    "created_at" timestamp with time zone NOT NULL,
+    "updated_at" timestamp with time zone NOT NULL,
+    PRIMARY KEY ("id")
 );
 
--- Create accounts table
-CREATE TABLE accounts (
-    id VARCHAR(27) PRIMARY KEY,
-    provider VARCHAR(50) NOT NULL,
-    provider_user_id VARCHAR(255) NOT NULL,
-    user_id VARCHAR(27) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    email VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE(provider, provider_user_id),
-    UNIQUE(provider, email)
+CREATE TABLE "public"."refresh_tokens" (
+    "id" character varying(27) NOT NULL,
+    "user_id" character varying(27) NOT NULL,
+    "token" text NOT NULL UNIQUE,
+    "user_agent" text,
+    "ip" inet,
+    "used_at" timestamp with time zone,
+    "created_at" timestamp with time zone NOT NULL,
+    PRIMARY KEY ("id")
+);
+-- Indexes
+CREATE UNIQUE INDEX "refresh_tokens_refresh_tokens_token_key" ON "public"."refresh_tokens" ("token");
+CREATE INDEX "refresh_tokens_idx_refresh_tokens_token" ON "public"."refresh_tokens" ("token");
+CREATE INDEX "refresh_tokens_idx_refresh_tokens_created_at" ON "public"."refresh_tokens" ("created_at");
+CREATE INDEX "refresh_tokens_idx_refresh_tokens_user_id" ON "public"."refresh_tokens" ("user_id");
+
+CREATE TABLE "public"."team_users" (
+    "id" character varying(27) NOT NULL,
+    "team_id" character varying(27) NOT NULL,
+    "user_id" character varying(27) NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
 );
 
--- Create oauth_tokens table
-CREATE TABLE oauth_tokens (
-    account_id VARCHAR(27) PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
-    access_token TEXT NOT NULL,
-    refresh_token TEXT,
-    expiry TIMESTAMP WITH TIME ZONE NOT NULL,
-    token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
-    provider VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+CREATE TABLE "public"."accounts" (
+    "id" character varying(27) NOT NULL,
+    "provider" character varying(50) NOT NULL,
+    "provider_user_id" character varying(255) NOT NULL,
+    "user_id" character varying(27) NOT NULL,
+    "email" character varying(255) NOT NULL,
+    "created_at" timestamp with time zone NOT NULL,
+    "updated_at" timestamp with time zone NOT NULL,
+    PRIMARY KEY ("id")
+);
+-- Indexes
+CREATE UNIQUE INDEX "accounts_accounts_provider_provider_user_id_key" ON "public"."accounts" ("provider", "provider_user_id");
+CREATE INDEX "accounts_idx_accounts_provider" ON "public"."accounts" ("provider");
+CREATE UNIQUE INDEX "accounts_accounts_provider_email_key" ON "public"."accounts" ("provider", "email");
+CREATE INDEX "accounts_idx_accounts_email" ON "public"."accounts" ("email");
+CREATE INDEX "accounts_idx_accounts_user_id" ON "public"."accounts" ("user_id");
+
+CREATE TABLE "public"."oauth_tokens" (
+    "account_id" character varying(27) NOT NULL,
+    "access_token" text NOT NULL,
+    "refresh_token" text,
+    "expiry" timestamp with time zone NOT NULL,
+    "token_type" character varying(50) NOT NULL,
+    "provider" character varying(50) NOT NULL,
+    "created_at" timestamp with time zone NOT NULL,
+    "updated_at" timestamp with time zone NOT NULL,
+    PRIMARY KEY ("account_id")
+);
+-- Indexes
+CREATE INDEX "oauth_tokens_idx_oauth_tokens_provider" ON "public"."oauth_tokens" ("provider");
+
+CREATE TABLE "public"."teams" (
+    "id" character varying(27) NOT NULL,
+    "owner_id" character varying(27) NOT NULL,
+    "name" text NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
 );
 
--- Create refresh_tokens table
-CREATE TABLE refresh_tokens (
-    id VARCHAR(27) PRIMARY KEY,
-    user_id VARCHAR(27) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token TEXT NOT NULL UNIQUE,
-    user_agent TEXT,
-    ip INET,
-    used_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+CREATE TABLE "public"."team_invites" (
+    "id" character varying(27) NOT NULL,
+    "team_id" character varying(27) NOT NULL,
+    "Invited_by" character varying(27) NOT NULL,
+    "Invited_to" character varying(27) NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
 );
 
--- Create indexes for better performance
-CREATE INDEX idx_accounts_user_id ON accounts(user_id);
-CREATE INDEX idx_accounts_email ON accounts(email);
-CREATE INDEX idx_accounts_provider ON accounts(provider);
-CREATE INDEX idx_oauth_tokens_provider ON oauth_tokens(provider);
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_refresh_tokens_created_at ON refresh_tokens(created_at);
+-- Foreign key constraints
+-- Schema: public
+ALTER TABLE "public"."accounts" ADD CONSTRAINT "fk_accounts_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."oauth_tokens" ADD CONSTRAINT "fk_oauth_tokens_account_id_accounts_id" FOREIGN KEY("account_id") REFERENCES "public"."accounts"("id");
+ALTER TABLE "public"."refresh_tokens" ADD CONSTRAINT "fk_refresh_tokens_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_id_team_users_team_id" FOREIGN KEY("id") REFERENCES "public"."team_users"("team_id");
+ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_id_team_invites_id" FOREIGN KEY("id") REFERENCES "public"."team_invites"("id");
+ALTER TABLE "public"."team_users" ADD CONSTRAINT "fk_team_users_user_id_team_invites_Invited_by" FOREIGN KEY("user_id") REFERENCES "public"."team_invites"("Invited_by");
+ALTER TABLE "public"."users" ADD CONSTRAINT "fk_users_id_team_invites_Invited_to" FOREIGN KEY("id") REFERENCES "public"."team_invites"("Invited_to");

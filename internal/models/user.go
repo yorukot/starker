@@ -6,6 +6,7 @@ import "time"
 type User struct {
 	ID           string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                   // Unique identifier for the user
 	PasswordHash *string   `json:"password_hash,omitempty" example:"hashed_password"`         // Hashed password (omitted in responses)
+	DisplayName  string    `json:"display_name,omitempty" example:"John Doe"`                 // Display name for the user
 	Avatar       *string   `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"` // URL to user's avatar image
 	CreatedAt    time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`                 // Timestamp when the user was created
 	UpdatedAt    time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`                 // Timestamp when the user was last updated
