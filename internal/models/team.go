@@ -23,6 +23,7 @@ type TeamInvite struct {
 	TeamID    string    `json:"team_id"`
 	InvitedBy string    `json:"invited_by"`
 	InvitedTo string    `json:"invited_to"`
+	UpdatedAt time.Time `json:"updated_at"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

@@ -86,8 +86,8 @@ func GenerateRefreshToken(userID string, userAgent string, ip string) (models.Re
 		ID:        ksuid.New().String(),
 		UserID:    userID,
 		Token:     refreshToken,
-		UserAgent: userAgent,
-		IP:        ipStr,
+		UserAgent: &userAgent,
+		IP:        &ipStr,
 		UsedAt:    nil,
 		CreatedAt: time.Now(),
 	}, nil

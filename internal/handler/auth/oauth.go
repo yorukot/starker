@@ -240,7 +240,7 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 	err = repository.CreateOAuthToken(r.Context(), tx, models.OAuthToken{
 		AccountID:    accountID,
 		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
+		RefreshToken: &token.RefreshToken,
 		Expiry:       token.Expiry,
 		TokenType:    token.TokenType,
 		Provider:     provider,
