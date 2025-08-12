@@ -8,49 +8,6 @@ import (
 	"github.com/yorukot/starker/internal/models"
 )
 
-// CreateTeam creates a new team
-func CreateTeam(ctx context.Context, db pgx.Tx, team models.Team) error {
-	query := `
-		INSERT INTO teams (id, owner_id, name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`
-	_, err := db.Exec(ctx, query,
-		team.ID,
-		team.OwnerID,
-		team.Name,
-		team.CreatedAt,
-		team.UpdatedAt,
-	)
-	return err
-}
-
-// CreateTeamUser creates a new team user relationship
-func CreateTeamUser(ctx context.Context, db pgx.Tx, teamUser models.TeamUser) error {
-	query := `
-		INSERT INTO team_users (id, team_id, user_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-	`
-	_, err := db.Exec(ctx, query,
-		teamUser.ID,
-		teamUser.TeamID,
-		teamUser.UserID,
-		teamUser.CreatedAt,
-		teamUser.UpdatedAt,
-	)
-	return err
-}
-
-// CreateTeamAndTeamUser creates a team and adds the owner as a team user
-func CreateTeamAndTeamUser(ctx context.Context, db pgx.Tx, team models.Team, teamUser models.TeamUser) error {
-	if err := CreateTeam(ctx, db, team); err != nil {
-		return err
-	}
-	if err := CreateTeamUser(ctx, db, teamUser); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetTeamsByUserID gets all teams that a user is a member of
 func GetTeamsByUserID(ctx context.Context, db pgx.Tx, userID string) ([]models.Team, error) {
 	query := `
@@ -112,6 +69,62 @@ func GetTeamByIDAndUserID(ctx context.Context, db pgx.Tx, teamID, userID string)
 		return nil, err
 	}
 	return &team, nil
+}
+
+// CheckTeamAccess verifies if a user has access to a team
+func CheckTeamAccess(ctx context.Context, db pgx.Tx, teamID, userID string) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM team_users
+			WHERE team_id = $1 AND user_id = $2
+		)
+	`
+	var exists bool
+	err := db.QueryRow(ctx, query, teamID, userID).Scan(&exists)
+	return exists, err
+}
+
+// CreateTeam creates a new team
+func CreateTeam(ctx context.Context, db pgx.Tx, team models.Team) error {
+	query := `
+		INSERT INTO teams (id, owner_id, name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := db.Exec(ctx, query,
+		team.ID,
+		team.OwnerID,
+		team.Name,
+		team.CreatedAt,
+		team.UpdatedAt,
+	)
+	return err
+}
+
+// CreateTeamUser creates a new team user relationship
+func CreateTeamUser(ctx context.Context, db pgx.Tx, teamUser models.TeamUser) error {
+	query := `
+		INSERT INTO team_users (id, team_id, user_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := db.Exec(ctx, query,
+		teamUser.ID,
+		teamUser.TeamID,
+		teamUser.UserID,
+		teamUser.CreatedAt,
+		teamUser.UpdatedAt,
+	)
+	return err
+}
+
+// CreateTeamAndTeamUser creates a team and adds the owner as a team user
+func CreateTeamAndTeamUser(ctx context.Context, db pgx.Tx, team models.Team, teamUser models.TeamUser) error {
+	if err := CreateTeam(ctx, db, team); err != nil {
+		return err
+	}
+	if err := CreateTeamUser(ctx, db, teamUser); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeleteTeam deletes a team

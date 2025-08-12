@@ -15,6 +15,10 @@ definitions:
     type: object
   authsvc.RegisterRequest:
     properties:
+      display_name:
+        maxLength: 255
+        minLength: 3
+        type: string
       email:
         maxLength: 255
         type: string
@@ -23,8 +27,72 @@ definitions:
         minLength: 8
         type: string
     required:
+    - display_name
     - email
     - password
+    type: object
+  models.PrivateKey:
+    properties:
+      created_at:
+        description: Timestamp when the key was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      description:
+        description: Private key description
+        example: SSH key for production servers
+        type: string
+      fingerprint:
+        description: Key fingerprint
+        example: SHA256:abc123...
+        type: string
+      id:
+        description: Unique identifier for the private key
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      name:
+        description: Private key name
+        example: Production Key
+        type: string
+      private_key:
+        description: The actual private key content
+        example: '-----BEGIN PRIVATE KEY-----...'
+        type: string
+      team_id:
+        description: Associated team ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the key was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
+  models.Team:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  privatekeysvc.CreatePrivateKeyRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      private_key:
+        type: string
+    required:
+    - name
+    - private_key
     type: object
   response.ErrorResponse:
     properties:
@@ -32,6 +100,21 @@ definitions:
         type: string
       message:
         type: string
+    type: object
+  response.SuccessResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+    type: object
+  teamsvc.CreateTeamRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - name
     type: object
 host: localhost:8000
 info:
@@ -203,6 +286,336 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /team/{teamID}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a team if the authenticated user is the owner
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Team deleted successfully
+          schema:
+            type: string
+        "400":
+          description: Team ID is required
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Only team owner can delete the team
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Team not found or user is not a member
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete a team
+      tags:
+      - team
+    get:
+      consumes:
+      - application/json
+      description: Gets a specific team by ID if the authenticated user is a member
+        of it
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Team retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Team'
+              type: object
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Team not found or user is not a member
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get a specific team
+      tags:
+      - team
+  /team/{teamID}/private-keys:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all private keys associated with a specific team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Private keys retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.PrivateKey'
+                  type: array
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get all private keys for a team
+      tags:
+      - privatekey
+    post:
+      consumes:
+      - application/json
+      description: Creates a new private key for SSH authentication within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Private key creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/privatekeysvc.CreatePrivateKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Private key created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PrivateKey'
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create a new private key
+      tags:
+      - privatekey
+  /team/{teamID}/private-keys/{privateKeyID}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a specific private key by ID within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Private Key ID
+        in: path
+        name: privateKeyID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Private key deleted successfully
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Private key not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Delete a private key
+      tags:
+      - privatekey
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a specific private key by ID within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Private Key ID
+        in: path
+        name: privateKeyID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Private key retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PrivateKey'
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Private key not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get a specific private key
+      tags:
+      - privatekey
+  /team/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new team with the authenticated user as the owner
+      parameters:
+      - description: Create team request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/teamsvc.CreateTeamRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Team created successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Create a new team
+      tags:
+      - team
+  /team/list:
+    get:
+      consumes:
+      - application/json
+      description: Gets all teams that the authenticated user is a member of
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Teams retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Team'
+                  type: array
+              type: object
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - Bearer: []
+      summary: Get user's teams
+      tags:
+      - team
 schemes:
 - http
 - https
