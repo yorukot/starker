@@ -17,6 +17,8 @@ import (
 // | Create Private Key                          |
 // +----------------------------------------------+
 
+// TODO: Need to encrypt the private key before storing it in the database
+
 // CreatePrivateKey godoc
 // @Summary Create a new private key
 // @Description Creates a new private key for SSH authentication within a team
@@ -29,8 +31,8 @@ import (
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/{teamID}/private-keys [post]
-// @Security Bearer
+// @Router /teams/{teamID}/private-keys [post]
+// @Security BearerAuth
 func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Request) {
 	// Get the team ID from the URL
 	teamID := chi.URLParam(r, "teamID")

@@ -136,9 +136,57 @@ func DeleteTeam(ctx context.Context, db pgx.Tx, teamID string) error {
 
 // DeleteTeamAndAllRelatedData deletes a team and all related data (invites, users, etc.)
 func DeleteTeamAndAllRelatedData(ctx context.Context, db pgx.Tx, teamID string) error {
+	// Delete team invites first
+	if err := deleteTeamInvites(ctx, db, teamID); err != nil {
+		return err
+	}
+	
+	// Delete team users
+	if err := deleteTeamUsers(ctx, db, teamID); err != nil {
+		return err
+	}
+	
+	// Delete private keys
+	if err := deleteTeamPrivateKeys(ctx, db, teamID); err != nil {
+		return err
+	}
+	
+	// Delete servers
+	if err := deleteTeamServers(ctx, db, teamID); err != nil {
+		return err
+	}
+	
 	// Finally delete the team
 	if err := DeleteTeam(ctx, db, teamID); err != nil {
 		return err
 	}
 	return nil
+}
+
+// deleteTeamInvites deletes all invites for a team
+func deleteTeamInvites(ctx context.Context, db pgx.Tx, teamID string) error {
+	query := `DELETE FROM team_invites WHERE team_id = $1`
+	_, err := db.Exec(ctx, query, teamID)
+	return err
+}
+
+// deleteTeamUsers deletes all team user relationships for a team
+func deleteTeamUsers(ctx context.Context, db pgx.Tx, teamID string) error {
+	query := `DELETE FROM team_users WHERE team_id = $1`
+	_, err := db.Exec(ctx, query, teamID)
+	return err
+}
+
+// deleteTeamPrivateKeys deletes all private keys for a team
+func deleteTeamPrivateKeys(ctx context.Context, db pgx.Tx, teamID string) error {
+	query := `DELETE FROM private_keys WHERE team_id = $1`
+	_, err := db.Exec(ctx, query, teamID)
+	return err
+}
+
+// deleteTeamServers deletes all servers for a team
+func deleteTeamServers(ctx context.Context, db pgx.Tx, teamID string) error {
+	query := `DELETE FROM servers WHERE team_id = $1`
+	_, err := db.Exec(ctx, query, teamID)
+	return err
 }

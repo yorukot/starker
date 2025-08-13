@@ -286,7 +286,74 @@ paths:
       summary: Register a new user
       tags:
       - auth
-  /team/{teamID}:
+  /teams:
+    get:
+      consumes:
+      - application/json
+      description: Gets all teams that the authenticated user is a member of
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Teams retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Team'
+                  type: array
+              type: object
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user's teams
+      tags:
+      - team
+    post:
+      consumes:
+      - application/json
+      description: Creates a new team with the authenticated user as the owner
+      parameters:
+      - description: Create team request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/teamsvc.CreateTeamRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Team created successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new team
+      tags:
+      - team
+  /teams/{teamID}:
     delete:
       consumes:
       - application/json
@@ -325,7 +392,7 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Delete a team
       tags:
       - team
@@ -365,11 +432,11 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Get a specific team
       tags:
       - team
-  /team/{teamID}/private-keys:
+  /teams/{teamID}/private-keys:
     get:
       consumes:
       - application/json
@@ -407,7 +474,7 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Get all private keys for a team
       tags:
       - privatekey
@@ -452,11 +519,11 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Create a new private key
       tags:
       - privatekey
-  /team/{teamID}/private-keys/{privateKeyID}:
+  /teams/{teamID}/private-keys/{privateKeyID}:
     delete:
       consumes:
       - application/json
@@ -496,7 +563,7 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Delete a private key
       tags:
       - privatekey
@@ -544,79 +611,17 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - Bearer: []
+      - BearerAuth: []
       summary: Get a specific private key
       tags:
       - privatekey
-  /team/create:
-    post:
-      consumes:
-      - application/json
-      description: Creates a new team with the authenticated user as the owner
-      parameters:
-      - description: Create team request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/teamsvc.CreateTeamRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Team created successfully
-          schema:
-            type: string
-        "400":
-          description: Invalid request body
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: User not authenticated
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - Bearer: []
-      summary: Create a new team
-      tags:
-      - team
-  /team/list:
-    get:
-      consumes:
-      - application/json
-      description: Gets all teams that the authenticated user is a member of
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Teams retrieved successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/response.SuccessResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/models.Team'
-                  type: array
-              type: object
-        "401":
-          description: User not authenticated
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - Bearer: []
-      summary: Get user's teams
-      tags:
-      - team
 schemes:
 - http
 - https
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter JWT Bearer token in the format: Bearer {token}'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

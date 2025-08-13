@@ -15,7 +15,7 @@ func PrivateKeyRouter(r chi.Router, app *handler.App) {
 		DB: app.DB,
 	}
 
-	r.Route("/{teamID}/private-keys", func(r chi.Router) {
+	r.Route("/teams/{teamID}/private-keys", func(r chi.Router) {
 		r.Use(middleware.AuthRequiredMiddleware)
 
 		r.Post("/", privateKeyHandler.CreatePrivateKey)

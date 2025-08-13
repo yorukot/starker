@@ -28,8 +28,8 @@ import (
 // @Failure 400 {object} response.ErrorResponse "Invalid request body"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/create [post]
-// @Security Bearer
+// @Router /teams [post]
+// @Security BearerAuth
 func (h *TeamHandler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	// Decode the request body
 	var createTeamRequest teamsvc.CreateTeamRequest
@@ -87,8 +87,8 @@ func (h *TeamHandler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} response.SuccessResponse{data=[]models.Team} "Teams retrieved successfully"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/list [get]
-// @Security Bearer
+// @Router /teams [get]
+// @Security BearerAuth
 func (h *TeamHandler) GetTeams(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context
 	userID := r.Context().Value(middleware.UserIDKey).(string)
@@ -133,8 +133,8 @@ func (h *TeamHandler) GetTeams(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 404 {object} response.ErrorResponse "Team not found or user is not a member"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/{teamID} [get]
-// @Security Bearer
+// @Router /teams/{teamID} [get]
+// @Security BearerAuth
 func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 	// Get the team ID from the URL
 	teamID := chi.URLParam(r, "teamID")
@@ -195,8 +195,8 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 // @Failure 403 {object} response.ErrorResponse "Only team owner can delete the team"
 // @Failure 404 {object} response.ErrorResponse "Team not found or user is not a member"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/{teamID} [delete]
-// @Security Bearer
+// @Router /teams/{teamID} [delete]
+// @Security BearerAuth
 func (h *TeamHandler) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	// Get the team ID from the URL
 	teamID := chi.URLParam(r, "teamID")

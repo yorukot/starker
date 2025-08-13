@@ -28,8 +28,8 @@ import (
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 404 {object} response.ErrorResponse "Private key not found"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /team/{teamID}/private-keys/{privateKeyID} [delete]
-// @Security Bearer
+// @Router /teams/{teamID}/private-keys/{privateKeyID} [delete]
+// @Security BearerAuth
 func (h *PrivateKeyHandler) DeletePrivateKey(w http.ResponseWriter, r *http.Request) {
 	// Get the team ID and private key ID from the URL
 	teamID := chi.URLParam(r, "teamID")

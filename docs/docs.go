@@ -255,11 +255,64 @@ const docTemplate = `{
                 }
             }
         },
-        "/team/create": {
+        "/teams": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Gets all teams that the authenticated user is a member of",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "team"
+                ],
+                "summary": "Get user's teams",
+                "responses": {
+                    "200": {
+                        "description": "Teams retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Team"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Creates a new team with the authenticated user as the owner",
@@ -312,66 +365,11 @@ const docTemplate = `{
                 }
             }
         },
-        "/team/list": {
+        "/teams/{teamID}": {
             "get": {
                 "security": [
                     {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Gets all teams that the authenticated user is a member of",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
-                "summary": "Get user's teams",
-                "responses": {
-                    "200": {
-                        "description": "Teams retrieved successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/models.Team"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "User not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/team/{teamID}": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Gets a specific team by ID if the authenticated user is a member of it",
@@ -436,7 +434,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Deletes a team if the authenticated user is the owner",
@@ -499,11 +497,11 @@ const docTemplate = `{
                 }
             }
         },
-        "/team/{teamID}/private-keys": {
+        "/teams/{teamID}/private-keys": {
             "get": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Retrieves all private keys associated with a specific team",
@@ -571,7 +569,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Creates a new private key for SSH authentication within a team",
@@ -643,11 +641,11 @@ const docTemplate = `{
                 }
             }
         },
-        "/team/{teamID}/private-keys/{privateKeyID}": {
+        "/teams/{teamID}/private-keys/{privateKeyID}": {
             "get": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Retrieves a specific private key by ID within a team",
@@ -725,7 +723,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "Bearer": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Deletes a specific private key by ID within a team",
@@ -951,6 +949,14 @@ const docTemplate = `{
                     "minLength": 3
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Enter JWT Bearer token in the format: Bearer {token}",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`

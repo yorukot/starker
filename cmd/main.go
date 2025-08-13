@@ -38,6 +38,11 @@ import (
 // @BasePath /api
 // @schemes http https
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter JWT Bearer token in the format: Bearer {token}
+
 // Run starts the server
 func main() {
 	logger.InitLogger()
@@ -74,6 +79,8 @@ func main() {
 func setupRouter(r chi.Router, app *handler.App) {
 	r.Route("/api", func(r chi.Router) {
 		router.AuthRouter(r, app)
+		router.TeamRouter(r, app)
+		router.PrivateKeyRouter(r, app)
 	})
 
 	if config.Env().AppEnv == config.AppEnvDev {

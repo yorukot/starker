@@ -45,6 +45,32 @@ CREATE TABLE "public"."team_users" (
     PRIMARY KEY ("id")
 );
 
+CREATE TABLE "public"."servers" (
+    "id" character varying(27) NOT NULL,
+    "team_id" character varying(27) NOT NULL,
+    "name" text NOT NULL,
+    "description" text,
+    "ip" text NOT NULL,
+    "port" text NOT NULL,
+    "user" text NOT NULL,
+    "private_key_id" character varying(27) NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."private_keys" (
+    "id" character varying(27) NOT NULL,
+    "team_id" character varying(27) NOT NULL,
+    "name" text NOT NULL,
+    "description" text,
+    "private_key" text NOT NULL,
+    "fingerprint" text NOT NULL,
+    "created_at" timestamp NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
 CREATE TABLE "public"."accounts" (
     "id" character varying(27) NOT NULL,
     "provider" character varying(50) NOT NULL,
@@ -85,43 +111,17 @@ CREATE TABLE "public"."teams" (
     PRIMARY KEY ("id")
 );
 
-CREATE TABLE "public"."servers" (
-    "id" character varying(27) NOT NULL,
-    "team_id" character varying(27) NOT NULL,
-    "name" text NOT NULL,
-    "description" text,
-    "ip" text NOT NULL,
-    "port" text NOT NULL,
-    "user" text NOT NULL,
-    "private_key_id" character varying(27) NOT NULL,
-    "updated_at" timestamp NOT NULL,
-    "created_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
-);
-
-CREATE TABLE "public"."private_keys" (
-    "id" character varying(27) NOT NULL,
-    "team_id" character varying(27) NOT NULL,
-    "name" text NOT NULL,
-    "description" text,
-    "private_key" text NOT NULL,
-    "fingerprint" text NOT NULL,
-    "created_at" timestamp NOT NULL,
-    "updated_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
-);
-
 -- Foreign key constraints
 -- Schema: public
 ALTER TABLE "public"."accounts" ADD CONSTRAINT "fk_accounts_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
 ALTER TABLE "public"."oauth_tokens" ADD CONSTRAINT "fk_oauth_tokens_account_id_accounts_id" FOREIGN KEY("account_id") REFERENCES "public"."accounts"("id");
+ALTER TABLE "public"."private_keys" ADD CONSTRAINT "fk_private_keys_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."refresh_tokens" ADD CONSTRAINT "fk_refresh_tokens_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
-ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."servers" ADD CONSTRAINT "fk_servers_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
+ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."team_users" ADD CONSTRAINT "fk_team_users_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."team_users" ADD CONSTRAINT "fk_team_users_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
-ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
-ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_Invited_by_team_users_user_id" FOREIGN KEY("Invited_by") REFERENCES "public"."team_users"("user_id");
-ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_Invited_to_team_users_user_id" FOREIGN KEY("Invited_to") REFERENCES "public"."team_users"("user_id");
-ALTER TABLE "public"."servers" ADD CONSTRAINT "fk_servers_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
-ALTER TABLE "public"."private_keys" ADD CONSTRAINT "fk_private_keys_id_servers_private_key_id" FOREIGN KEY("id") REFERENCES "public"."servers"("private_key_id");
-ALTER TABLE "public"."private_keys" ADD CONSTRAINT "fk_private_keys_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
+ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_Invited_to_users_id" FOREIGN KEY("Invited_to") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_Invited_by_users_id" FOREIGN KEY("Invited_by") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."servers" ADD CONSTRAINT "fk_servers_private_key_id_private_keys_id" FOREIGN KEY("private_key_id") REFERENCES "public"."private_keys"("id");
