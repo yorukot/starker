@@ -1,4 +1,4 @@
-package privatekey
+package project
 
 import (
 	"encoding/json"
@@ -9,43 +9,41 @@ import (
 
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/privatekeysvc"
+	"github.com/yorukot/starker/internal/service/projectsvc"
 	"github.com/yorukot/starker/pkg/response"
 )
 
 // +----------------------------------------------+
-// | Create Private Key                          |
+// | Create Project                               |
 // +----------------------------------------------+
 
-// TODO: Need to encrypt the private key before storing it in the database
-
-// CreatePrivateKey godoc
-// @Summary Create a new private key
-// @Description Creates a new private key for SSH authentication within a team
-// @Tags privatekey
+// CreateProject godoc
+// @Summary Create a new project
+// @Description Creates a new project within a team for managing deployments and configurations
+// @Tags project
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
-// @Param request body privatekeysvc.CreatePrivateKeyRequest true "Private key creation request"
-// @Success 201 {object} response.SuccessResponse{data=models.PrivateKey} "Private key created successfully"
+// @Param request body projectsvc.CreateProjectRequest true "Project creation request"
+// @Success 201 {object} response.SuccessResponse{data=models.Project} "Project created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{teamID}/private-keys [post]
+// @Router /teams/{teamID}/projects [post]
 // @Security BearerAuth
-func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Request) {
-	// Get the team ID from the URL
+func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
+	// Get the team ID from the URL parameter
 	teamID := chi.URLParam(r, "teamID")
 
-	// Get the private key from the request body
-	var createPrivateKeyRequest privatekeysvc.CreatePrivateKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&createPrivateKeyRequest); err != nil {
+	// Parse the request body into the create project request struct
+	var createProjectRequest projectsvc.CreateProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&createProjectRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	// Validate the private key
-	if err := privatekeysvc.PrivateKeyValidate(createPrivateKeyRequest); err != nil {
+	// Validate the project creation request
+	if err := projectsvc.ProjectValidate(createProjectRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -74,19 +72,17 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Generate the private key
-	privateKey := privatekeysvc.GeneratePrivateKey(createPrivateKeyRequest, teamID)
-
-	// Create the private key
-	if err = repository.CreatePrivateKey(r.Context(), tx, privateKey); err != nil {
-		zap.L().Error("Failed to create private key", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create private key", "FAILED_TO_CREATE_PRIVATE_KEY")
+	// Create the project in the database
+	project, err := repository.CreateProject(r.Context(), tx, teamID, createProjectRequest)
+	if err != nil {
+		zap.L().Error("Failed to create project", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create project", "PROJECT_CREATION_FAILED")
 		return
 	}
 
 	// Commit the transaction
 	repository.CommitTransaction(tx, r.Context())
 
-	// Response
-	response.RespondWithJSON(w, http.StatusCreated, "Private key created successfully", privateKey)
+	// Return success response with the created project
+	response.RespondWithJSON(w, http.StatusCreated, "Project created successfully", project)
 }

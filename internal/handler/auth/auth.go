@@ -26,7 +26,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body authsvc.RegisterRequest true "Registration request"
-// @Success 200 {object} string "User registered successfully"
+// @Success 201 {object} string "User registered successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or email already in use"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/register [post]
@@ -99,7 +99,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &refreshTokenCookie)
 
 	// Respond with the success message
-	response.RespondWithJSON(w, http.StatusOK, "User registered successfully", nil)
+	response.RespondWithJSON(w, http.StatusCreated, "User registered successfully", nil)
 }
 
 // +----------------------------------------------+
@@ -197,7 +197,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Success 200 {object} string "Access token generated successfully"
+// @Success 201 {object} string "Access token generated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, refresh token not found, or refresh token already used"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/refresh [post]
@@ -278,7 +278,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.RespondWithJSON(w, 200, "Access token generated successfully", map[string]string{
+	response.RespondWithJSON(w, http.StatusCreated, "Access token generated successfully", map[string]string{
 		"access_token": accessToken,
 	})
 }

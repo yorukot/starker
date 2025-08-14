@@ -1,4 +1,4 @@
-package privatekey
+package server
 
 import (
 	"encoding/json"
@@ -9,43 +9,41 @@ import (
 
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/privatekeysvc"
+	"github.com/yorukot/starker/internal/service/serversvc"
 	"github.com/yorukot/starker/pkg/response"
 )
 
 // +----------------------------------------------+
-// | Create Private Key                          |
+// | Create Server                                |
 // +----------------------------------------------+
 
-// TODO: Need to encrypt the private key before storing it in the database
-
-// CreatePrivateKey godoc
-// @Summary Create a new private key
-// @Description Creates a new private key for SSH authentication within a team
-// @Tags privatekey
+// CreateServer godoc
+// @Summary Create a new server
+// @Description Creates a new server configuration for SSH connections within a team
+// @Tags server
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
-// @Param request body privatekeysvc.CreatePrivateKeyRequest true "Private key creation request"
-// @Success 201 {object} response.SuccessResponse{data=models.PrivateKey} "Private key created successfully"
+// @Param request body serversvc.CreateServerRequest true "Server creation request"
+// @Success 201 {object} response.SuccessResponse{data=models.Server} "Server created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{teamID}/private-keys [post]
+// @Router /teams/{teamID}/servers [post]
 // @Security BearerAuth
-func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Request) {
-	// Get the team ID from the URL
+func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
+	// Get the team ID from the URL parameter
 	teamID := chi.URLParam(r, "teamID")
 
-	// Get the private key from the request body
-	var createPrivateKeyRequest privatekeysvc.CreatePrivateKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&createPrivateKeyRequest); err != nil {
+	// Get the server from the request body
+	var createServerRequest serversvc.CreateServerRequest
+	if err := json.NewDecoder(r.Body).Decode(&createServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	// Validate the private key
-	if err := privatekeysvc.PrivateKeyValidate(createPrivateKeyRequest); err != nil {
+	// Validate the server creation request
+	if err := serversvc.ServerValidate(createServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -62,7 +60,7 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 	}
 	defer repository.DeferRollback(tx, r.Context())
 
-	// Check if user has access to the team
+	// Check if the user has access to the team
 	hasAccess, err := repository.CheckTeamAccess(r.Context(), tx, teamID, userID)
 	if err != nil {
 		zap.L().Error("Failed to check team access", zap.Error(err))
@@ -74,19 +72,27 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Generate the private key
-	privateKey := privatekeysvc.GeneratePrivateKey(createPrivateKeyRequest, teamID)
+	// Verify the private key exists and belongs to the team
+	_, err = repository.GetPrivateKeyByID(r.Context(), tx, createServerRequest.PrivateKeyID, teamID)
+	if err != nil {
+		zap.L().Error("Failed to verify private key", zap.Error(err))
+		response.RespondWithError(w, http.StatusBadRequest, "Private key not found or access denied", "PRIVATE_KEY_NOT_FOUND")
+		return
+	}
 
-	// Create the private key
-	if err = repository.CreatePrivateKey(r.Context(), tx, privateKey); err != nil {
-		zap.L().Error("Failed to create private key", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create private key", "FAILED_TO_CREATE_PRIVATE_KEY")
+	// Generate the server
+	server := serversvc.GenerateServer(createServerRequest, teamID)
+
+	// Create the server
+	if err = repository.CreateServer(r.Context(), tx, server); err != nil {
+		zap.L().Error("Failed to create server", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create server", "FAILED_TO_CREATE_SERVER")
 		return
 	}
 
 	// Commit the transaction
 	repository.CommitTransaction(tx, r.Context())
 
-	// Response
-	response.RespondWithJSON(w, http.StatusCreated, "Private key created successfully", privateKey)
+	// Return the created server
+	response.RespondWithJSON(w, http.StatusCreated, "Server created successfully", server)
 }

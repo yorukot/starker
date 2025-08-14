@@ -1,7 +1,12 @@
 package server
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"github.com/jackc/pgx/v5/pgxpool"
 
-type TeamHandler struct {
+	"github.com/yorukot/starker/pkg/sshpool"
+)
+
+type ServerHandler struct {
 	DB *pgxpool.Pool
+	SSHPool *sshpool.SSHConnectionPool
 }
