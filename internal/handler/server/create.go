@@ -84,7 +84,7 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	server := serversvc.GenerateServer(createServerRequest, teamID)
 
 	// Test the server connection before creating it
-	if err = serversvc.TestServerConnection(r.Context(), server, *privateKey); err != nil {
+	if err = serversvc.TestServerConnection(r.Context(), server, *privateKey, h.SSHPool); err != nil {
 		zap.L().Error("Failed to test server connection", zap.Error(err))
 		response.RespondWithError(w, http.StatusBadRequest, "Failed to connect to server with provided credentials", "SERVER_CONNECTION_FAILED")
 		return

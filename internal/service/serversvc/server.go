@@ -85,7 +85,7 @@ func UpdateServerFromRequest(existingServer models.Server, updateServerRequest U
 }
 
 // TestServerConnection tests the SSH connection to a server using the provided private key
-func TestServerConnection(ctx context.Context, server models.Server, privateKey models.PrivateKey) error {
+func TestServerConnection(ctx context.Context, server models.Server, privateKey models.PrivateKey, pool *sshpool.SSHConnectionPool) error {
 	// Parse the private key
 	signer, err := ssh.ParsePrivateKey([]byte(privateKey.PrivateKey))
 	if err != nil {
@@ -101,10 +101,6 @@ func TestServerConnection(ctx context.Context, server models.Server, privateKey 
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For testing purposes
 		Timeout:         10 * time.Second,
 	}
-
-	// Create connection pool for testing
-	pool := sshpool.NewSSHConnectionPool(1*time.Minute, 5*time.Minute)
-	defer pool.Close()
 
 	// Test connection by creating a host string
 	host := fmt.Sprintf("%s:%s", server.IP, server.Port)
