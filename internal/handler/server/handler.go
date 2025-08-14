@@ -7,6 +7,6 @@ import (
 )
 
 type ServerHandler struct {
-	DB *pgxpool.Pool
+	DB      *pgxpool.Pool
 	SSHPool *sshpool.SSHConnectionPool
 }

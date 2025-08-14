@@ -78,4 +78,3 @@ func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	// Return success response
 	response.RespondWithJSON(w, http.StatusOK, "Project deleted successfully", nil)
 }
-

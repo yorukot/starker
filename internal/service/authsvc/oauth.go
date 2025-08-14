@@ -96,9 +96,9 @@ func GenerateUserFromOAuthUserInfo(userInfo *oidc.UserInfo, provider models.Prov
 	var picture *string
 	var displayName string
 	var claims struct {
-		Picture     string `json:"picture"`
-		FamilyName  string `json:"family_name"`
-		GivenName   string `json:"given_name"`
+		Picture    string `json:"picture"`
+		FamilyName string `json:"family_name"`
+		GivenName  string `json:"given_name"`
 	}
 	if err := userInfo.Claims(&claims); err == nil && claims.Picture != "" {
 		picture = &claims.Picture

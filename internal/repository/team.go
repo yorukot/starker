@@ -140,22 +140,22 @@ func DeleteTeamAndAllRelatedData(ctx context.Context, db pgx.Tx, teamID string) 
 	if err := deleteTeamInvites(ctx, db, teamID); err != nil {
 		return err
 	}
-	
+
 	// Delete team users
 	if err := deleteTeamUsers(ctx, db, teamID); err != nil {
 		return err
 	}
-	
+
 	// Delete private keys
 	if err := deleteTeamPrivateKeys(ctx, db, teamID); err != nil {
 		return err
 	}
-	
+
 	// Delete servers
 	if err := deleteTeamServers(ctx, db, teamID); err != nil {
 		return err
 	}
-	
+
 	// Finally delete the team
 	if err := DeleteTeam(ctx, db, teamID); err != nil {
 		return err

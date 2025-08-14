@@ -37,7 +37,7 @@ func GenerateSecureRefreshToken() (string, error) {
 }
 
 // GenerateRandomUserDisplayName generate a random user display name
-func GenerateRandomUserDisplayName() (string) {
+func GenerateRandomUserDisplayName() string {
 	names := []string{
 		"Rodney",
 		"Osodo",

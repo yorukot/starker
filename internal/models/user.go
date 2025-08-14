@@ -25,12 +25,12 @@ type Account struct {
 
 // OAuthToken represents OAuth tokens for external providers
 type OAuthToken struct {
-	AccountID    string    `json:"account_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`     // Associated account ID
-	AccessToken  string    `json:"access_token" example:"ya29.a0AfH6SMC..."`            // OAuth access token
+	AccountID    string    `json:"account_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`               // Associated account ID
+	AccessToken  string    `json:"access_token" example:"ya29.a0AfH6SMC..."`                      // OAuth access token
 	RefreshToken *string   `json:"refresh_token,omitempty" example:"1//0GWthXqhYjIsKCgYIARAA..."` // OAuth refresh token
-	Expiry       time.Time `json:"expiry" example:"2023-01-01T13:00:00Z"`               // Token expiration time
-	TokenType    string    `json:"token_type" example:"Bearer"`                         // Token type (usually Bearer)
-	Provider     Provider  `json:"provider" example:"google"`                           // OAuth provider
-	CreatedAt    time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`           // Timestamp when the token was created
-	UpdatedAt    time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`           // Timestamp when the token was last updated
+	Expiry       time.Time `json:"expiry" example:"2023-01-01T13:00:00Z"`                         // Token expiration time
+	TokenType    string    `json:"token_type" example:"Bearer"`                                   // Token type (usually Bearer)
+	Provider     Provider  `json:"provider" example:"google"`                                     // OAuth provider
+	CreatedAt    time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`                     // Timestamp when the token was created
+	UpdatedAt    time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`                     // Timestamp when the token was last updated
 }
