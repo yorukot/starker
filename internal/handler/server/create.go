@@ -19,14 +19,14 @@ import (
 
 // CreateServer godoc
 // @Summary Create a new server
-// @Description Creates a new server configuration for SSH connections within a team
+// @Description Creates a new server configuration for SSH connections within a team. Tests the connection before saving.
 // @Tags server
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
 // @Param request body serversvc.CreateServerRequest true "Server creation request"
 // @Success 201 {object} response.SuccessResponse{data=models.Server} "Server created successfully"
-// @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
+// @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or server connection failed"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /teams/{teamID}/servers [post]
@@ -73,7 +73,7 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify the private key exists and belongs to the team
-	_, err = repository.GetPrivateKeyByID(r.Context(), tx, createServerRequest.PrivateKeyID, teamID)
+	privateKey, err := repository.GetPrivateKeyByID(r.Context(), tx, createServerRequest.PrivateKeyID, teamID)
 	if err != nil {
 		zap.L().Error("Failed to verify private key", zap.Error(err))
 		response.RespondWithError(w, http.StatusBadRequest, "Private key not found or access denied", "PRIVATE_KEY_NOT_FOUND")
@@ -82,6 +82,13 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 
 	// Generate the server
 	server := serversvc.GenerateServer(createServerRequest, teamID)
+
+	// Test the server connection before creating it
+	if err = serversvc.TestServerConnection(r.Context(), server, *privateKey); err != nil {
+		zap.L().Error("Failed to test server connection", zap.Error(err))
+		response.RespondWithError(w, http.StatusBadRequest, "Failed to connect to server with provided credentials", "SERVER_CONNECTION_FAILED")
+		return
+	}
 
 	// Create the server
 	if err = repository.CreateServer(r.Context(), tx, server); err != nil {

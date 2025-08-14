@@ -1,12 +1,16 @@
 package serversvc
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/segmentio/ksuid"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/yorukot/starker/internal/models"
+	"github.com/yorukot/starker/pkg/sshpool"
 )
 
 type CreateServerRequest struct {
@@ -78,4 +82,50 @@ func UpdateServerFromRequest(existingServer models.Server, updateServerRequest U
 	existingServer.UpdatedAt = time.Now()
 
 	return existingServer
+}
+
+// TestServerConnection tests the SSH connection to a server using the provided private key
+func TestServerConnection(ctx context.Context, server models.Server, privateKey models.PrivateKey) error {
+	// Parse the private key
+	signer, err := ssh.ParsePrivateKey([]byte(privateKey.PrivateKey))
+	if err != nil {
+		return fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	// Create SSH client config
+	config := &ssh.ClientConfig{
+		User: server.User,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For testing purposes
+		Timeout:         10 * time.Second,
+	}
+
+	// Create connection pool for testing
+	pool := sshpool.NewSSHConnectionPool(1*time.Minute, 5*time.Minute)
+	defer pool.Close()
+
+	// Test connection by creating a host string
+	host := fmt.Sprintf("%s:%s", server.IP, server.Port)
+
+	// Try to establish connection
+	client, err := pool.GetConnection(host, config)
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %w", err)
+	}
+
+	// Test by creating a simple session
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %w", err)
+	}
+	defer session.Close()
+
+	// Run a simple test command
+	if err := session.Run("echo 'connection test'"); err != nil {
+		return fmt.Errorf("connection test command failed: %w", err)
+	}
+
+	return nil
 }
