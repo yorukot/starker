@@ -2,6 +2,15 @@ package models
 
 import "time"
 
+type ServiceStatus string
+
+const (
+	ServiceStatusRunning ServiceStatus = "running"
+	ServiceStatusStopped ServiceStatus = "stopped"
+	ServiceStatusStarting ServiceStatus = "starting"
+	ServiceStatusStopping ServiceStatus = "stopping"
+)
+
 // Service represents a service definition with Docker containers
 type Service struct {
 	ID             string     `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                      // Unique identifier for the service
@@ -11,7 +20,7 @@ type Service struct {
 	Name           string     `json:"name" example:"web-app"`                                       // Service name
 	Description    *string    `json:"description,omitempty" example:"Main web application service"` // Service description
 	Type           string     `json:"type" example:"docker"`                                        // Service type (e.g., docker, compose)
-	Status         string     `json:"status" example:"running"`                                     // Service status (running, stopped, etc.)
+	Status         ServiceStatus     `json:"status" example:"running"`                                     // Service status (running, stopped, etc.)
 	ContainerID    *string    `json:"container_id,omitempty" example:"abc123..."`                   // Docker container ID
 	LastDeployedAt *time.Time `json:"last_deployed_at,omitempty" example:"2023-01-01T12:00:00Z"`    // Timestamp when the service was last deployed
 	CreatedAt      time.Time  `json:"created_at" example:"2023-01-01T12:00:00Z"`                    // Timestamp when the service was created
