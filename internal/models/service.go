@@ -29,16 +29,6 @@ type ServiceEnvironmentVariable struct {
 	UpdatedAt time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the variable was last updated
 }
 
-// ServicePortMapping represents port mappings for services
-type ServicePortMapping struct {
-	ID            string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the port mapping
-	ServiceID     string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
-	HostPort      int       `json:"host_port" example:"8080"`                        // Host port number
-	ContainerPort int       `json:"container_port" example:"3000"`                   // Container port number
-	Protocol      string    `json:"protocol" example:"tcp"`                          // Protocol (tcp, udp)
-	CreatedAt     time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the mapping was created
-}
-
 // ServiceComposeConfig represents Docker compose configurations
 type ServiceComposeConfig struct {
 	ID              string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                           // Unique identifier for the compose config

@@ -15,7 +15,7 @@ import (
 func ServerRouter(r chi.Router, app *handler.App) {
 
 	sshPool := sshpool.NewSSHConnectionPool(10*time.Minute, 1*time.Hour)
-
+ 
 	serverHandler := server.ServerHandler{
 		DB:      app.DB,
 		SSHPool: sshPool,
