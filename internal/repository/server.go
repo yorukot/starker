@@ -13,7 +13,7 @@ import (
 // GetServersByTeamID gets all servers for a team
 func GetServersByTeamID(ctx context.Context, db pgx.Tx, teamID string) ([]models.Server, error) {
 	query := `
-		SELECT id, team_id, name, description, ip, port, user, private_key_id, created_at, updated_at
+		SELECT id, team_id, name, description, ip, port, "user", private_key_id, created_at, updated_at
 		FROM servers
 		WHERE team_id = $1
 		ORDER BY created_at DESC
@@ -51,7 +51,7 @@ func GetServersByTeamID(ctx context.Context, db pgx.Tx, teamID string) ([]models
 // GetServerByID gets a server by ID and team ID
 func GetServerByID(ctx context.Context, db pgx.Tx, serverID, teamID string) (*models.Server, error) {
 	query := `
-		SELECT id, team_id, name, description, ip, port, user, private_key_id, created_at, updated_at
+		SELECT id, team_id, name, description, ip, port, "user", private_key_id, created_at, updated_at
 		FROM servers
 		WHERE id = $1 AND team_id = $2
 	`
@@ -81,7 +81,7 @@ func GetServerByID(ctx context.Context, db pgx.Tx, serverID, teamID string) (*mo
 // CreateServer creates a new server
 func CreateServer(ctx context.Context, db pgx.Tx, server models.Server) error {
 	query := `
-		INSERT INTO servers (id, team_id, name, description, ip, port, user, private_key_id, created_at, updated_at)
+		INSERT INTO servers (id, team_id, name, description, ip, port, "user", private_key_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := db.Exec(ctx, query,
@@ -103,7 +103,7 @@ func CreateServer(ctx context.Context, db pgx.Tx, server models.Server) error {
 func UpdateServerByID(ctx context.Context, db pgx.Tx, serverID, teamID string, server models.Server) error {
 	query := `
 		UPDATE servers
-		SET name = $3, description = $4, ip = $5, port = $6, user = $7, private_key_id = $8, updated_at = $9
+		SET name = $3, description = $4, ip = $5, port = $6, "user" = $7, private_key_id = $8, updated_at = $9
 		WHERE id = $1 AND team_id = $2
 	`
 	_, err := db.Exec(ctx, query,
@@ -136,7 +136,7 @@ func UpdateServer(ctx context.Context, db pgx.Tx, teamID, serverID string, updat
 
 	query := `
 		UPDATE servers
-		SET name = $1, description = $2, ip = $3, port = $4, user = $5, private_key_id = $6, updated_at = $7
+		SET name = $1, description = $2, ip = $3, port = $4, "user" = $5, private_key_id = $6, updated_at = $7
 		WHERE id = $8 AND team_id = $9
 	`
 	_, err = db.Exec(ctx, query,

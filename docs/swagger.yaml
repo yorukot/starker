@@ -66,6 +66,140 @@ definitions:
         example: "2023-01-01T12:00:00Z"
         type: string
     type: object
+  models.Project:
+    properties:
+      created_at:
+        description: Timestamp when the project was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      description:
+        description: Project description
+        example: A web application built with React
+        type: string
+      id:
+        description: Unique identifier for the project
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      name:
+        description: Project name
+        example: My Web Application
+        type: string
+      team_id:
+        description: Associated team ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the project was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
+  models.Server:
+    properties:
+      created_at:
+        description: Timestamp when the server was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      description:
+        description: Server description
+        example: Main production server
+        type: string
+      id:
+        description: Unique identifier for the server
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      ip:
+        description: Server IP address
+        example: 192.168.1.100
+        type: string
+      name:
+        description: Server name
+        example: Production Server
+        type: string
+      port:
+        description: SSH port
+        example: "22"
+        type: string
+      private_key_id:
+        description: Associated private key ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      team_id:
+        description: Associated team ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the server was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      user:
+        description: SSH username
+        example: ubuntu
+        type: string
+    type: object
+  models.Service:
+    properties:
+      container_id:
+        description: Docker container ID
+        example: abc123...
+        type: string
+      created_at:
+        description: Timestamp when the service was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      description:
+        description: Service description
+        example: Main web application service
+        type: string
+      id:
+        description: Unique identifier for the service
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      last_deployed_at:
+        description: Timestamp when the service was last deployed
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      name:
+        description: Service name
+        example: web-app
+        type: string
+      project_id:
+        description: Associated project ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      server_id:
+        description: Associated server ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.ServiceStatus'
+        description: Service status (running, stopped, etc.)
+        example: running
+      team_id:
+        description: Associated team ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      type:
+        description: Service type (e.g., docker, compose)
+        example: docker
+        type: string
+      updated_at:
+        description: Timestamp when the service was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
+  models.ServiceStatus:
+    enum:
+    - running
+    - stopped
+    - starting
+    - stopping
+    type: string
+    x-enum-varnames:
+    - ServiceStatusRunning
+    - ServiceStatusStopped
+    - ServiceStatusStarting
+    - ServiceStatusStopping
   models.Team:
     properties:
       created_at:
@@ -94,6 +228,30 @@ definitions:
     - name
     - private_key
     type: object
+  projectsvc.CreateProjectRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
+  projectsvc.UpdateProjectRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
   response.ErrorResponse:
     properties:
       err_code:
@@ -105,6 +263,105 @@ definitions:
     properties:
       data: {}
       message:
+        type: string
+    type: object
+  serversvc.CreateServerRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      ip:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      port:
+        maxLength: 5
+        minLength: 1
+        type: string
+      private_key_id:
+        type: string
+      user:
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - ip
+    - name
+    - port
+    - private_key_id
+    - user
+    type: object
+  serversvc.UpdateServerRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      ip:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      port:
+        maxLength: 5
+        minLength: 1
+        type: string
+      private_key_id:
+        type: string
+      user:
+        maxLength: 255
+        minLength: 1
+        type: string
+    type: object
+  servicesvc.CreateServiceRequest:
+    properties:
+      compose_file:
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      server_id:
+        type: string
+      type:
+        enum:
+        - docker
+        - compose
+        type: string
+    required:
+    - compose_file
+    - name
+    - server_id
+    - type
+    type: object
+  servicesvc.UpdateServiceRequest:
+    properties:
+      compose_file:
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.ServiceStatus'
+        enum:
+        - running
+        - stopped
+        - starting
+        - stopping
+      type:
+        enum:
+        - docker
+        - compose
         type: string
     type: object
   teamsvc.CreateTeamRequest:
@@ -240,7 +497,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: Access token generated successfully
           schema:
             type: string
@@ -271,7 +528,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: User registered successfully
           schema:
             type: string
@@ -497,7 +754,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "201":
           description: Private key created successfully
           schema:
             allOf:
@@ -615,6 +872,585 @@ paths:
       summary: Get a specific private key
       tags:
       - privatekey
+  /teams/{teamID}/projects:
+    get:
+      description: Retrieves all projects that belong to a specific team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Projects retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Project'
+                  type: array
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all projects in a team
+      tags:
+      - project
+    post:
+      consumes:
+      - application/json
+      description: Creates a new project within a team for managing deployments and
+        configurations
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/projectsvc.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Project created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Project'
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new project
+      tags:
+      - project
+  /teams/{teamID}/projects/{projectID}:
+    delete:
+      description: Deletes an existing project from a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project deleted successfully
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a project
+      tags:
+      - project
+    get:
+      description: Retrieves a specific project by its ID within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Project'
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a specific project
+      tags:
+      - project
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing project within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Project update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/projectsvc.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Project'
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a project
+      tags:
+      - project
+  /teams/{teamID}/projects/{projectID}/services:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new service with Docker compose configuration within
+        a team and project
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/servicesvc.CreateServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Service created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Service'
+              type: object
+        "400":
+          description: Invalid request body, team access denied, or project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new service
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates a service status (start, stop, restart) within a team and
+        project
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      - description: Service update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/servicesvc.UpdateServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Service'
+              type: object
+        "400":
+          description: Invalid request body, team access denied, or invalid status
+            transition
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a service status
+      tags:
+      - service
+  /teams/{teamID}/servers:
+    get:
+      consumes:
+      - application/json
+      description: Gets all server configurations within a team that the user has
+        access to
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Servers retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.Server'
+                  type: array
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all servers for a team
+      tags:
+      - server
+    post:
+      consumes:
+      - application/json
+      description: Creates a new server configuration for SSH connections within a
+        team. Tests the connection before saving.
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Server creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/serversvc.CreateServerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Server created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Server'
+              type: object
+        "400":
+          description: Invalid request body, team access denied, or server connection
+            failed
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new server
+      tags:
+      - server
+  /teams/{teamID}/servers/{serverID}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a specific server configuration by ID within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server deleted successfully
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a server
+      tags:
+      - server
+    get:
+      consumes:
+      - application/json
+      description: Gets a specific server configuration by ID within a team that the
+        user has access to
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Server'
+              type: object
+        "400":
+          description: Team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a specific server
+      tags:
+      - server
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing server configuration within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Server ID
+        in: path
+        name: serverID
+        required: true
+        type: string
+      - description: Server update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/serversvc.UpdateServerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Server'
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Server not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a server
+      tags:
+      - server
 schemes:
 - http
 - https

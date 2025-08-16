@@ -81,6 +81,9 @@ func setupRouter(r chi.Router, app *handler.App) {
 		router.AuthRouter(r, app)
 		router.TeamRouter(r, app)
 		router.PrivateKeyRouter(r, app)
+		router.ServerRouter(r, app)
+		router.ProjectRouter(r, app)
+		router.ServiceRouter(r, app)
 	})
 
 	if config.Env().AppEnv == config.AppEnvDev {
