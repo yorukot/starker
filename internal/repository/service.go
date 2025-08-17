@@ -9,14 +9,10 @@ import (
 	"github.com/yorukot/starker/internal/models"
 )
 
-// +----------------------------------------------+
-// | Service Repository Functions                 |
-// +----------------------------------------------+
-
 // GetServices gets all services for a team and project
 func GetServices(ctx context.Context, db pgx.Tx, teamID, projectID string) ([]models.Service, error) {
 	query := `
-		SELECT id, team_id, server_id, project_id, name, description, type, status, 
+		SELECT id, team_id, server_id, project_id, name, description, type, status,
 		       container_id, last_deployed_at, created_at, updated_at
 		FROM services
 		WHERE team_id = $1 AND project_id = $2
@@ -57,7 +53,7 @@ func GetServices(ctx context.Context, db pgx.Tx, teamID, projectID string) ([]mo
 // GetServiceByID gets a service by ID, team ID, and project ID
 func GetServiceByID(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID string) (*models.Service, error) {
 	query := `
-		SELECT id, team_id, server_id, project_id, name, description, type, status, 
+		SELECT id, team_id, server_id, project_id, name, description, type, status,
 		       container_id, last_deployed_at, created_at, updated_at
 		FROM services
 		WHERE id = $1 AND team_id = $2 AND project_id = $3
@@ -112,7 +108,7 @@ func CreateService(ctx context.Context, db pgx.Tx, service models.Service) error
 func UpdateService(ctx context.Context, db pgx.Tx, service models.Service) error {
 	query := `
 		UPDATE services
-		SET name = $2, description = $3, type = $4, status = $5, 
+		SET name = $2, description = $3, type = $4, status = $5,
 		    container_id = $6, last_deployed_at = $7, updated_at = $8
 		WHERE id = $1
 	`
@@ -144,10 +140,6 @@ func DeleteService(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID 
 
 	return nil
 }
-
-// +----------------------------------------------+
-// | Service Compose Config Repository Functions  |
-// +----------------------------------------------+
 
 // GetServiceComposeConfig gets the compose config for a service
 func GetServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string) (*models.ServiceComposeConfig, error) {

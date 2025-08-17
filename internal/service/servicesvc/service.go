@@ -10,19 +10,17 @@ import (
 )
 
 type CreateServiceRequest struct {
-	Name         string  `json:"name" validate:"required,min=3,max=255"`
-	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	Type         string  `json:"type" validate:"required,oneof=docker compose"`
-	ServerID     string  `json:"server_id" validate:"required"`
-	ComposeFile  string  `json:"compose_file" validate:"required"`
+	Name        string  `json:"name" validate:"required,min=3,max=255"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	Type        string  `json:"type" validate:"required,oneof=docker compose"`
+	ServerID    string  `json:"server_id" validate:"required"`
+	ComposeFile string  `json:"compose_file" validate:"required"`
 }
 
 type UpdateServiceRequest struct {
-	Name         *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
-	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	Type         *string `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
-	Status       *models.ServiceStatus `json:"status,omitempty" validate:"omitempty,oneof=running stopped starting stopping"`
-	ComposeFile  *string `json:"compose_file,omitempty" validate:"omitempty"`
+	Name        *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	Type        *string `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
 }
 
 // ServiceValidate validates the create service request
@@ -77,11 +75,7 @@ func UpdateServiceFromRequest(existingService models.Service, updateServiceReque
 	if updateServiceRequest.Type != nil {
 		existingService.Type = *updateServiceRequest.Type
 	}
-	if updateServiceRequest.Status != nil {
-		existingService.Status = *updateServiceRequest.Status
-	}
 	existingService.UpdatedAt = time.Now()
 
 	return existingService
 }
-

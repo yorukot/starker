@@ -24,5 +24,7 @@ func TeamRouter(r chi.Router, app *handler.App) {
 		r.Delete("/{teamID}", teamHandler.DeleteTeam)
 
 		// TODO: Handle other team user management
+
+		
 	})
 }

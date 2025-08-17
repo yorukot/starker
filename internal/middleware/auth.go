@@ -5,7 +5,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
+
 	"github.com/yorukot/starker/internal/config"
+	"github.com/yorukot/starker/internal/repository"
 	"github.com/yorukot/starker/pkg/encrypt"
 	"github.com/yorukot/starker/pkg/response"
 )
@@ -70,3 +75,53 @@ func AuthOptionalMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+// CheckUserHaveAccessToTeam is the middleware for checking if the user have the right to access team
+func CheckUserHaveAccessToTeam(db *pgxpool.Pool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Get teamID from URL parameters
+			teamID := chi.URLParam(r, "teamID")
+			if teamID == "" {
+				response.RespondWithError(w, http.StatusBadRequest, "Team ID is required", "TEAM_ID_REQUIRED")
+				return
+			}
+
+			// Get userID from context (set by AuthRequiredMiddleware)
+			userID, ok := r.Context().Value(UserIDKey).(string)
+			if !ok || userID == "" {
+				response.RespondWithError(w, http.StatusUnauthorized, "User not authenticated", "USER_NOT_AUTHENTICATED")
+				return
+			}
+
+			// Start database transaction
+			tx, err := repository.StartTransaction(db, r.Context())
+			if err != nil {
+				zap.L().Error("Failed to begin transaction", zap.Error(err))
+				response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
+				return
+			}
+			defer repository.DeferRollback(tx, r.Context())
+
+			// Check if user has access to the team
+			hasAccess, err := repository.CheckTeamAccess(r.Context(), tx, teamID, userID)
+			if err != nil {
+				zap.L().Error("Failed to check team access", zap.Error(err))
+				response.RespondWithError(w, http.StatusInternalServerError, "Failed to check team access", "FAILED_TO_CHECK_TEAM_ACCESS")
+				return
+			}
+
+			if !hasAccess {
+				response.RespondWithError(w, http.StatusForbidden, "Team access denied", "TEAM_ACCESS_DENIED")
+				return
+			}
+
+			// Commit transaction
+			repository.CommitTransaction(tx, r.Context())
+
+			// Continue to next handler
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+

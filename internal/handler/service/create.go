@@ -18,7 +18,7 @@ import (
 // +----------------------------------------------+
 
 // CreateService godoc
-// @Summary Create a new service
+// @Summary Create a new service 
 // @Description Creates a new service with Docker compose configuration within a team and project
 // @Tags service
 // @Accept json
