@@ -24,7 +24,7 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 
 		r.Post("/", serviceHandler.CreateService)
 		r.Patch("/{serviceID}/", serviceHandler.UpdateService)
-		r.Put("/{serviceID/state", serviceHandler.UpdateServiceState)
+		r.Patch("/{serviceID}/state", serviceHandler.UpdateServiceState)
 		// r.Get("/", serviceHandler.GetServices)
 	})
 }

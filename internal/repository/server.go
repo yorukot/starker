@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jackc/pgx/v5"
 
@@ -70,7 +69,7 @@ func GetServerByID(ctx context.Context, db pgx.Tx, serverID, teamID string) (*mo
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, errors.New("server not found")
+			return nil, nil // No server found
 		}
 		return nil, err
 	}

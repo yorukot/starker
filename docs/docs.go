@@ -1245,7 +1245,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates a service status (start, stop, restart) within a team and project",
+                "description": "Updates service metadata (name, description, type) within a team and project",
                 "consumes": [
                     "application/json"
                 ],
@@ -1255,7 +1255,7 @@ const docTemplate = `{
                 "tags": [
                     "service"
                 ],
-                "summary": "Update a service status",
+                "summary": "Update service metadata",
                 "parameters": [
                     {
                         "type": "string",
@@ -1308,7 +1308,91 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body, team access denied, or invalid status transition",
+                        "description": "Invalid request body or team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/state": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates service state (start/stop/restart) with real-time progress streaming via Server-Sent Events",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Update service state with SSE streaming",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service state update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.updateServiceStateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream of service state updates",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or team access denied",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -1965,13 +2049,15 @@ const docTemplate = `{
                 "running",
                 "stopped",
                 "starting",
-                "stopping"
+                "stopping",
+                "restarting"
             ],
             "x-enum-varnames": [
                 "ServiceStatusRunning",
                 "ServiceStatusStopped",
                 "ServiceStatusStarting",
-                "ServiceStatusStopping"
+                "ServiceStatusStopping",
+                "ServiceStatusRestarting"
             ]
         },
         "models.Team": {
@@ -2136,6 +2222,22 @@ const docTemplate = `{
                 }
             }
         },
+        "service.updateServiceStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "start",
+                        "stop",
+                        "restart"
+                    ]
+                }
+            }
+        },
         "servicesvc.CreateServiceRequest": {
             "type": "object",
             "required": [
@@ -2172,9 +2274,6 @@ const docTemplate = `{
         "servicesvc.UpdateServiceRequest": {
             "type": "object",
             "properties": {
-                "compose_file": {
-                    "type": "string"
-                },
                 "description": {
                     "type": "string",
                     "maxLength": 500

@@ -18,7 +18,7 @@ import (
 // +----------------------------------------------+
 
 // CreateService godoc
-// @Summary Create a new service 
+// @Summary Create a new service
 // @Description Creates a new service with Docker compose configuration within a team and project
 // @Tags service
 // @Accept json
@@ -82,6 +82,19 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if the server exists
+	server, err := repository.GetServerByID(r.Context(), tx, createServiceRequest.ServerID, teamID)
+	if err != nil {
+		zap.L().Error("Failed to get server", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get server", "FAILED_TO_GET_SERVER")
+		return
+	}
+
+	if server == nil {
+		response.RespondWithError(w, http.StatusBadRequest, "Server not found", "SERVER_NOT_FOUND")
+		return
+	}
+	
 	// Generate service model
 	service := servicesvc.GenerateService(createServiceRequest, teamID, createServiceRequest.ServerID, project.ID)
 

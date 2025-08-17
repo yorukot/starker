@@ -88,8 +88,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		response.RespondWithError(w, http.StatusBadRequest, "Team access denied", "TEAM_ACCESS_DENIED")
 		return
 	}
-
-	// Use service layer to handle the complete operation
+	
 	// Check if service exists
 	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
 	if err != nil {
@@ -99,6 +98,12 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 	if service == nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Service not found", "SERVICE_NOT_FOUND")
+		return
+	}
+	
+	// Check if the current state allows the requested operation
+	if !checkStateIsRight(service.State, newState) {
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid state transition", "INVALID_STATE_TRANSITION")
 		return
 	}
 
@@ -111,7 +116,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Update service to initial status before streaming
-	service.Status = result.InitialStatus
+	service.State = result.InitialStatus
 	if err := repository.UpdateService(r.Context(), *h.Tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
@@ -124,35 +129,48 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	repository.CommitTransaction(tx, r.Context())
 }
 
+func checkStateIsRight(state models.ServiceState, newState string) bool {
+	switch newState {
+		case "start":
+			return state == models.ServiceStateStopped
+		case "stop":
+			return state == models.ServiceStateRunning
+		case "restart":
+			return state == models.ServiceStateRunning
+		default:
+			return false
+	}
+}
+
 // serviceOperationResult contains the result of a service operation
 type serviceOperationResult struct {
 	StreamResult  *sshpool.StreamingCommandResult
-	InitialStatus models.ServiceStatus
-	SuccessStatus models.ServiceStatus
-	FailureStatus models.ServiceStatus
+	InitialStatus models.ServiceState
+	SuccessStatus models.ServiceState
+	FailureStatus models.ServiceState
 }
 
 // executeServiceOperation executes a service operation (start/stop/restart)
 func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation, serviceID, teamID, projectID string) (*serviceOperationResult, error) {
 	var streamResult *sshpool.StreamingCommandResult
-	var initialStatus, successStatus, failureStatus models.ServiceStatus
+	var initialStatus, successStatus, failureStatus models.ServiceState
 	var err error
 
 	switch operation {
 	case "start":
-		initialStatus = models.ServiceStatusStarting
-		successStatus = models.ServiceStatusRunning
-		failureStatus = models.ServiceStatusStopped
+		initialStatus = models.ServiceStateStarting
+		successStatus = models.ServiceStateRunning
+		failureStatus = models.ServiceStateStopped
 		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
 	case "stop":
-		initialStatus = models.ServiceStatusStopping
-		successStatus = models.ServiceStatusStopped
-		failureStatus = models.ServiceStatusRunning
+		initialStatus = models.ServiceStateStopping
+		successStatus = models.ServiceStateStopped
+		failureStatus = models.ServiceStateRunning
 		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
 	case "restart":
-		initialStatus = models.ServiceStatusRestarting
-		successStatus = models.ServiceStatusRunning
-		failureStatus = models.ServiceStatusStopped
+		initialStatus = models.ServiceStateRestarting
+		successStatus = models.ServiceStateRunning
+		failureStatus = models.ServiceStateStopped
 		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
 	default:
 		return nil, fmt.Errorf("invalid operation: %s", operation)
@@ -214,9 +232,9 @@ func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, re
 			finalError := result.StreamResult.GetFinalError()
 			if finalError != nil {
 				fmt.Fprintf(w, "data: {\"type\": \"error\", \"message\": \"%s\"}\n\n", escapeJSONString(finalError.Error()))
-				service.Status = result.FailureStatus
+				service.State = result.FailureStatus
 			} else {
-				service.Status = result.SuccessStatus
+				service.State = result.SuccessStatus
 			}
 
 			// Update final service status
@@ -227,7 +245,7 @@ func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, re
 				return
 			}
 
-			fmt.Fprintf(w, "data: {\"type\": \"status\", \"status\": \"completed\", \"final_state\": \"%s\"}\n\n", service.Status)
+			fmt.Fprintf(w, "data: {\"type\": \"status\", \"status\": \"completed\", \"final_state\": \"%s\"}\n\n", service.State)
 			w.(http.Flusher).Flush()
 			return
 		}

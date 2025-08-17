@@ -194,12 +194,14 @@ definitions:
     - stopped
     - starting
     - stopping
+    - restarting
     type: string
     x-enum-varnames:
     - ServiceStatusRunning
     - ServiceStatusStopped
     - ServiceStatusStarting
     - ServiceStatusStopping
+    - ServiceStatusRestarting
   models.Team:
     properties:
       created_at:
@@ -315,6 +317,17 @@ definitions:
         minLength: 1
         type: string
     type: object
+  service.updateServiceStateRequest:
+    properties:
+      state:
+        enum:
+        - start
+        - stop
+        - restart
+        type: string
+    required:
+    - state
+    type: object
   servicesvc.CreateServiceRequest:
     properties:
       compose_file:
@@ -341,8 +354,6 @@ definitions:
     type: object
   servicesvc.UpdateServiceRequest:
     properties:
-      compose_file:
-        type: string
       description:
         maxLength: 500
         type: string
@@ -1156,8 +1167,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Updates a service status (start, stop, restart) within a team and
-        project
+      description: Updates service metadata (name, description, type) within a team
+        and project
       parameters:
       - description: Team ID
         in: path
@@ -1193,8 +1204,7 @@ paths:
                   $ref: '#/definitions/models.Service'
               type: object
         "400":
-          description: Invalid request body, team access denied, or invalid status
-            transition
+          description: Invalid request body or team access denied
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "401":
@@ -1211,7 +1221,63 @@ paths:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update a service status
+      summary: Update service metadata
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/state:
+    patch:
+      consumes:
+      - application/json
+      description: Updates service state (start/stop/restart) with real-time progress
+        streaming via Server-Sent Events
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      - description: Service state update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.updateServiceStateRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream of service state updates
+          schema:
+            type: string
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update service state with SSE streaming
       tags:
       - service
   /teams/{teamID}/servers:

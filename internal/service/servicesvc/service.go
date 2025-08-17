@@ -18,9 +18,10 @@ type CreateServiceRequest struct {
 }
 
 type UpdateServiceRequest struct {
-	Name        *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
-	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	Type        *string `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
+	Name        *string              `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description *string              `json:"description,omitempty" validate:"omitempty,max=500"`
+	Type        *string              `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
+	State       *models.ServiceState `json:"status,omitempty" validate:"omitempty,oneof=running stopped starting stopping"`
 }
 
 // ServiceValidate validates the create service request
@@ -45,7 +46,7 @@ func GenerateService(createServiceRequest CreateServiceRequest, teamID, serverID
 		Name:        createServiceRequest.Name,
 		Description: createServiceRequest.Description,
 		Type:        createServiceRequest.Type,
-		Status:      models.ServiceStatusStopped, // Default status
+		State:      models.ServiceStateStopped, // Default status
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -74,6 +75,9 @@ func UpdateServiceFromRequest(existingService models.Service, updateServiceReque
 	}
 	if updateServiceRequest.Type != nil {
 		existingService.Type = *updateServiceRequest.Type
+	}
+	if updateServiceRequest.State != nil {
+		existingService.State = *updateServiceRequest.State
 	}
 	existingService.UpdatedAt = time.Now()
 

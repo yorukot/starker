@@ -12,7 +12,7 @@ import (
 // GetServices gets all services for a team and project
 func GetServices(ctx context.Context, db pgx.Tx, teamID, projectID string) ([]models.Service, error) {
 	query := `
-		SELECT id, team_id, server_id, project_id, name, description, type, status,
+		SELECT id, team_id, server_id, project_id, name, description, type, state,
 		       container_id, last_deployed_at, created_at, updated_at
 		FROM services
 		WHERE team_id = $1 AND project_id = $2
@@ -35,7 +35,7 @@ func GetServices(ctx context.Context, db pgx.Tx, teamID, projectID string) ([]mo
 			&service.Name,
 			&service.Description,
 			&service.Type,
-			&service.Status,
+			&service.State,
 			&service.ContainerID,
 			&service.LastDeployedAt,
 			&service.CreatedAt,
@@ -53,7 +53,7 @@ func GetServices(ctx context.Context, db pgx.Tx, teamID, projectID string) ([]mo
 // GetServiceByID gets a service by ID, team ID, and project ID
 func GetServiceByID(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID string) (*models.Service, error) {
 	query := `
-		SELECT id, team_id, server_id, project_id, name, description, type, status,
+		SELECT id, team_id, server_id, project_id, name, description, type, state,
 		       container_id, last_deployed_at, created_at, updated_at
 		FROM services
 		WHERE id = $1 AND team_id = $2 AND project_id = $3
@@ -67,7 +67,7 @@ func GetServiceByID(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID
 		&service.Name,
 		&service.Description,
 		&service.Type,
-		&service.Status,
+		&service.State,
 		&service.ContainerID,
 		&service.LastDeployedAt,
 		&service.CreatedAt,
@@ -86,7 +86,7 @@ func GetServiceByID(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID
 // CreateService creates a new service
 func CreateService(ctx context.Context, db pgx.Tx, service models.Service) error {
 	query := `
-		INSERT INTO services (id, team_id, server_id, project_id, name, description, type, status, created_at, updated_at)
+		INSERT INTO services (id, team_id, server_id, project_id, name, description, type, state, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := db.Exec(ctx, query,
@@ -97,7 +97,7 @@ func CreateService(ctx context.Context, db pgx.Tx, service models.Service) error
 		service.Name,
 		service.Description,
 		service.Type,
-		service.Status,
+		service.State,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)
@@ -108,7 +108,7 @@ func CreateService(ctx context.Context, db pgx.Tx, service models.Service) error
 func UpdateService(ctx context.Context, db pgx.Tx, service models.Service) error {
 	query := `
 		UPDATE services
-		SET name = $2, description = $3, type = $4, status = $5,
+		SET name = $2, description = $3, type = $4, state = $5,
 		    container_id = $6, last_deployed_at = $7, updated_at = $8
 		WHERE id = $1
 	`
@@ -117,7 +117,7 @@ func UpdateService(ctx context.Context, db pgx.Tx, service models.Service) error
 		service.Name,
 		service.Description,
 		service.Type,
-		service.Status,
+		service.State,
 		service.ContainerID,
 		service.LastDeployedAt,
 		service.UpdatedAt,

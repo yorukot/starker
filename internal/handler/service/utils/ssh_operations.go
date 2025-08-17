@@ -107,7 +107,7 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 	}
 
 	// Change to service directory and start the service using docker-compose
-	startServiceCmd := fmt.Sprintf("cd %s && docker-compose up -d", cfg.ServicePath)
+	startServiceCmd := fmt.Sprintf("cd %s && docker compose up -d", cfg.ServicePath)
 	streamResult := sshPool.ExcuteCommandStreaming(cfg.Host, cfg.Config, startServiceCmd)
 
 	return streamResult, nil
@@ -122,7 +122,7 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 	}
 
 	// Stop the service using docker-compose
-	stopServiceCmd := fmt.Sprintf("cd %s && docker-compose down", cfg.ServicePath)
+	stopServiceCmd := fmt.Sprintf("cd %s && docker compose down", cfg.ServicePath)
 	streamResult := sshPool.ExcuteCommandStreaming(cfg.Host, cfg.Config, stopServiceCmd)
 
 	return streamResult, nil
@@ -165,7 +165,7 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 	}
 
 	// Restart the service using docker-compose restart
-	restartServiceCmd := fmt.Sprintf("cd %s && docker-compose restart", cfg.ServicePath)
+	restartServiceCmd := fmt.Sprintf("cd %s && docker compose restart", cfg.ServicePath)
 	streamResult := sshPool.ExcuteCommandStreaming(cfg.Host, cfg.Config, restartServiceCmd)
 
 	return streamResult, nil
