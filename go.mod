@@ -49,6 +49,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/fatih/color v1.18.0
 	github.com/georgysavva/scany/v2 v2.1.4
+	github.com/go-chi/cors v1.2.2
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.18.3

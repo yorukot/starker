@@ -17,9 +17,20 @@ type CreatePrivateKeyRequest struct {
 	PrivateKey  string  `json:"private_key" validate:"required"`
 }
 
+type UpdatePrivateKeyRequest struct {
+	Name        *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	PrivateKey  *string `json:"private_key,omitempty" validate:"omitempty"`
+}
+
 // PrivateKeyValidate validates the create private key request
 func PrivateKeyValidate(createPrivateKeyRequest CreatePrivateKeyRequest) error {
 	return validator.New().Struct(createPrivateKeyRequest)
+}
+
+// UpdatePrivateKeyValidate validates the update private key request
+func UpdatePrivateKeyValidate(updatePrivateKeyRequest UpdatePrivateKeyRequest) error {
+	return validator.New().Struct(updatePrivateKeyRequest)
 }
 
 // GenerateFingerprint generates a SHA256 fingerprint for the private key
@@ -43,4 +54,24 @@ func GeneratePrivateKey(createPrivateKeyRequest CreatePrivateKeyRequest, teamID 
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+}
+
+// UpdatePrivateKeyFields updates the private key model with the update request fields
+func UpdatePrivateKeyFields(privateKey *models.PrivateKey, updateRequest UpdatePrivateKeyRequest) {
+	now := time.Now()
+	
+	if updateRequest.Name != nil {
+		privateKey.Name = *updateRequest.Name
+	}
+	
+	if updateRequest.Description != nil {
+		privateKey.Description = updateRequest.Description
+	}
+	
+	if updateRequest.PrivateKey != nil {
+		privateKey.PrivateKey = *updateRequest.PrivateKey
+		privateKey.Fingerprint = GenerateFingerprint(*updateRequest.PrivateKey)
+	}
+	
+	privateKey.UpdatedAt = now
 }

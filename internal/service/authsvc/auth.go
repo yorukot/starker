@@ -96,10 +96,9 @@ func GenerateRefreshToken(userID string, userAgent string, ip string) (models.Re
 // GenerateRefreshTokenCookie generates a refresh token cookie
 func GenerateRefreshTokenCookie(refreshToken models.RefreshToken) http.Cookie {
 	return http.Cookie{
-		Name: models.CookieNameRefreshToken,
-		Path: "/api/auth/refresh",
-		// TODO: Add config for frontend domain
-		// Domain:   "localhost",
+		Name:     models.CookieNameRefreshToken,
+		Path:     "/api/auth/refresh",
+		Domain:   config.Env().FrontendDomain,
 		Value:    refreshToken.Token,
 		HttpOnly: true,
 		Secure:   config.Env().AppEnv == config.AppEnvProd,

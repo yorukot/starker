@@ -68,7 +68,7 @@ func (h *ServerHandler) GetServers(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the servers
-	response.RespondWithJSON(w, http.StatusOK, "Servers retrieved successfully", servers)
+	response.RespondWithJSON(w, http.StatusOK, servers)
 }
 
 // +----------------------------------------------+
@@ -139,5 +139,5 @@ func (h *ServerHandler) GetServer(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the server
-	response.RespondWithJSON(w, http.StatusOK, "Server retrieved successfully", server)
+	response.RespondWithJSON(w, http.StatusOK, server)
 }

@@ -22,7 +22,7 @@ func PrivateKeyRouter(r chi.Router, app *handler.App) {
 		r.Get("/", privateKeyHandler.GetPrivateKeys)
 		r.Get("/{privateKeyID}", privateKeyHandler.GetPrivateKey)
 		r.Delete("/{privateKeyID}", privateKeyHandler.DeletePrivateKey)
-
+		r.Patch("/{privateKeyID}", privateKeyHandler.UpdatePrivateKey)
 		// TODO: Handle other team user management
 	})
 }

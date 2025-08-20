@@ -170,10 +170,10 @@ definitions:
         description: Associated server ID
         example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
         type: string
-      status:
+      state:
         allOf:
-        - $ref: '#/definitions/models.ServiceStatus'
-        description: Service status (running, stopped, etc.)
+        - $ref: '#/definitions/models.ServiceState'
+        description: Service state (running, stopped, etc.)
         example: running
       team_id:
         description: Associated team ID
@@ -188,7 +188,7 @@ definitions:
         example: "2023-01-01T12:00:00Z"
         type: string
     type: object
-  models.ServiceStatus:
+  models.ServiceState:
     enum:
     - running
     - stopped
@@ -197,11 +197,11 @@ definitions:
     - restarting
     type: string
     x-enum-varnames:
-    - ServiceStatusRunning
-    - ServiceStatusStopped
-    - ServiceStatusStarting
-    - ServiceStatusStopping
-    - ServiceStatusRestarting
+    - ServiceStateRunning
+    - ServiceStateStopped
+    - ServiceStateStarting
+    - ServiceStateStopping
+    - ServiceStateRestarting
   models.Team:
     properties:
       created_at:
@@ -229,6 +229,18 @@ definitions:
     required:
     - name
     - private_key
+    type: object
+  privatekeysvc.UpdatePrivateKeyRequest:
+    properties:
+      description:
+        maxLength: 500
+        type: string
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+      private_key:
+        type: string
     type: object
   projectsvc.CreateProjectRequest:
     properties:
@@ -363,7 +375,7 @@ definitions:
         type: string
       status:
         allOf:
-        - $ref: '#/definitions/models.ServiceStatus'
+        - $ref: '#/definitions/models.ServiceState'
         enum:
         - running
         - stopped
@@ -881,6 +893,60 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a specific private key
+      tags:
+      - privatekey
+    patch:
+      consumes:
+      - application/json
+      description: Updates a specific private key by ID within a team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Private Key ID
+        in: path
+        name: privateKeyID
+        required: true
+        type: string
+      - description: Private key update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/privatekeysvc.UpdatePrivateKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Private key updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.PrivateKey'
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Private key not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a private key
       tags:
       - privatekey
   /teams/{teamID}/projects:

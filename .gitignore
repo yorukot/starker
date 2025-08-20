@@ -1,5 +1,13 @@
+# Output
+/tmp
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
 .env
-tmp/
-logs/
-.idea/
-CLAUDE.md
+.env.*
+!.env.example
+!.env.test

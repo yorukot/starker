@@ -119,5 +119,5 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the created service
-	response.RespondWithJSON(w, http.StatusCreated, "Service created successfully", service)
+	response.RespondWithJSON(w, http.StatusCreated, service)
 }

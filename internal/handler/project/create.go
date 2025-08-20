@@ -84,5 +84,5 @@ func (h *ProjectHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response with the created project
-	response.RespondWithJSON(w, http.StatusCreated, "Project created successfully", project)
+	response.RespondWithJSON(w, http.StatusCreated, project)
 }

@@ -68,7 +68,7 @@ func (h *PrivateKeyHandler) GetPrivateKeys(w http.ResponseWriter, r *http.Reques
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusOK, "Private keys retrieved successfully", privateKeys)
+	response.RespondWithJSON(w, http.StatusOK, privateKeys)
 }
 
 // +----------------------------------------------+
@@ -136,5 +136,5 @@ func (h *PrivateKeyHandler) GetPrivateKey(w http.ResponseWriter, r *http.Request
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusOK, "Private key retrieved successfully", privateKey)
+	response.RespondWithJSON(w, http.StatusOK, privateKey)
 }

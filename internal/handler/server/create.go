@@ -101,5 +101,5 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the created server
-	response.RespondWithJSON(w, http.StatusCreated, "Server created successfully", server)
+	response.RespondWithJSON(w, http.StatusCreated, server)
 }

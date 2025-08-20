@@ -14,38 +14,39 @@ import (
 )
 
 // +----------------------------------------------+
-// | Create Private Key                          |
+// | Update Private Key                          |
 // +----------------------------------------------+
 
-// TODO: Need to encrypt the private key before storing it in the database
-
-// CreatePrivateKey godoc
-// @Summary Create a new private key
-// @Description Creates a new private key for SSH authentication within a team
+// UpdatePrivateKey godoc
+// @Summary Update a private key
+// @Description Updates a specific private key by ID within a team
 // @Tags privatekey
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
-// @Param request body privatekeysvc.CreatePrivateKeyRequest true "Private key creation request"
-// @Success 201 {object} response.SuccessResponse{data=models.PrivateKey} "Private key created successfully"
+// @Param privateKeyID path string true "Private Key ID"
+// @Param request body privatekeysvc.UpdatePrivateKeyRequest true "Private key update request"
+// @Success 200 {object} response.SuccessResponse{data=models.PrivateKey} "Private key updated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
+// @Failure 404 {object} response.ErrorResponse "Private key not found"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{teamID}/private-keys [post]
+// @Router /teams/{teamID}/private-keys/{privateKeyID} [patch]
 // @Security BearerAuth
-func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Request) {
-	// Get the team ID from the URL
+func (h *PrivateKeyHandler) UpdatePrivateKey(w http.ResponseWriter, r *http.Request) {
+	// Get the team ID and private key ID from the URL
 	teamID := chi.URLParam(r, "teamID")
+	privateKeyID := chi.URLParam(r, "privateKeyID")
 
-	// Get the private key from the request body
-	var createPrivateKeyRequest privatekeysvc.CreatePrivateKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&createPrivateKeyRequest); err != nil {
+	// Get the update request from the request body
+	var updatePrivateKeyRequest privatekeysvc.UpdatePrivateKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&updatePrivateKeyRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
-	// Validate the private key
-	if err := privatekeysvc.PrivateKeyValidate(createPrivateKeyRequest); err != nil {
+	// Validate the update request
+	if err := privatekeysvc.UpdatePrivateKeyValidate(updatePrivateKeyRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -74,13 +75,26 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Generate the private key
-	privateKey := privatekeysvc.GeneratePrivateKey(createPrivateKeyRequest, teamID)
+	// Get the existing private key
+	privateKey, err := repository.GetPrivateKeyByID(r.Context(), tx, privateKeyID, teamID)
+	if err != nil {
+		zap.L().Error("Failed to get private key", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get private key", "FAILED_TO_GET_PRIVATE_KEY")
+		return
+	}
 
-	// Create the private key
-	if err = repository.CreatePrivateKey(r.Context(), tx, privateKey); err != nil {
-		zap.L().Error("Failed to create private key", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create private key", "FAILED_TO_CREATE_PRIVATE_KEY")
+	if privateKey == nil {
+		response.RespondWithError(w, http.StatusNotFound, "Private key not found", "PRIVATE_KEY_NOT_FOUND")
+		return
+	}
+
+	// Update the private key fields
+	privatekeysvc.UpdatePrivateKeyFields(privateKey, updatePrivateKeyRequest)
+
+	// Update the private key in the database
+	if err = repository.UpdatePrivateKeyByID(r.Context(), tx, *privateKey); err != nil {
+		zap.L().Error("Failed to update private key", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update private key", "FAILED_TO_UPDATE_PRIVATE_KEY")
 		return
 	}
 
@@ -88,5 +102,5 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusCreated, privateKey)
+	response.RespondWithJSON(w, http.StatusOK, privateKey)
 }

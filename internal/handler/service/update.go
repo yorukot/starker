@@ -104,5 +104,5 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the updated service
-	response.RespondWithJSON(w, http.StatusOK, "Service updated successfully", updatedService)
+	response.RespondWithJSON(w, http.StatusOK, updatedService)
 }

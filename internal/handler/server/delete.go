@@ -83,5 +83,5 @@ func (h *ServerHandler) DeleteServer(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusOK, "Server deleted successfully", nil)
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }

@@ -785,6 +785,93 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates a specific private key by ID within a team",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "privatekey"
+                ],
+                "summary": "Update a private key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Private Key ID",
+                        "name": "privateKeyID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Private key update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/privatekeysvc.UpdatePrivateKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Private key updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.PrivateKey"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Private key not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/teams/{teamID}/projects": {
@@ -2017,11 +2104,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
                 },
-                "status": {
-                    "description": "Service status (running, stopped, etc.)",
+                "state": {
+                    "description": "Service state (running, stopped, etc.)",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/models.ServiceStatus"
+                            "$ref": "#/definitions/models.ServiceState"
                         }
                     ],
                     "example": "running"
@@ -2043,7 +2130,7 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ServiceStatus": {
+        "models.ServiceState": {
             "type": "string",
             "enum": [
                 "running",
@@ -2053,11 +2140,11 @@ const docTemplate = `{
                 "restarting"
             ],
             "x-enum-varnames": [
-                "ServiceStatusRunning",
-                "ServiceStatusStopped",
-                "ServiceStatusStarting",
-                "ServiceStatusStopping",
-                "ServiceStatusRestarting"
+                "ServiceStateRunning",
+                "ServiceStateStopped",
+                "ServiceStateStarting",
+                "ServiceStateStopping",
+                "ServiceStateRestarting"
             ]
         },
         "models.Team": {
@@ -2086,6 +2173,23 @@ const docTemplate = `{
                 "name",
                 "private_key"
             ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3
+                },
+                "private_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "privatekeysvc.UpdatePrivateKeyRequest": {
+            "type": "object",
             "properties": {
                 "description": {
                     "type": "string",
@@ -2292,7 +2396,7 @@ const docTemplate = `{
                     ],
                     "allOf": [
                         {
-                            "$ref": "#/definitions/models.ServiceStatus"
+                            "$ref": "#/definitions/models.ServiceState"
                         }
                     ]
                 },

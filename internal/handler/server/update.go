@@ -103,5 +103,5 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response with the updated server
-	response.RespondWithJSON(w, http.StatusOK, "Server updated successfully", server)
+	response.RespondWithJSON(w, http.StatusOK, server)
 }

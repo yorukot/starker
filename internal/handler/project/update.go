@@ -93,5 +93,5 @@ func (h *ProjectHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response with the updated project
-	response.RespondWithJSON(w, http.StatusOK, "Project updated successfully", project)
+	response.RespondWithJSON(w, http.StatusOK, project)
 }

@@ -71,7 +71,7 @@ func (h *TeamHandler) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Respond with the team object
-	response.RespondWithJSON(w, http.StatusOK, "Team created successfully", team)
+	response.RespondWithJSON(w, http.StatusOK, team)
 }
 
 // +----------------------------------------------+
@@ -115,7 +115,7 @@ func (h *TeamHandler) GetTeams(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return all the teams that the user is a member of
-	response.RespondWithJSON(w, http.StatusOK, "Teams retrieved successfully", teams)
+	response.RespondWithJSON(w, http.StatusOK, teams)
 }
 
 // +----------------------------------------------+
@@ -175,7 +175,7 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return the team object
-	response.RespondWithJSON(w, http.StatusOK, "Team retrieved successfully", team)
+	response.RespondWithJSON(w, http.StatusOK, team)
 }
 
 // +----------------------------------------------+
@@ -249,5 +249,5 @@ func (h *TeamHandler) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusOK, "Team deleted successfully", nil)
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }

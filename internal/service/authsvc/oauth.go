@@ -155,6 +155,7 @@ func GenerateOAuthSessionCookie(session string) http.Cookie {
 	oauthSessionCookie := http.Cookie{
 		Name:     models.CookieNameOAuthSession,
 		Value:    session,
+		Domain:   config.Env().FrontendDomain,
 		HttpOnly: true,
 		Path:     "/api/auth/oauth",
 		Secure:   config.Env().AppEnv == config.AppEnvProd,

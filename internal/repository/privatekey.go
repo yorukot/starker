@@ -92,6 +92,25 @@ func CreatePrivateKey(ctx context.Context, db pgx.Tx, privateKey models.PrivateK
 	return err
 }
 
+// UpdatePrivateKeyByID updates a private key by ID and team ID
+func UpdatePrivateKeyByID(ctx context.Context, db pgx.Tx, privateKey models.PrivateKey) error {
+	query := `
+		UPDATE private_keys
+		SET name = $3, description = $4, private_key = $5, fingerprint = $6, updated_at = $7
+		WHERE id = $1 AND team_id = $2
+	`
+	_, err := db.Exec(ctx, query,
+		privateKey.ID,
+		privateKey.TeamID,
+		privateKey.Name,
+		privateKey.Description,
+		privateKey.PrivateKey,
+		privateKey.Fingerprint,
+		privateKey.UpdatedAt,
+	)
+	return err
+}
+
 // DeletePrivateKeyByID deletes a private key by ID and team ID
 func DeletePrivateKeyByID(ctx context.Context, db pgx.Tx, privateKeyID, teamID string) error {
 	query := `

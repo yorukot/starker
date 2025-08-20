@@ -67,7 +67,7 @@ func (h *ProjectHandler) GetProjects(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response with the projects
-	response.RespondWithJSON(w, http.StatusOK, "Projects retrieved successfully", projects)
+	response.RespondWithJSON(w, http.StatusOK, projects)
 }
 
 // +----------------------------------------------+
@@ -135,5 +135,5 @@ func (h *ProjectHandler) GetProject(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response with the project
-	response.RespondWithJSON(w, http.StatusOK, "Project retrieved successfully", project)
+	response.RespondWithJSON(w, http.StatusOK, project)
 }

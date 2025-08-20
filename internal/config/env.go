@@ -17,6 +17,8 @@ const (
 // EnvConfig holds all environment variables for the application
 type EnvConfig struct {
 	JWTSecretKey string `env:"JWT_SECRET_KEY,required"`
+	
+	FrontendDomain string `env:"FRONTEND_DOMAIN,required"`
 
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID,required"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET,required"`

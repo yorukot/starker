@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
@@ -24,6 +25,7 @@ import (
 
 // @title starker Go API Template
 // @version 1.0
+// 
 // @description starker Go API Template
 // @termsOfService http://swagger.io/terms/
 
@@ -63,6 +65,16 @@ func main() {
 
 	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
 	r.Use(chiMiddleware.StripSlashes)
+	
+	// CORS configuration
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://" + config.Env().FrontendDomain, "https://" + config.Env().FrontendDomain},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 
 	setupRouter(r, &handler.App{DB: db})
 

@@ -99,7 +99,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &refreshTokenCookie)
 
 	// Respond with the success message
-	response.RespondWithJSON(w, http.StatusCreated, "User registered successfully", nil)
+	response.RespondWithJSON(w, http.StatusCreated, nil)
 }
 
 // +----------------------------------------------+
@@ -184,7 +184,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	refreshTokenCookie := authsvc.GenerateRefreshTokenCookie(refreshToken)
 	http.SetCookie(w, &refreshTokenCookie)
 
-	response.RespondWithJSON(w, http.StatusOK, "Login successful", nil)
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }
 
 // +----------------------------------------------+
@@ -278,7 +278,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.RespondWithJSON(w, http.StatusCreated, "Access token generated successfully", map[string]string{
+	response.RespondWithJSON(w, http.StatusCreated, map[string]string{
 		"access_token": accessToken,
 	})
 }

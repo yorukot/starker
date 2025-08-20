@@ -83,5 +83,5 @@ func (h *PrivateKeyHandler) DeletePrivateKey(w http.ResponseWriter, r *http.Requ
 	repository.CommitTransaction(tx, r.Context())
 
 	// Response
-	response.RespondWithJSON(w, http.StatusOK, "Private key deleted successfully", nil)
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }

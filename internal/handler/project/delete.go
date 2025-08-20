@@ -76,5 +76,5 @@ func (h *ProjectHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	// Return success response
-	response.RespondWithJSON(w, http.StatusOK, "Project deleted successfully", nil)
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }
