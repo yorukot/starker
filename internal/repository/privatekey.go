@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jackc/pgx/v5"
 
@@ -65,7 +64,7 @@ func GetPrivateKeyByID(ctx context.Context, db pgx.Tx, privateKeyID, teamID stri
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, errors.New("private key not found")
+			return nil, nil
 		}
 		return nil, err
 	}

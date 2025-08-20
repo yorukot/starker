@@ -126,6 +126,10 @@ func (h *PrivateKeyHandler) GetPrivateKey(w http.ResponseWriter, r *http.Request
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get private key", "FAILED_TO_GET_PRIVATE_KEY")
 		return
 	}
+	if privateKey == nil {
+		response.RespondWithError(w, http.StatusNotFound, "Private key not found", "PRIVATE_KEY_NOT_FOUND")
+		return
+	}
 
 	if privateKey == nil {
 		response.RespondWithError(w, http.StatusNotFound, "Private key not found", "PRIVATE_KEY_NOT_FOUND")
