@@ -24,7 +24,7 @@
 		currentTeam: Team | null;
 	} = $props();
 
-	const teamID = page.params.teamID
+	const teamID = $derived(page.params.teamID)
 
 	// This is sample data.
 	const data = $derived({

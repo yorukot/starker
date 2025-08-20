@@ -18,11 +18,13 @@
 	import LucideNotebookPen from '~icons/lucide/notebook-pen';
 	import { page } from '$app/state';
 
+	let { onKeyCreated }: { onKeyCreated?: () => Promise<void> } = $props();
+	
 	const teamID = page.params.teamID;
 
-	let serverError = '';
-	let dialogOpen = false;
-	let generatedPublicKey = '';
+	let serverError = $state('');
+	let dialogOpen = $state(false);
+	let generatedPublicKey = $state('');
 
 	function generateKey(keyType: SSHKeyType) {
 		try {
@@ -56,9 +58,12 @@
 
 			return response.json();
 		},
-		onSuccess: () => {
+		onSuccess: async () => {
 			dialogOpen = false;
 			setFields({ name: '', description: '', privateKey: '' });
+			if (onKeyCreated) {
+				await onKeyCreated();
+			}
 		},
 		onError: (error: unknown) => {
 			console.error('Private key creation error:', error);
@@ -73,7 +78,7 @@
 
 <Dialog.Root bind:open={dialogOpen}>
 	<Dialog.Trigger class={buttonVariants({ variant: 'default' })}>
-		<LucideKeyRound class="mr-2 h-4 w-4" />
+		<LucideKeyRound class="h-4 w-4" />
 		Create new key
 	</Dialog.Trigger>
 	<Dialog.Content class="">

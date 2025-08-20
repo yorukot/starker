@@ -5,8 +5,9 @@ import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { PageLoad } from './$types';
 import type { PrivateKey } from '$lib/schemas/server';
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params, depends }) => {
 	const teamID = params.teamID;
+	depends(`keys:${teamID}`);
 
 	try {
 		const response = await authGet(`${PUBLIC_API_BASE_URL}/teams/${teamID}/private-keys`);

@@ -3,6 +3,8 @@
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import { useSidebar } from "$lib/components/ui/sidebar/index.js";
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { invalidate } from '$app/navigation';
 	import ChevronsUpDownIcon from "~icons/lucide/chevrons-up-down";
 	import LucidePlus from '~icons/lucide/plus';
 	import type { Team } from '$lib/schemas/team';
@@ -14,7 +16,10 @@
 	const activeTeam = $derived(currentTeam || teams[0] || null);
 
 	async function switchTeam(team: Team) {
-		await goto(`/dashboard/${team.id}`);
+		const currentPath = page.url.pathname;
+		const newPath = currentPath.replace(/^\/dashboard\/[^/]+/, `/dashboard/${team.id}`);
+		await goto(newPath);
+		await invalidate('team:current');
 	}
 </script>
 

@@ -5,8 +5,9 @@ import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { LayoutLoad } from './$types';
 import type { Team } from '$lib/schemas/team';
 
-export const load: LayoutLoad = async ({ params }) => {
+export const load: LayoutLoad = async ({ params, depends }) => {
   const teamID = params.teamID;
+  depends('team:current');
   
   try {
     const response = await authGet(`${PUBLIC_API_BASE_URL}/teams`);
