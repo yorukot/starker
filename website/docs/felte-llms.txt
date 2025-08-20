@@ -1,0 +1,65 @@
+# Felte | Home
+
+An extensible form library for Svelte, Solid and React.
+
+## Overview
+
+Felte is a versatile form library designed to work seamlessly with Svelte, Solid, and React frameworks, providing developers with tools to manage form state, validation, and submission.
+
+## Documentation
+
+### General Information
+
+- [Felte Home](https://felte.dev/): The main page for Felte, providing an overview and links to various resources.
+- [Felte | Documentation](https://v0.felte.dev/docs): Access the complete documentation for Felte, detailing its features and usage.
+
+### Announcements
+
+- [Announcing Felte 1.0: A form library for Svelte, Solid and React](https://dev.to/pabloabc/announcing-felte-10-a-form-library-for-svelte-solid-and-react-5ble): A formal announcement detailing the release of Felte 1.0, highlighting its capabilities and improvements.
+
+### Framework-Specific Libraries
+
+#### React/Preact
+
+- [Felte: An extensible form library for React](https://dev.to/pabloabc/felte-an-extensible-form-library-for-react-3bje): Overview of Felte's integration with React, including features and benefits.
+- [Reporters | React/Preact - Felte](https://felte.dev/docs/react/reporters): Information on how to implement reporters in React/Preact applications using Felte.
+- [Validation | React/Preact - Felte](https://felte.dev/docs/react/validation): Guidelines for implementing validation in React/Preact forms with Felte.
+- [Submitting | React/Preact - Felte](https://felte.dev/docs/react/submitting): Instructions on how to handle form submissions in React/Preact using Felte.
+- [Migrating | React/Preact - Felte](https://felte.dev/docs/react/migrating): A guide for developers transitioning to Felte in React/Preact projects.
+
+#### Solid
+
+- [Felte: An extensible form library for Solid](https://dev.to/pabloabc/felte-an-extensible-form-library-for-solid-4cde): Overview of Felte's integration with Solid, detailing its features and advantages.
+- [Reporters | Solid - Felte](https://felte.dev/docs/svelte/reporters): Instructions on implementing reporters in Solid applications using Felte.
+- [Validation | Solid - Felte](https://felte.dev/docs/solid/validation/): Guidelines for validation in Solid forms with Felte.
+- [Submitting | Solid - Felte](https://felte.dev/docs/solid/submitting): Instructions for handling form submissions in Solid using Felte.
+- [Stores | Solid - Felte](https://felte.dev/docs/solid/stores): Information on managing stores in Solid applications with Felte.
+- [Migrating | Solid - Felte](https://felte.dev/docs/solid/migrating): A guide for developers migrating to Felte in Solid projects.
+- [Accessibility | Solid - Felte](https://felte.dev/docs/solid/accessibility): Best practices for ensuring accessibility in Solid forms using Felte.
+- [Validators | Solid - Felte](https://felte.dev/docs/solid/validators): Overview of validators available for Solid forms in Felte.
+- [Transformations | Solid - Felte](https://felte.dev/docs/solid/transformations): Information on data transformations in Solid forms with Felte.
+
+#### Svelte
+
+- [Felte: An extensible form library for Svelte](https://dev.to/pabloabc/felte-an-extensible-form-library-for-svelte-3m78): Overview of Felte's integration with Svelte, highlighting its features and benefits.
+- [Reporters | Svelte - Felte](https://felte.dev/docs/svelte/reporters): Instructions for implementing reporters in Svelte applications using Felte.
+- [Validation | Svelte - Felte](https://felte.dev/docs/svelte/validation): Guidelines for validation in Svelte forms with Felte.
+- [Submitting | Svelte - Felte](https://felte.dev/docs/svelte/submitting): Instructions on handling form submissions in Svelte using Felte.
+- [Stores | Svelte - Felte](https://felte.dev/docs/svelte/stores): Information on managing stores in Svelte applications with Felte.
+- [Migrating | Svelte - Felte](https://felte.dev/docs/svelte/migrating): A guide for developers transitioning to Felte in Svelte projects.
+- [Accessibility | Svelte - Felte](https://felte.dev/docs/svelte/accessibility): Best practices for ensuring accessibility in Svelte forms using Felte.
+- [Validators | Svelte - Felte](https://felte.dev/docs/svelte/validators): Overview of validators available for Svelte forms in Felte.
+- [Transformations | Svelte - Felte](https://felte.dev/docs/svelte/transformations): Information on data transformations in Svelte forms with Felte.
+
+### Vanilla JS (Custom Element)
+
+- [Validation | Vanilla JS (Custom element) - Felte](https://felte.dev/docs/element/validation): Guidelines for implementing validation in Vanilla JS forms using Felte.
+- [Accessibility | Vanilla JS (Custom element) - Felte](https://felte.dev/docs/element/accessibility): Best practices for ensuring accessibility in Vanilla JS forms with Felte.
+- [Validators | Vanilla JS (Custom element) - Felte](https://felte.dev/docs/element/validators): Overview of validators available for Vanilla JS forms in Felte.
+- [Reporters | Vanilla JS (Custom element) - Felte](https://felte.dev/docs/element/reporters): Instructions for implementing reporters in Vanilla JS applications using Felte.
+- [Transformations | Vanilla JS (Custom element) - Felte](https://felte.dev/docs/element/transformations): Information on data transformations in Vanilla JS forms with Felte.
+
+### Additional Resources
+
+- [Github Repository](https://github.com/pablo-abc/felte): Access the source code and contribute to the Felte project.
+- [docs](https://felte.dev/docs): Link to the documentation section for further reading and resources.

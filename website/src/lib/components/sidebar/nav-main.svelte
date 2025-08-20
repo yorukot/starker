@@ -19,14 +19,14 @@
 	<Sidebar.Menu>
 		{#each items as item (item.title)}
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton isActive={item.isActive} class="cursor-pointer">
-					{#if item.icon}
-						<a href={item.url} class="flex items-center gap-2">
+				<a href={item.url} class="flex items-center gap-2">
+					<Sidebar.MenuButton isActive={item.isActive} class="cursor-pointer">
+						{#if item.icon}
 							<item.icon class="h-4 w-4" />
-						</a>
-					{/if}
-					{item.title}
-				</Sidebar.MenuButton>
+						{/if}
+						{item.title}
+					</Sidebar.MenuButton>
+				</a>
 			</Sidebar.MenuItem>
 		{/each}
 	</Sidebar.Menu>

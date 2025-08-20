@@ -6,10 +6,7 @@ import {
 	} from '$env/static/public';
 
 export interface RefreshTokenResponse {
-	message: string;
-	data: {
-		access_token: string;
-	};
+	access_token: string;
 }
 
 export interface ApiError {
@@ -34,7 +31,6 @@ export async function refreshToken(): Promise<string | null> {
 			},
 		});
 		
-		console.log(response)
 		if (!response.ok) {
 			// If refresh fails, redirect to login
 			sessionStorage.removeItem('access_token');
@@ -47,10 +43,10 @@ export async function refreshToken(): Promise<string | null> {
 
 		// Store access token in sessionStorage with 15-minute expiration
 		const expiryTime = Date.now() + (15 * 60 * 1000); // 15 minutes
-		sessionStorage.setItem('access_token', data.data.access_token);
+		sessionStorage.setItem('access_token', data.access_token);
 		sessionStorage.setItem('token_expiry', expiryTime.toString());
 
-		return data.data.access_token;
+		return data.access_token;
 	} catch (error) {
 		console.error('Token refresh failed:', error);
 		// On error, redirect to login

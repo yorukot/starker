@@ -3,6 +3,8 @@
 	import { refreshToken, isTokenValid } from '$lib/api/auth';
 	import { browser } from '$app/environment';
 
+	let { children } = $props();
+
 	onMount(() => {
 		if (!browser) return;
 
@@ -29,3 +31,5 @@
 		};
 	});
 </script>
+
+{@render children?.()}

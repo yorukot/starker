@@ -5,15 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Build & Run
-- `npm run dev` or `pnpm dev` - Start development server with hot reload
-- `npm run build` or `pnpm build` - Create production build
-- `npm run preview` or `pnpm preview` - Preview production build locally
+- `pnpm dev` - Start development server with hot reload
+- `pnpm build` - Create production build
+- `pnpm preview` - Preview production build locally
 
 ### Code Quality
-- `npm run lint` or `pnpm lint` - Run Prettier and ESLint checks
-- `npm run format` or `pnpm format` - Format code with Prettier
-- `npm run check` or `pnpm check` - Type check with svelte-check
-- `npm run check:watch` or `pnpm check:watch` - Type check in watch mode
+- `pnpm lint` - Run Prettier and ESLint checks
+- `pnpm format` - Format code with Prettier
+- `pnpm check` - Type check with svelte-check
+- `pnpm check:watch` - Type check in watch mode
 
 ## Project Architecture
 
@@ -30,7 +30,7 @@ This is a SvelteKit website using Svelte 5 with TypeScript, TailwindCSS 4.0, and
     - `ui/` - shadcn-svelte UI primitives (button, card, sidebar, etc.)
     - `auth/` - Authentication-specific components
     - `sidebar/` - Navigation components with team/project structure
-  - `schemas/` - Validation schemas using Valibot
+  - `schemas/` - Validation schemas using Yup
   - `utils.ts` - Utility functions (cn class merger, TypeScript helpers)
   - `hooks/` - Svelte 5 runes and reactive utilities
 
@@ -42,7 +42,7 @@ Uses shadcn-svelte component library with:
 - Consistent styling through `cn()` utility combining clsx and tailwind-merge
 
 ### Authentication Flow
-- Form validation using Valibot with comprehensive password requirements
+- Form validation using Yup with comprehensive password requirements
 - Registration schema enforces strong passwords (uppercase, lowercase, numbers, 8+ chars)
 - Components structured for login/register workflows
 
@@ -53,21 +53,49 @@ Uses shadcn-svelte component library with:
 
 ### Key Dependencies
 - **Framework:** SvelteKit with Svelte 5
-- **Styling:** TailwindCSS 4.0, shadcn-svelte components
-- **Validation:** Valibot for form schemas, Zod also available
-- **Forms:** sveltekit-superforms for enhanced form handling
-- **Icons:** Lucide icons via unplugin-icons
-- **Development:** TypeScript, ESLint, Prettier with Svelte plugins
+- **Styling:** TailwindCSS 4.0 with forms and typography plugins, shadcn-svelte components
+- **Validation:** Yup for form schemas
+- **Forms:** Felte with Yup validator integration
+- **Icons:** Lucide icons via unplugin-icons with `~icons/` prefix
+- **UI Components:** bits-ui, tailwind-variants, tailwind-merge, clsx
+- **Development:** TypeScript, ESLint, Prettier with Svelte plugins, tw-animate-css
+
+### Configuration Files
+- `components.json` - shadcn-svelte component registry configuration with slate base color
+- `vite.config.ts` - Vite configuration with TailwindCSS 4.0, SvelteKit, and unplugin-icons
+- `svelte.config.js` - SvelteKit configuration with auto adapter and alias setup
+- `tsconfig.json` - TypeScript configuration extending SvelteKit defaults with unplugin-icons types
+- `eslint.config.js` - ESLint configuration with TypeScript, Svelte, and Prettier integration
+
+### Authentication System Architecture
+- Token-based authentication with automatic refresh (5-minute intervals)
+- JWT access tokens stored in sessionStorage with 15-minute expiration
+- Refresh tokens handled via httpOnly cookies for security
+- JWT validation via `isTokenValid()` and `refreshToken()` functions in `$lib/api/auth`
+- Authenticated API client via `authFetch()` wrapper with automatic token refresh
+- Automatic token refresh in dashboard layout on mount and periodic intervals
+- Felte-compatible authenticated fetch function for form submissions
+- Form submission with error handling for email conflicts and network errors
 
 ### Development Workflow
-1. Install dependencies with `pnpm install`
-2. Start development server with `pnpm dev`
+1. Install dependencies with `pnpm install` (preferred) or `npm install`
+2. Start development server with `pnpm dev` or `npm run dev`
 3. Access application at `http://localhost:5173`
 4. Use `pnpm check` for type checking during development
 5. Format code with `pnpm format` before committing
+6. Run linting with `pnpm lint` to check Prettier and ESLint rules
 
 ### Component Patterns
 - Use Svelte 5 runes (`$state`, `$derived`, `$props`) for reactivity
 - Component composition with `{@render children?.()}`
 - TypeScript prop typing with `ComponentProps<typeof Component>`
 - Icon imports via `~icons/` prefix (e.g., `~icons/lucide/folder-open`)
+- Utility types for component props: `WithoutChild`, `WithoutChildren`, `WithElementRef`
+- Mobile responsive utilities via `IsMobile` class extending Svelte's `MediaQuery`
+
+### Styling and Theme System
+- TailwindCSS 4.0 with custom CSS variables and OKLCH color space
+- Dark mode support with CSS variable overrides
+- Custom radius system with sm/md/lg/xl variants
+- Sidebar-specific theming variables for consistent navigation styling
+- Animation utilities via `tw-animate-css` plugin

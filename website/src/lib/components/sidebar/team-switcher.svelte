@@ -2,14 +2,20 @@
 	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import { useSidebar } from "$lib/components/ui/sidebar/index.js";
+	import { goto } from '$app/navigation';
 	import ChevronsUpDownIcon from "~icons/lucide/chevrons-up-down";
 	import LucidePlus from '~icons/lucide/plus';
-	// This should be `Component` after @lucide/svelte updates types
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	let { teams }: { teams: { name: string; logo: any; plan: string }[] } = $props();
+	import type { Team } from '$lib/schemas/team';
+	import { generateTeamAvatar } from '$lib/utils/avatar';
+
+	let { teams, currentTeam }: { teams: Team[]; currentTeam: Team | null } = $props();
 	const sidebar = useSidebar();
 
-	let activeTeam = $state(teams[0]);
+	const activeTeam = $derived(currentTeam || teams[0] || null);
+
+	async function switchTeam(team: Team) {
+		await goto(`/dashboard/${team.id}`);
+	}
 </script>
 
 <Sidebar.Menu>
@@ -22,17 +28,23 @@
 						size="lg"
 						class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 					>
-						<div
-							class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
-						>
-							<activeTeam.logo class="size-4" />
-						</div>
-						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">
-								{activeTeam.name}
-							</span>
-							<span class="truncate text-xs">{activeTeam.plan}</span>
-						</div>
+						{#if activeTeam}
+							<img
+								src={generateTeamAvatar(activeTeam.id, 32)}
+								alt={activeTeam.name}
+								class="aspect-square size-8 rounded-lg"
+							/>
+							<div class="grid flex-1 text-left text-sm leading-tight">
+								<span class="truncate font-medium">
+									{activeTeam.name}
+								</span>
+								<span class="truncate text-xs text-muted-foreground">Team</span>
+							</div>
+						{:else}
+							<div class="grid flex-1 text-left text-sm leading-tight">
+								<span class="truncate font-medium">No team selected</span>
+							</div>
+						{/if}
 						<ChevronsUpDownIcon class="ml-auto" />
 					</Sidebar.MenuButton>
 				{/snippet}
@@ -44,13 +56,14 @@
 				sideOffset={4}
 			>
 				<DropdownMenu.Label class="text-muted-foreground text-xs">Teams</DropdownMenu.Label>
-				{#each teams as team, index (team.name)}
-					<DropdownMenu.Item onSelect={() => (activeTeam = team)} class="gap-2 p-2">
-						<div class="flex size-6 items-center justify-center rounded-md border">
-							<team.logo class="size-3.5 shrink-0" />
-						</div>
+				{#each teams as team (team.id)}
+					<DropdownMenu.Item onSelect={() => switchTeam(team)} class="gap-2 p-2">
+						<img
+							src={generateTeamAvatar(team.id, 24)}
+							alt={team.name}
+							class="size-6 rounded-md border"
+						/>
 						{team.name}
-						<DropdownMenu.Shortcut>⌘{index + 1}</DropdownMenu.Shortcut>
 					</DropdownMenu.Item>
 				{/each}
 				<DropdownMenu.Separator />
