@@ -6,7 +6,7 @@
 	import LucideKeyRound from '~icons/lucide/key-round';
 	import LucideArrowLeft from '~icons/lucide/arrow-left';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { PUBLIC_API_BASE_URL } from '$env/static/public';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -22,7 +22,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const privateKey = data.privateKey;
+	const privateKey = $derived(data.privateKey);
 	const error = $derived(data.error || null);
 
 	let serverError = $state('');
@@ -30,9 +30,9 @@
 	const { form, errors, isSubmitting } = createForm<UpdatePrivateKeyForm>({
 		extend: validator({ schema: updatePrivateKeySchema }),
 		initialValues: {
-			name: privateKey?.name || '',
-			description: privateKey?.description || '',
-			privateKey: privateKey?.private_key || ''
+			name: data.privateKey?.name || '',
+			description: data.privateKey?.description || '',
+			privateKey: data.privateKey?.private_key || ''
 		},
 		onSubmit: async (values) => {
 			const currentKey = privateKey;
@@ -57,7 +57,7 @@
 			return response.json();
 		},
 		onSuccess: () => {
-			location.reload();
+		  invalidate(`key:${page.params.keyID}`);
 			toast.success('Successful update key');
 		},
 		onError: (error: unknown) => {

@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
 	"github.com/yorukot/starker/internal/service/serversvc"
 	"github.com/yorukot/starker/pkg/response"
@@ -75,14 +76,61 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If private key ID is being updated, verify the new private key exists and belongs to the team
+	// Get the current server from database
+	currentServer, err := repository.GetServerByID(r.Context(), tx, serverID, teamID)
+	if err != nil {
+		zap.L().Error("Failed to get server", zap.Error(err))
+		response.RespondWithError(w, http.StatusNotFound, "Server not found", "SERVER_NOT_FOUND")
+		return
+	}
+	if currentServer == nil {
+		response.RespondWithError(w, http.StatusNotFound, "Server not found", "SERVER_NOT_FOUND")
+		return
+	}
+
+	// Determine which private key to use for connection testing
+	var privateKeyForTest *models.PrivateKey
 	if updateServerRequest.PrivateKeyID != nil {
-		_, err = repository.GetPrivateKeyByID(r.Context(), tx, *updateServerRequest.PrivateKeyID, teamID)
+		// If private key ID is being updated, verify the new private key exists and belongs to the team
+		privateKeyForTest, err = repository.GetPrivateKeyByID(r.Context(), tx, *updateServerRequest.PrivateKeyID, teamID)
 		if err != nil {
 			zap.L().Error("Failed to verify private key", zap.Error(err))
 			response.RespondWithError(w, http.StatusBadRequest, "Private key not found or access denied", "PRIVATE_KEY_NOT_FOUND")
 			return
 		}
+	} else {
+		// Use the current private key
+		privateKeyForTest, err = repository.GetPrivateKeyByID(r.Context(), tx, currentServer.PrivateKeyID, teamID)
+		if err != nil {
+			zap.L().Error("Failed to get current private key", zap.Error(err))
+			response.RespondWithError(w, http.StatusInternalServerError, "Failed to get current private key", "PRIVATE_KEY_NOT_FOUND")
+			return
+		}
+	}
+
+	// Create a test server object with updated values
+	testServer := *currentServer
+	if updateServerRequest.Name != nil {
+		testServer.Name = *updateServerRequest.Name
+	}
+	if updateServerRequest.IP != nil {
+		testServer.IP = *updateServerRequest.IP
+	}
+	if updateServerRequest.Port != nil {
+		testServer.Port = *updateServerRequest.Port
+	}
+	if updateServerRequest.User != nil {
+		testServer.User = *updateServerRequest.User
+	}
+	if updateServerRequest.PrivateKeyID != nil {
+		testServer.PrivateKeyID = *updateServerRequest.PrivateKeyID
+	}
+
+	// Test the server connection before updating it
+	if err = serversvc.TestServerConnection(r.Context(), testServer, *privateKeyForTest, h.SSHPool); err != nil {
+		zap.L().Error("Failed to test server connection", zap.Error(err))
+		response.RespondWithError(w, http.StatusBadRequest, "Failed to connect to server with provided credentials", "SERVER_CONNECTION_FAILED")
+		return
 	}
 
 	// Update the server in the database

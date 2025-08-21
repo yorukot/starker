@@ -5,9 +5,10 @@ import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { PageLoad } from './$types';
 import type { PrivateKey } from '$lib/schemas/server';
 
-export const load: PageLoad = async ({ params, parent }) => {
+export const load: PageLoad = async ({ params, parent, depends }) => {
 	const teamID = params.teamID;
 	const keyID = params.keyID;
+	depends(`key:${keyID}`);
 
 	// Get parent layout data
 	const parentData = await parent();

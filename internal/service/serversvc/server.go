@@ -105,11 +105,12 @@ func TestServerConnection(ctx context.Context, server models.Server, privateKey 
 	// Test connection by creating a host string
 	host := fmt.Sprintf("%s:%s", server.IP, server.Port)
 
-	// Try to establish connection
-	client, err := pool.GetConnection(host, config)
+	// Try to establish direct connection (not from pool for testing)
+	client, err := ssh.Dial("tcp", host, config)
 	if err != nil {
 		return fmt.Errorf("failed to connect to server: %w", err)
 	}
+	defer client.Close()
 
 	// Test by creating a simple session
 	session, err := client.NewSession()

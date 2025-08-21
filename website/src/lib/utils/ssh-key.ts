@@ -128,6 +128,12 @@ export function generateEd25519SSHKey(options: SSHKeyOptions = {}): SSHKeyPair {
 		fullPrivateKey.set(publicKey, 32);
 		privateKeySection.set(writeBuffer(fullPrivateKey), offset);
 		offset += writeBuffer(fullPrivateKey).length;
+		
+		// Write comment
+		const commentString = options.comment || '';
+		const commentBytes = writeString(commentString);
+		privateKeySection.set(commentBytes, offset);
+		offset += commentBytes.length;
 
 		// Trim to actual size
 		const trimmedPrivateSection = privateKeySection.slice(0, offset);

@@ -27,7 +27,7 @@ func ServerRouter(r chi.Router, app *handler.App) {
 		r.Post("/", serverHandler.CreateServer)
 		r.Get("/", serverHandler.GetServers)
 		r.Get("/{serverID}", serverHandler.GetServer)
-		r.Put("/{serverID}", serverHandler.UpdateServer)
+		r.Patch("/{serverID}", serverHandler.UpdateServer)
 		r.Delete("/{serverID}", serverHandler.DeleteServer)
 	})
 }
