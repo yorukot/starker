@@ -11,10 +11,7 @@
 	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
 	import { PUBLIC_API_BASE_URL } from '$env/static/public';
-	import {
-		updateServerSchema,
-		type UpdateServerForm
-	} from '$lib/schemas/request/server';
+	import { updateServerSchema, type UpdateServerForm } from '$lib/schemas/request/server';
 	import { createForm } from 'felte';
 	import { validator } from '@felte/validator-yup';
 	import { authPatch, authDelete } from '$lib/api/client';
@@ -31,7 +28,12 @@
 	let deleteConfirmation = $state('');
 	let showDeleteForm = $state(false);
 
-	const { form, errors, isSubmitting, data: formData } = createForm<UpdateServerForm>({
+	const {
+		form,
+		errors,
+		isSubmitting,
+		data: formData
+	} = createForm<UpdateServerForm>({
 		extend: validator({ schema: updateServerSchema }),
 		initialValues: {
 			name: data.server?.name || '',
@@ -67,7 +69,7 @@
 			return response.json();
 		},
 		onSuccess: () => {
-      invalidate(`server:${data.server?.id}`)
+			invalidate(`server:${data.server?.id}`);
 			toast.success('Server updated successfully');
 		},
 		onError: (error: unknown) => {
@@ -82,7 +84,6 @@
 			});
 		}
 	});
-
 
 	async function deleteServer() {
 		if (!server || deleteConfirmation !== server.name) {
@@ -230,14 +231,11 @@
 			<!-- SSH Key Selection -->
 			<div class="space-y-2">
 				<Label for="private_key_id">SSH Key *</Label>
-				<Select.Root
-					type="single"
-					bind:value={$formData.private_key_id}
-				>
+				<Select.Root type="single" bind:value={$formData.private_key_id}>
 					<Select.Trigger class="w-full {$errors.private_key_id ? 'border-destructive' : ''}">
-						{$formData.private_key_id 
-							? privateKeys.find(k => k.id === $formData.private_key_id)?.name 
-							: "Select an SSH key"}
+						{$formData.private_key_id
+							? privateKeys.find((k) => k.id === $formData.private_key_id)?.name
+							: 'Select an SSH key'}
 					</Select.Trigger>
 					<Select.Content>
 						{#each privateKeys as key (key.id)}
@@ -281,20 +279,16 @@
 		</div>
 
 		<!-- Danger Zone -->
-		<div class="border border-destructive/20 bg-destructive/5 rounded-lg p-6 space-y-4">
+		<div class="space-y-4 rounded-lg border border-destructive/20 bg-destructive/5 p-6">
 			<div>
 				<h3 class="text-lg font-medium text-destructive">Danger Zone</h3>
 				<p class="text-sm text-muted-foreground">
 					Once you delete this server, there is no going back. Please be certain.
 				</p>
 			</div>
-			
+
 			{#if !showDeleteForm}
-				<Button
-					variant="destructive"
-					onclick={() => showDeleteForm = true}
-					class="gap-2"
-				>
+				<Button variant="destructive" onclick={() => (showDeleteForm = true)} class="gap-2">
 					<LucideTrash2 class="h-4 w-4" />
 					Delete Server
 				</Button>
@@ -302,7 +296,8 @@
 				<div class="space-y-4">
 					<div class="space-y-2">
 						<Label for="delete-confirmation">
-							Type <code class="bg-muted px-1 py-0.5 rounded text-sm">{server.name}</code> to confirm deletion:
+							Type <code class="rounded bg-muted px-1 py-0.5 text-sm">{server.name}</code> to confirm
+							deletion:
 						</Label>
 						<Input
 							id="delete-confirmation"

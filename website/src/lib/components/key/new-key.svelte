@@ -19,7 +19,7 @@
 	import { page } from '$app/state';
 
 	let { onKeyCreated }: { onKeyCreated?: () => Promise<void> } = $props();
-	
+
 	const teamID = page.params.teamID;
 
 	let serverError = $state('');

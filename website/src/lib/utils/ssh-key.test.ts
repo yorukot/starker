@@ -15,13 +15,15 @@ class SimpleTest {
 		try {
 			const result = fn();
 			if (result instanceof Promise) {
-				return result.then(() => {
-					console.log(`✓ ${name}`);
-					this.passed++;
-				}).catch((error) => {
-					console.log(`✗ ${name}: ${error.message}`);
-					this.failed++;
-				});
+				return result
+					.then(() => {
+						console.log(`✓ ${name}`);
+						this.passed++;
+					})
+					.catch((error) => {
+						console.log(`✗ ${name}: ${error.message}`);
+						this.failed++;
+					});
 			} else {
 				console.log(`✓ ${name}`);
 				this.passed++;
@@ -52,21 +54,22 @@ function validateSSHKeyFormat(privateKey: string, publicKey: string, keyType: 'e
 		'-----BEGIN RSA PRIVATE KEY-----',
 		'-----BEGIN PRIVATE KEY-----'
 	];
-	
+
 	const validPrivateKeyFooters = [
 		'-----END OPENSSH PRIVATE KEY-----',
 		'-----END RSA PRIVATE KEY-----',
 		'-----END PRIVATE KEY-----'
 	];
-	
-	const hasValidHeader = validPrivateKeyHeaders.some(header => privateKey.startsWith(header));
+
+	const hasValidHeader = validPrivateKeyHeaders.some((header) => privateKey.startsWith(header));
 	// Handle both Unix (\n) and Windows (\r\n) line endings
-	const hasValidFooter = validPrivateKeyFooters.some(footer => 
-		privateKey.endsWith(footer) || 
-		privateKey.endsWith(footer + '\n') || 
-		privateKey.endsWith(footer + '\r\n')
+	const hasValidFooter = validPrivateKeyFooters.some(
+		(footer) =>
+			privateKey.endsWith(footer) ||
+			privateKey.endsWith(footer + '\n') ||
+			privateKey.endsWith(footer + '\r\n')
 	);
-	
+
 	if (!hasValidHeader) {
 		throw new Error('Private key does not start with a valid SSH private key header');
 	}
@@ -96,25 +99,25 @@ function validateSSHKeyFormat(privateKey: string, publicKey: string, keyType: 'e
 // Test Ed25519 key generation
 test.test('generateEd25519SSHKey - basic generation', () => {
 	const keyPair = generateEd25519SSHKey();
-	
+
 	if (!keyPair.privateKey || !keyPair.publicKey) {
 		throw new Error('Key pair is missing private or public key');
 	}
-	
+
 	if (keyPair.keyType !== 'ed25519') {
 		throw new Error(`Expected keyType 'ed25519', got '${keyPair.keyType}'`);
 	}
-	
+
 	if (!keyPair.fingerprint) {
 		throw new Error('Fingerprint is missing');
 	}
-	
+
 	if (!keyPair.fingerprint.startsWith('SHA256:')) {
 		throw new Error('Fingerprint should start with SHA256:');
 	}
-	  
-	console.log(keyPair.privateKey)
-	console.log(keyPair.publicKey)
+
+	console.log(keyPair.privateKey);
+	console.log(keyPair.publicKey);
 
 	validateSSHKeyFormat(keyPair.privateKey, keyPair.publicKey, 'ed25519');
 });
@@ -123,11 +126,11 @@ test.test('generateEd25519SSHKey - basic generation', () => {
 test.test('generateEd25519SSHKey - with comment', () => {
 	const comment = 'test-ed25519-key';
 	const keyPair = generateEd25519SSHKey({ comment });
-	
+
 	if (!keyPair.publicKey.includes(comment)) {
 		throw new Error('Public key should contain the comment');
 	}
-	
+
 	if (keyPair.comment !== comment) {
 		throw new Error(`Expected comment '${comment}', got '${keyPair.comment}'`);
 	}
@@ -136,25 +139,25 @@ test.test('generateEd25519SSHKey - with comment', () => {
 // Test RSA key generation
 test.test('generateRSASSHKey - basic generation (2048 bits)', () => {
 	const keyPair = generateRSASSHKey();
-	
+
 	if (!keyPair.privateKey || !keyPair.publicKey) {
 		throw new Error('Key pair is missing private or public key');
 	}
-	
+
 	if (keyPair.keyType !== 'rsa') {
 		throw new Error(`Expected keyType 'rsa', got '${keyPair.keyType}'`);
 	}
-	
+
 	if (keyPair.keySize !== 2048) {
 		throw new Error(`Expected keySize 2048, got ${keyPair.keySize}`);
 	}
-	
+
 	if (!keyPair.fingerprint || !keyPair.fingerprint.startsWith('SHA256:')) {
 		throw new Error('Invalid fingerprint');
 	}
 
-	console.log(keyPair.privateKey)
-	console.log(keyPair.publicKey)
+	console.log(keyPair.privateKey);
+	console.log(keyPair.publicKey);
 
 	validateSSHKeyFormat(keyPair.privateKey, keyPair.publicKey, 'rsa');
 });
@@ -162,13 +165,13 @@ test.test('generateRSASSHKey - basic generation (2048 bits)', () => {
 // Test RSA key generation with custom size
 test.test('generateRSASSHKey - 4096 bits', () => {
 	const keyPair = generateRSASSHKey({ keySize: 4096 });
-	
+
 	if (keyPair.keySize !== 4096) {
 		throw new Error(`Expected keySize 4096, got ${keyPair.keySize}`);
 	}
-	
-	console.log(keyPair.privateKey)
-	console.log(keyPair.publicKey)
+
+	console.log(keyPair.privateKey);
+	console.log(keyPair.publicKey);
 
 	validateSSHKeyFormat(keyPair.privateKey, keyPair.publicKey, 'rsa');
 });
@@ -177,7 +180,7 @@ test.test('generateRSASSHKey - 4096 bits', () => {
 test.test('generateRSASSHKey - with comment', () => {
 	const comment = 'test-rsa-key';
 	const keyPair = generateRSASSHKey({ comment, keySize: 2048 });
-	
+
 	if (!keyPair.publicKey.includes(comment)) {
 		throw new Error('Public key should contain the comment');
 	}
@@ -190,25 +193,25 @@ test.test('generateRSASSHKey - with comment', () => {
 // Test generic generateSSHKey function
 test.test('generateSSHKey - Ed25519', () => {
 	const keyPair = generateSSHKey('ed25519', { comment: 'generic-test' });
-	
+
 	if (keyPair.keyType !== 'ed25519') {
 		throw new Error(`Expected keyType 'ed25519', got '${keyPair.keyType}'`);
 	}
-	
+
 	validateSSHKeyFormat(keyPair.privateKey, keyPair.publicKey, 'ed25519');
 });
 
 test.test('generateSSHKey - RSA', () => {
 	const keyPair = generateSSHKey('rsa', { keySize: 2048, comment: 'generic-rsa-test' });
-	
+
 	if (keyPair.keyType !== 'rsa') {
 		throw new Error(`Expected keyType 'rsa', got '${keyPair.keyType}'`);
 	}
-	
+
 	if (keyPair.keySize !== 2048) {
 		throw new Error(`Expected keySize 2048, got ${keyPair.keySize}`);
 	}
-	
+
 	validateSSHKeyFormat(keyPair.privateKey, keyPair.publicKey, 'rsa');
 });
 
@@ -246,15 +249,15 @@ test.test('generateSSHKey - unsupported key type', () => {
 test.test('generateEd25519SSHKey - keys are unique', () => {
 	const keyPair1 = generateEd25519SSHKey();
 	const keyPair2 = generateEd25519SSHKey();
-	
+
 	if (keyPair1.privateKey === keyPair2.privateKey) {
 		throw new Error('Generated keys should be unique');
 	}
-	
+
 	if (keyPair1.publicKey === keyPair2.publicKey) {
 		throw new Error('Generated public keys should be unique');
 	}
-	
+
 	if (keyPair1.fingerprint === keyPair2.fingerprint) {
 		throw new Error('Generated fingerprints should be unique');
 	}
@@ -263,15 +266,15 @@ test.test('generateEd25519SSHKey - keys are unique', () => {
 test.test('generateRSASSHKey - keys are unique', () => {
 	const keyPair1 = generateRSASSHKey({ keySize: 2048 });
 	const keyPair2 = generateRSASSHKey({ keySize: 2048 });
-	
+
 	if (keyPair1.privateKey === keyPair2.privateKey) {
 		throw new Error('Generated keys should be unique');
 	}
-	
+
 	if (keyPair1.publicKey === keyPair2.publicKey) {
 		throw new Error('Generated public keys should be unique');
 	}
-	
+
 	if (keyPair1.fingerprint === keyPair2.fingerprint) {
 		throw new Error('Generated fingerprints should be unique');
 	}

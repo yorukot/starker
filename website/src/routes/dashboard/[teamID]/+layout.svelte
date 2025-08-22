@@ -17,8 +17,8 @@
 
 <Sidebar.Provider>
 	<AppSidebar {teams} {currentTeam} />
-	<main class="w-full h-full">
-		<div class="md:p-8 p-6 min-h-[80vh] w-full flex justify-center">
+	<main class="h-full w-full">
+		<div class="flex min-h-[80vh] w-full justify-center p-6 md:p-8">
 			<div class="w-full max-w-6xl">
 				{@render children?.()}
 			</div>

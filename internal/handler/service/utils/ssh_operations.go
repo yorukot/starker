@@ -84,7 +84,7 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		return nil, fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	composeFilePath := fmt.Sprintf("%s/docker-compose.yml", cfg.ServicePath)
+	composeFilePath := fmt.Sprintf("%s/compose.yaml", cfg.ServicePath)
 
 	// Check if the service folder exists on the server
 	checkDirCmd := fmt.Sprintf("[ -d %s ]", cfg.ServicePath)
@@ -142,7 +142,7 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		return nil, fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	composeFilePath := fmt.Sprintf("%s/docker-compose.yml", cfg.ServicePath)
+	composeFilePath := fmt.Sprintf("%s/compose.yaml", cfg.ServicePath)
 
 	// Check if the service folder exists on the server
 	checkDirCmd := fmt.Sprintf("[ -d %s ]", cfg.ServicePath)

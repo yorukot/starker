@@ -8,10 +8,10 @@ import { shapes } from '@dicebear/collection';
  * @returns SVG data URL for the generated avatar
  */
 export function generateTeamAvatar(seed: string, size = 40): string {
-  const avatar = createAvatar(shapes, {
-    seed,
-    size,
-  });
+	const avatar = createAvatar(shapes, {
+		seed,
+		size
+	});
 
-  return avatar.toDataUri();
+	return avatar.toDataUri();
 }

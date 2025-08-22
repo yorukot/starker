@@ -6,10 +6,7 @@ import { getValidToken } from './auth.js';
  * Custom fetch wrapper that automatically includes Bearer token authentication
  * and handles token refresh when needed
  */
-export async function authFetch(
-	url: string | URL,
-	options: RequestInit = {}
-): Promise<Response> {
+export async function authFetch(url: string | URL, options: RequestInit = {}): Promise<Response> {
 	if (!browser) {
 		throw new Error('authFetch can only be used in the browser');
 	}
@@ -31,7 +28,7 @@ export async function authFetch(
 	// Make the request
 	const response = await fetch(url, {
 		...options,
-		headers,
+		headers
 	});
 
 	return response;
@@ -43,7 +40,7 @@ export async function authFetch(
 export async function authPost(url: string, data?: unknown): Promise<Response> {
 	return authFetch(url, {
 		method: 'POST',
-		body: data ? JSON.stringify(data) : undefined,
+		body: data ? JSON.stringify(data) : undefined
 	});
 }
 
@@ -52,7 +49,7 @@ export async function authPost(url: string, data?: unknown): Promise<Response> {
  */
 export async function authGet(url: string): Promise<Response> {
 	return authFetch(url, {
-		method: 'GET',
+		method: 'GET'
 	});
 }
 
@@ -62,7 +59,7 @@ export async function authGet(url: string): Promise<Response> {
 export async function authPut(url: string, data?: unknown): Promise<Response> {
 	return authFetch(url, {
 		method: 'PUT',
-		body: data ? JSON.stringify(data) : undefined,
+		body: data ? JSON.stringify(data) : undefined
 	});
 }
 
@@ -72,7 +69,7 @@ export async function authPut(url: string, data?: unknown): Promise<Response> {
 export async function authPatch(url: string, data?: unknown): Promise<Response> {
 	return authFetch(url, {
 		method: 'PATCH',
-		body: data ? JSON.stringify(data) : undefined,
+		body: data ? JSON.stringify(data) : undefined
 	});
 }
 
@@ -81,7 +78,7 @@ export async function authPatch(url: string, data?: unknown): Promise<Response> 
  */
 export async function authDelete(url: string): Promise<Response> {
 	return authFetch(url, {
-		method: 'DELETE',
+		method: 'DELETE'
 	});
 }
 
@@ -92,9 +89,8 @@ export async function authDelete(url: string): Promise<Response> {
 export function createAuthenticatedFetch() {
 	return async (url: string | URL, options: RequestInit = {}) => {
 		// Ensure we have a full URL
-		const fullUrl = typeof url === 'string' && !url.startsWith('http') 
-			? `${PUBLIC_API_BASE_URL}${url}` 
-			: url;
+		const fullUrl =
+			typeof url === 'string' && !url.startsWith('http') ? `${PUBLIC_API_BASE_URL}${url}` : url;
 
 		return authFetch(fullUrl, options);
 	};

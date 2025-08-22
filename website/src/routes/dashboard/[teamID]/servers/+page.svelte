@@ -9,19 +9,17 @@
 	import LucideUser from '~icons/lucide/user';
 	import LucideGlobe from '~icons/lucide/globe';
 	import { page } from '$app/state';
-	
+
 	let { data }: { data: PageData } = $props();
 
-	const servers = $derived((data as any).servers  || []);
+	const servers = $derived((data).servers || []);
 </script>
 
 <div class="flex flex-col gap-6">
 	<div class="flex items-center justify-between">
 		<div class="flex flex-col gap-2">
 			<h1 class="text-2xl font-semibold text-foreground">Servers</h1>
-			<p class="text-sm text-muted-foreground">
-				Manage your SSH-enabled servers and connections
-			</p>
+			<p class="text-sm text-muted-foreground">Manage your SSH-enabled servers and connections</p>
 		</div>
 		<Button href="/dashboard/{page.params.teamID}/servers/new" class="gap-2">
 			<LucidePlus class="h-4 w-4" />
@@ -35,7 +33,9 @@
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
 			{#each servers as server (server.id)}
 				<a href="/dashboard/{page.params.teamID}/servers/{server.id}" class="block">
-					<Card.Root class="border border-border/50 hover:bg-card bg-card/50 transition-colors hover:border-border cursor-pointer">
+					<Card.Root
+						class="cursor-pointer border border-border/50 bg-card/50 transition-colors hover:border-border hover:bg-card"
+					>
 						<Card.Header>
 							<div class="flex flex-col space-y-3">
 								<div class="flex items-center gap-2">

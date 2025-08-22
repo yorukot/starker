@@ -7,14 +7,14 @@
 	import { authDelete } from '$lib/api/client';
 	import { PUBLIC_API_BASE_URL } from '$env/static/public';
 	import { page } from '$app/state';
-	import { goto, invalidate } from '$app/navigation';
+	import { invalidate } from '$app/navigation';
 
 	interface Props {
 		project: Project | null;
 		open?: boolean;
 	}
 
-	let { project, open = $bindable() }: Props = $props();
+	let { project, open = $bindable(false) }: Props = $props();
 	let error = $state('');
 	let deleting = $state(false);
 
@@ -38,7 +38,6 @@
 			// Success - close dialog and notify parent
 			open = false;
 			invalidate(`projects:${page.params.teamID}`);
-			goto(`/dashboard/${page.params.teamID}/projects`);
 		} catch (err: unknown) {
 			console.error('Error deleting project:', err);
 			error = err instanceof Error ? err.message : 'Unknown error occurred';

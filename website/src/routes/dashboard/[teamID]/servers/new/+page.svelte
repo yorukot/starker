@@ -9,10 +9,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { PUBLIC_API_BASE_URL } from '$env/static/public';
-	import {
-		createServerSchema,
-		type CreateServerForm
-	} from '$lib/schemas/request/server';
+	import { createServerSchema, type CreateServerForm } from '$lib/schemas/request/server';
 	import { createForm } from 'felte';
 	import { validator } from '@felte/validator-yup';
 	import { authPost } from '$lib/api/client';
@@ -25,7 +22,12 @@
 	const error = $derived(data.error || null);
 
 	let serverError = $state('');
-	const { form, errors, isSubmitting, data: formData } = createForm<CreateServerForm>({
+	const {
+		form,
+		errors,
+		isSubmitting,
+		data: formData
+	} = createForm<CreateServerForm>({
 		extend: validator({ schema: createServerSchema }),
 		initialValues: {
 			name: '',
@@ -74,7 +76,6 @@
 		}
 	});
 
-
 	function goBack() {
 		goto(`/dashboard/${page.params.teamID}/servers`);
 	}
@@ -98,9 +99,7 @@
 		<!-- Header with title -->
 		<div class="mb-6">
 			<h1 class="text-2xl font-semibold text-foreground">Add New Server</h1>
-			<p class="text-sm text-muted-foreground">
-				Configure a new server with SSH authentication
-			</p>
+			<p class="text-sm text-muted-foreground">Configure a new server with SSH authentication</p>
 		</div>
 
 		<!-- Creation Error Alert -->
@@ -195,14 +194,11 @@
 			<!-- SSH Key Selection -->
 			<div class="space-y-2">
 				<Label for="private_key_id">SSH Key *</Label>
-				<Select.Root
-					type="single"
-					bind:value={$formData.private_key_id}
-				>
+				<Select.Root type="single" bind:value={$formData.private_key_id}>
 					<Select.Trigger class="w-full {$errors.private_key_id ? 'border-destructive' : ''}">
-						{$formData.private_key_id 
-							? privateKeys.find(k => k.id === $formData.private_key_id)?.name 
-							: "Select an SSH key"}
+						{$formData.private_key_id
+							? privateKeys.find((k) => k.id === $formData.private_key_id)?.name
+							: 'Select an SSH key'}
 					</Select.Trigger>
 					<Select.Content>
 						{#each privateKeys as key (key.id)}
@@ -223,7 +219,7 @@
 				{/if}
 				{#if privateKeys.length === 0}
 					<p class="text-sm text-muted-foreground">
-						No SSH keys available. 
+						No SSH keys available.
 						<a href="/dashboard/{page.params.teamID}/keys" class="text-primary hover:underline">
 							Create an SSH key first
 						</a>
@@ -233,9 +229,9 @@
 
 			<!-- Submit Button -->
 			<div class="flex justify-end">
-				<Button 
-					type="submit" 
-					disabled={$isSubmitting || privateKeys.length === 0} 
+				<Button
+					type="submit"
+					disabled={$isSubmitting || privateKeys.length === 0}
 					class="w-full md:w-auto"
 				>
 					{$isSubmitting ? 'Creating...' : 'Create Server'}

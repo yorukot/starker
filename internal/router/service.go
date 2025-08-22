@@ -21,7 +21,8 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 
 	r.Route("/teams/{teamID}/projects/{projectID}/services", func(r chi.Router) {
 		r.Use(middleware.AuthRequiredMiddleware)
-
+		
+		r.Get("/", serviceHandler.GetServices)
 		r.Post("/", serviceHandler.CreateService)
 		r.Patch("/{serviceID}/", serviceHandler.UpdateService)
 		r.Patch("/{serviceID}/state", serviceHandler.UpdateServiceState)

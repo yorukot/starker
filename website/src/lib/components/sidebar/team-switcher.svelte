@@ -1,11 +1,11 @@
 <script lang="ts">
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-	import { useSidebar } from "$lib/components/ui/sidebar/index.js";
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { invalidate } from '$app/navigation';
-	import ChevronsUpDownIcon from "~icons/lucide/chevrons-up-down";
+	import ChevronsUpDownIcon from '~icons/lucide/chevrons-up-down';
 	import LucidePlus from '~icons/lucide/plus';
 	import type { Team } from '$lib/schemas/team';
 	import { generateTeamAvatar } from '$lib/utils/avatar';
@@ -57,10 +57,10 @@
 			<DropdownMenu.Content
 				class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
 				align="start"
-				side={sidebar.isMobile ? "bottom" : "right"}
+				side={sidebar.isMobile ? 'bottom' : 'right'}
 				sideOffset={4}
 			>
-				<DropdownMenu.Label class="text-muted-foreground text-xs">Teams</DropdownMenu.Label>
+				<DropdownMenu.Label class="text-xs text-muted-foreground">Teams</DropdownMenu.Label>
 				{#each teams as team (team.id)}
 					<DropdownMenu.Item onSelect={() => switchTeam(team)} class="gap-2 p-2">
 						<img
@@ -73,12 +73,10 @@
 				{/each}
 				<DropdownMenu.Separator />
 				<DropdownMenu.Item class="gap-2 p-2">
-					<div
-						class="flex size-6 items-center justify-center rounded-md border bg-transparent"
-					>
+					<div class="flex size-6 items-center justify-center rounded-md border bg-transparent">
 						<LucidePlus class="size-4" />
 					</div>
-					<div class="text-muted-foreground font-medium">Add team</div>
+					<div class="font-medium text-muted-foreground">Add team</div>
 				</DropdownMenu.Item>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>

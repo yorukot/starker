@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `make generate-docs` - Generate Swagger documentation using swag
 
 ### Database
-- Start PostgreSQL: `docker-compose up postgres -d`
+- Start PostgreSQL: `docker compose up postgres -d`
 - Database migrations are in `migrations/` directory
 
 ## Project Architecture
@@ -84,7 +84,7 @@ Copy `.env.example` to `.env` and configure:
 - Optional: token expiration settings
 
 ### Development Workflow
-1. Start PostgreSQL: `docker-compose up postgres -d`
+1. Start PostgreSQL: `docker compose up postgres -d`
 2. Run migrations (handled automatically by app)
 3. Use `make dev` for hot reload development
 4. Access Swagger docs at `/swagger/` in dev mode

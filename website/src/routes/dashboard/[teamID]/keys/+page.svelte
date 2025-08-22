@@ -7,7 +7,7 @@
 	import LucideTimer from '~icons/lucide/timer';
 	import { page } from '$app/state';
 	import { invalidate } from '$app/navigation';
-	
+
 	let { data }: { data: PageData } = $props();
 
 	const privateKeys = $derived(data.privateKeys || []);
@@ -34,7 +34,9 @@
 		<div class="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-4">
 			{#each privateKeys as key (key.id)}
 				<a href="/dashboard/{page.params.teamID}/keys/{key.id}" class="block">
-					<Card.Root class="border border-border/50 hover:bg-card bg-card/50 transition-colors hover:border-border cursor-pointer">
+					<Card.Root
+						class="cursor-pointer border border-border/50 bg-card/50 transition-colors hover:border-border hover:bg-card"
+					>
 						<Card.Header>
 							<div class="flex flex-col space-y-3">
 								<div class="flex items-center gap-2">

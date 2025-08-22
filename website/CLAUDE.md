@@ -5,11 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Build & Run
+
 - `pnpm dev` - Start development server with hot reload
 - `pnpm build` - Create production build
 - `pnpm preview` - Preview production build locally
 
 ### Code Quality
+
 - `pnpm lint` - Run Prettier and ESLint checks
 - `pnpm format` - Format code with Prettier
 - `pnpm check` - Type check with svelte-check
@@ -20,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a SvelteKit website using Svelte 5 with TypeScript, TailwindCSS 4.0, and shadcn-svelte components.
 
 ### Core Structure
+
 - `src/routes/` - SvelteKit file-based routing
   - `+page.svelte` - Page components
   - `+layout.svelte` - Layout components
@@ -35,23 +38,28 @@ This is a SvelteKit website using Svelte 5 with TypeScript, TailwindCSS 4.0, and
   - `hooks/` - Svelte 5 runes and reactive utilities
 
 ### UI Component System
+
 Uses shadcn-svelte component library with:
+
 - TailwindCSS 4.0 with forms and typography plugins
 - Lucide icons via unplugin-icons
 - Component composition patterns with Svelte 5 snippets and runes
 - Consistent styling through `cn()` utility combining clsx and tailwind-merge
 
 ### Authentication Flow
+
 - Form validation using Yup with comprehensive password requirements
 - Registration schema enforces strong passwords (uppercase, lowercase, numbers, 8+ chars)
 - Components structured for login/register workflows
 
 ### Navigation Structure
+
 - Hierarchical navigation: Teams → Projects → Services
 - Sidebar with collapsible sections for Projects, Servers, Keys, Settings, Teams
 - Team switcher component for multi-tenancy support
 
 ### Key Dependencies
+
 - **Framework:** SvelteKit with Svelte 5
 - **Styling:** TailwindCSS 4.0 with forms and typography plugins, shadcn-svelte components
 - **Validation:** Yup for form schemas
@@ -61,6 +69,7 @@ Uses shadcn-svelte component library with:
 - **Development:** TypeScript, ESLint, Prettier with Svelte plugins, tw-animate-css
 
 ### Configuration Files
+
 - `components.json` - shadcn-svelte component registry configuration with slate base color
 - `vite.config.ts` - Vite configuration with TailwindCSS 4.0, SvelteKit, and unplugin-icons
 - `svelte.config.js` - SvelteKit configuration with auto adapter and alias setup
@@ -68,6 +77,7 @@ Uses shadcn-svelte component library with:
 - `eslint.config.js` - ESLint configuration with TypeScript, Svelte, and Prettier integration
 
 ### Authentication System Architecture
+
 - Token-based authentication with automatic refresh (5-minute intervals)
 - JWT access tokens stored in sessionStorage with 15-minute expiration
 - Refresh tokens handled via httpOnly cookies for security
@@ -78,6 +88,7 @@ Uses shadcn-svelte component library with:
 - Form submission with error handling for email conflicts and network errors
 
 ### Development Workflow
+
 1. Install dependencies with `pnpm install` (preferred) or `npm install`
 2. Start development server with `pnpm dev` or `npm run dev`
 3. Access application at `http://localhost:5173`
@@ -86,6 +97,7 @@ Uses shadcn-svelte component library with:
 6. Run linting with `pnpm lint` to check Prettier and ESLint rules
 
 ### Component Patterns
+
 - Use Svelte 5 runes (`$state`, `$derived`, `$props`) for reactivity
 - Component composition with `{@render children?.()}`
 - TypeScript prop typing with `ComponentProps<typeof Component>`
@@ -94,6 +106,7 @@ Uses shadcn-svelte component library with:
 - Mobile responsive utilities via `IsMobile` class extending Svelte's `MediaQuery`
 
 ### Styling and Theme System
+
 - TailwindCSS 4.0 with custom CSS variables and OKLCH color space
 - Dark mode support with CSS variable overrides
 - Custom radius system with sm/md/lg/xl variants

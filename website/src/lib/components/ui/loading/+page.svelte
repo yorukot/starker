@@ -1,5 +1,5 @@
 <script lang="ts">
- 	let { msg }: { msg: string } = $props();
+	let { msg }: { msg: string } = $props();
 </script>
 
 <div class="flex h-screen items-center justify-center">

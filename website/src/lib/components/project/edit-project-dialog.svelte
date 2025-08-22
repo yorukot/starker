@@ -16,7 +16,7 @@
 
 	let {
 		project,
-		dialogOpen = $bindable()
+		dialogOpen = $bindable(false)
 	}: {
 		project: Project;
 		dialogOpen?: boolean;

@@ -45,12 +45,6 @@
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
 
-	<EditProjectDialog
-		{project}
-		bind:dialogOpen={editDialogOpen}
-	/>
+<EditProjectDialog {project} bind:dialogOpen={editDialogOpen} />
 
-	<DeleteProjectDialog
-		{project}
-		bind:open={deleteDialogOpen}
-	/>
+<DeleteProjectDialog {project} bind:open={deleteDialogOpen} />

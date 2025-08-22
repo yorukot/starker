@@ -18,7 +18,7 @@
 	import { createForm } from 'felte';
 	import { validator } from '@felte/validator-yup';
 	import { authPatch } from '$lib/api/client';
-	import { toast } from "svelte-sonner";
+	import { toast } from 'svelte-sonner';
 
 	let { data }: { data: PageData } = $props();
 
@@ -57,7 +57,7 @@
 			return response.json();
 		},
 		onSuccess: () => {
-		  invalidate(`key:${page.params.keyID}`);
+			invalidate(`key:${page.params.keyID}`);
 			toast.success('Successful update key');
 		},
 		onError: (error: unknown) => {

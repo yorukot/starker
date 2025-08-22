@@ -7,15 +7,10 @@
 	import LucideFolder from '~icons/lucide/folder';
 	import LucideTimer from '~icons/lucide/timer';
 	import { page } from '$app/state';
-	import { invalidate } from '$app/navigation';
 
 	let { data }: { data: PageData } = $props();
 
 	const projects = $derived(data.projects || []);
-
-	async function onProjectCreated() {
-		await invalidate(`projects:${page.params.teamID}`);
-	}
 </script>
 
 <div class="flex flex-col gap-6">
@@ -26,7 +21,7 @@
 				Organize your services and deployments into projects
 			</p>
 		</div>
-		<NewProject {onProjectCreated} />
+		<NewProject />
 	</div>
 
 	<Separator />
@@ -35,7 +30,9 @@
 		<div class="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-4">
 			{#each projects as project (project.id)}
 				<a href="/dashboard/{page.params.teamID}/projects/{project.id}" class="block h-full">
-					<Card.Root class="border border-border/50 hover:bg-card bg-card/50 transition-colors hover:border-border cursor-pointer group h-full">
+					<Card.Root
+						class="group h-full cursor-pointer border border-border/50 bg-card/50 transition-colors hover:border-border hover:bg-card"
+					>
 						<Card.Header>
 							<div class="flex flex-col space-y-3">
 								<div class="flex items-center justify-between">
@@ -45,10 +42,12 @@
 										</div>
 										<h3 class="font-medium">{project.name}</h3>
 									</div>
-									<div 
-										class="opacity-0 group-hover:opacity-100 transition-opacity" 
+									<div
+										class="opacity-0 transition-opacity group-hover:opacity-100"
 										onclick={(e) => e.preventDefault()}
-										onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
+										onkeydown={(e) => {
+											if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+										}}
 										role="button"
 										tabindex="-1"
 									>
@@ -60,13 +59,13 @@
 						<Card.Content>
 							<div class="space-y-2">
 								{#if project.description}
-									<p class="text-sm text-muted-foreground line-clamp-2">
+									<p class="line-clamp-2 text-sm text-muted-foreground">
 										{project.description}
 									</p>
 								{/if}
 								<div class="space-y-1 text-xs text-muted-foreground">
-									<div class="flex gap-1 items-center">
-										<LucideTimer class="h-3 w-3" /> 
+									<div class="flex items-center gap-1">
+										<LucideTimer class="h-3 w-3" />
 										Created: {new Date(project.created_at).toLocaleDateString()}
 									</div>
 								</div>
