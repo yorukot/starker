@@ -21,7 +21,7 @@ func ProjectRouter(r chi.Router, app *handler.App) {
 		r.Post("/", projectHandler.CreateProject)
 		r.Get("/", projectHandler.GetProjects)
 		r.Get("/{projectID}", projectHandler.GetProject)
-		r.Put("/{projectID}", projectHandler.UpdateProject)
+		r.Patch("/{projectID}", projectHandler.UpdateProject)
 		r.Delete("/{projectID}", projectHandler.DeleteProject)
 	})
 }
