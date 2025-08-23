@@ -59,16 +59,25 @@
 		</Alert.Root>
 	{:else if project}
 		<!-- Header with project info -->
-		<div class="flex items-center gap-4">
-			<div class="rounded-lg border border-primary/20 bg-primary/10 p-3">
-				<LucideFolder class="h-8 w-8 text-primary" />
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-4">
+				<div class="rounded-lg border border-primary/20 bg-primary/10 p-3">
+					<LucideFolder class="h-6 w-6 text-primary" />
+				</div>
+				<div>
+					<h1 class="text-2xl font-semibold text-foreground">{project.name}</h1>
+					{#if project.description}
+						<p class="text-muted-foreground">{project.description}</p>
+					{/if}
+				</div>
 			</div>
-			<div>
-				<h1 class="text-2xl font-semibold text-foreground">{project.name}</h1>
-				{#if project.description}
-					<p class="text-muted-foreground">{project.description}</p>
-				{/if}
-			</div>
+			<Button
+				href="/dashboard/{page.params.teamID}/projects/{project.id}/services/new"
+				class="gap-2"
+			>
+				<LucidePlus class="h-4 w-4" />
+				Add Service
+			</Button>
 		</div>
 
 		<Separator />
@@ -83,13 +92,6 @@
 					</p>
 				</div>
 				<!-- Future: Add service creation button here -->
-				<Button
-					href="/dashboard/{page.params.teamID}/projects/{project.id}/services/new"
-					class="gap-2"
-				>
-					<LucidePlus class="h-4 w-4" />
-					Add Service
-				</Button>
 			</div>
 
 			{#if services.length > 0}

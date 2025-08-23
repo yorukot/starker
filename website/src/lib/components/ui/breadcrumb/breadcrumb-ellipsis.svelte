@@ -1,5 +1,5 @@
 <script lang="ts">
-	import EllipsisIcon from '~icons/lucide/icons/ellipsis';
+	import LucideEllipsis from '~icons/lucide/ellipsis';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn, type WithElementRef, type WithoutChildren } from '$lib/utils.js';
 
@@ -18,6 +18,6 @@
 	class={cn('flex size-9 items-center justify-center', className)}
 	{...restProps}
 >
-	<EllipsisIcon class="size-4" />
+	<LucideEllipsis class="size-4" />
 	<span class="sr-only">More</span>
 </span>
