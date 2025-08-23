@@ -123,6 +123,22 @@ func CreateAccount(ctx context.Context, db pgx.Tx, account models.Account) error
 	return err
 }
 
+// GetUserByID gets a user by ID
+func GetUserByID(ctx context.Context, db pgx.Tx, userID string) (*models.User, error) {
+	query := `
+		SELECT * FROM users WHERE id = $1
+	`
+	var user models.User
+	err := pgxscan.Get(ctx, db, &user, query, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 // CreateUserAndAccount creates a user and account
 func CreateUserAndAccount(ctx context.Context, db pgx.Tx, user models.User, account models.Account) error {
 	if err := CreateUser(ctx, db, user); err != nil {

@@ -18,21 +18,17 @@
 		collapsible = 'icon',
 		teams = [],
 		currentTeam = null,
+		user = null,
 		...restProps
 	}: ComponentProps<typeof Sidebar.Root> & {
 		teams: Team[];
 		currentTeam: Team | null;
+		user: import('$lib/schemas/user').User | null;
 	} = $props();
 
 	const teamID = $derived(page.params.teamID);
 
-	// This is sample data.
 	const data = $derived({
-		user: {
-			name: 'shadcn',
-			email: 'm@example.com',
-			avatar: '/avatars/shadcn.jpg'
-		},
 		navMain: [
 			{
 				title: 'Projects',
@@ -76,7 +72,7 @@
 		<NavMain items={data.navMain} />
 	</Sidebar.Content>
 	<Sidebar.Footer>
-		<NavUser user={data.user} />
+		<NavUser {user} />
 	</Sidebar.Footer>
 	<Sidebar.Rail />
 </Sidebar.Root>

@@ -1,5 +1,5 @@
 <script>
-	import LogIn from '$lib/components/auth/login.svelte';
+	import LoginForm from '$lib/components/auth/login-form.svelte';
 </script>
 
-<LogIn />
+<LoginForm id={() => 'login'} />

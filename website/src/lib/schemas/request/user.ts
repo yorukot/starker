@@ -18,3 +18,10 @@ export const registerSchema = yup.object({
 });
 
 export type RegisterForm = yup.InferType<typeof registerSchema>;
+
+export const loginSchema = yup.object({
+	email: yup.string().required('Email is required').email('Please enter a valid email address.'),
+	password: yup.string().required('Password is required')
+});
+
+export type LoginForm = yup.InferType<typeof loginSchema>;

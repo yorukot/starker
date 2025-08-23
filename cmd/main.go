@@ -91,6 +91,7 @@ func main() {
 func setupRouter(r chi.Router, app *handler.App) {
 	r.Route("/api", func(r chi.Router) {
 		router.AuthRouter(r, app)
+		router.UserRouter(r, app)
 		router.TeamRouter(r, app)
 		router.PrivateKeyRouter(r, app)
 		router.ServerRouter(r, app)

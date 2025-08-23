@@ -40,7 +40,7 @@ export async function refreshToken(): Promise<string | null> {
 		const data: RefreshTokenResponse = await response.json();
 
 		// Store access token in sessionStorage with 15-minute expiration
-		const expiryTime = Date.now() + 15 * 60 * 1000; // 15 minutes
+		const expiryTime = Date.now() + 10 * 60 * 1000; // 15 minutes
 		sessionStorage.setItem('access_token', data.access_token);
 		sessionStorage.setItem('token_expiry', expiryTime.toString());
 
