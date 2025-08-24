@@ -29,7 +29,7 @@ func createProjectVolumes(ctx context.Context, dockerClient *client.Client, proj
 		}
 
 		if len(existingVolumes.Volumes) == 0 {
-			streamResult.StdoutChan <- fmt.Sprintf("Creating volume: %s", fullVolumeName)
+			streamResult.LogChan <- fmt.Sprintf("Creating volume: %s", fullVolumeName)
 			_, err = dockerClient.VolumeCreate(ctx, volume.CreateOptions{
 				Name:   fullVolumeName,
 				Labels: namingGen.GetVolumeLabels(project.Name, volumeName),
@@ -37,9 +37,9 @@ func createProjectVolumes(ctx context.Context, dockerClient *client.Client, proj
 			if err != nil {
 				return fmt.Errorf("failed to create volume %s: %w", fullVolumeName, err)
 			}
-			streamResult.StdoutChan <- fmt.Sprintf("Created volume: %s", fullVolumeName)
+			streamResult.LogChan <- fmt.Sprintf("Created volume: %s", fullVolumeName)
 		} else {
-			streamResult.StdoutChan <- fmt.Sprintf("Volume %s already exists", fullVolumeName)
+			streamResult.LogChan <- fmt.Sprintf("Volume %s already exists", fullVolumeName)
 		}
 	}
 

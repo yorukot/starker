@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { setContext } from 'svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import type { Snippet } from 'svelte';
@@ -15,6 +16,9 @@
 	}
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
+	
+	// Set context so child components can access layout data
+	setContext('layoutData', data);
 
 	// Extract route parameters
 	const teamID = $derived(page.params.teamID);

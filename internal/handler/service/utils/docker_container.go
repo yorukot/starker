@@ -19,7 +19,7 @@ import (
 
 // startSingleServiceFromProject starts a single service from the project configuration
 func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, service *types.ServiceConfig, project *types.Project, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
-	streamResult.StdoutChan <- fmt.Sprintf("Starting service: %s", service.Name)
+	streamResult.LogChan <- fmt.Sprintf("Starting service: %s", service.Name)
 
 	containerName := namingGen.ContainerName(service.Name)
 
@@ -39,7 +39,7 @@ func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Cli
 	if len(existingContainers) > 0 {
 		// Container exists, just start it
 		containerID = existingContainers[0].ID
-		streamResult.StdoutChan <- fmt.Sprintf("Starting existing container: %s", containerName)
+		streamResult.LogChan <- fmt.Sprintf("Starting existing container: %s", containerName)
 
 		if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 			return fmt.Errorf("failed to start existing container %s: %w", service.Name, err)
@@ -52,7 +52,7 @@ func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Cli
 		}
 	}
 
-	streamResult.StdoutChan <- fmt.Sprintf("Successfully started service: %s", service.Name)
+	streamResult.LogChan <- fmt.Sprintf("Successfully started service: %s", service.Name)
 
 	return nil
 }
@@ -66,7 +66,7 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 	for _, portConfig := range service.Ports {
 		natPort, err := nat.NewPort(portConfig.Protocol, strconv.Itoa(int(portConfig.Target)))
 		if err != nil {
-			streamResult.StderrChan <- fmt.Sprintf("Invalid port format %d/%s: %v", portConfig.Target, portConfig.Protocol, err)
+			streamResult.LogChan <- fmt.Sprintf("Invalid port format %d/%s: %v", portConfig.Target, portConfig.Protocol, err)
 			continue
 		}
 
@@ -144,7 +144,7 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 		}
 	}
 
-	streamResult.StdoutChan <- fmt.Sprintf("Creating container: %s", containerName)
+	streamResult.LogChan <- fmt.Sprintf("Creating container: %s", containerName)
 	zap.L().Debug("Creating container", zap.Any("networkconfig", networkConfig))
 	// Create container
 	resp, err := dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, networkConfig, nil, containerName)
@@ -157,13 +157,13 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 		return "", fmt.Errorf("failed to start container: %w", err)
 	}
 
-	streamResult.StdoutChan <- fmt.Sprintf("Created and started container: %s", containerName)
+	streamResult.LogChan <- fmt.Sprintf("Created and started container: %s", containerName)
 	return resp.ID, nil
 }
 
 // stopSingleServiceFromProject stops a single service from the project
 func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, serviceName, projectName string, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
-	streamResult.StdoutChan <- fmt.Sprintf("Stopping service: %s", serviceName)
+	streamResult.LogChan <- fmt.Sprintf("Stopping service: %s", serviceName)
 
 	// Find containers for this specific service using generator filters
 	fb := generator.NewFilterBuilder(namingGen)
@@ -178,7 +178,7 @@ func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Clie
 	}
 
 	if len(containers) == 0 {
-		streamResult.StdoutChan <- fmt.Sprintf("No containers found for service %s", serviceName)
+		streamResult.LogChan <- fmt.Sprintf("No containers found for service %s", serviceName)
 		return nil
 	}
 
@@ -187,26 +187,26 @@ func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Clie
 	for _, cont := range containers {
 		// Stop container if running
 		if cont.State == "running" {
-			streamResult.StdoutChan <- fmt.Sprintf("Stopping container for service: %s", serviceName)
+			streamResult.LogChan <- fmt.Sprintf("Stopping container for service: %s", serviceName)
 			if err := dockerClient.ContainerStop(ctx, cont.ID, container.StopOptions{Timeout: &timeout}); err != nil {
-				streamResult.StderrChan <- fmt.Sprintf("Failed to stop container for service %s: %v", serviceName, err)
+				streamResult.LogChan <- fmt.Sprintf("Failed to stop container for service %s: %v", serviceName, err)
 				continue
 			}
-			streamResult.StdoutChan <- fmt.Sprintf("Stopped container for service: %s", serviceName)
+			streamResult.LogChan <- fmt.Sprintf("Stopped container for service: %s", serviceName)
 		}
 
 		// Remove container
-		streamResult.StdoutChan <- fmt.Sprintf("Removing container for service: %s", serviceName)
+		streamResult.LogChan <- fmt.Sprintf("Removing container for service: %s", serviceName)
 		if err := dockerClient.ContainerRemove(ctx, cont.ID, container.RemoveOptions{
 			RemoveVolumes: false, // Don't remove named volumes
 			Force:         true,  // Force remove even if running
 		}); err != nil {
-			streamResult.StderrChan <- fmt.Sprintf("Failed to remove container for service %s: %v", serviceName, err)
+			streamResult.LogChan <- fmt.Sprintf("Failed to remove container for service %s: %v", serviceName, err)
 			continue
 		}
-		streamResult.StdoutChan <- fmt.Sprintf("Removed container for service: %s", serviceName)
+		streamResult.LogChan <- fmt.Sprintf("Removed container for service: %s", serviceName)
 	}
 
-	streamResult.StdoutChan <- fmt.Sprintf("Successfully stopped service: %s", serviceName)
+	streamResult.LogChan <- fmt.Sprintf("Successfully stopped service: %s", serviceName)
 	return nil
 }

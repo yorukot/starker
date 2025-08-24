@@ -206,17 +206,11 @@ func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, re
 	// Stream the command output via SSE in real-time
 	for {
 		select {
-		case line, ok := <-result.StreamResult.StdoutChan:
+		case line, ok := <-result.StreamResult.LogChan:
 			if !ok {
 				continue
 			}
-			fmt.Fprintf(w, "data: {\"type\": \"stdout\", \"message\": \"%s\"}\n\n", escapeJSONString(line))
-			w.(http.Flusher).Flush()
-		case line, ok := <-result.StreamResult.StderrChan:
-			if !ok {
-				continue
-			}
-			fmt.Fprintf(w, "data: {\"type\": \"stderr\", \"message\": \"%s\"}\n\n", escapeJSONString(line))
+			fmt.Fprintf(w, "data: {\"type\": \"log\", \"message\": \"%s\"}\n\n", escapeJSONString(line))
 			w.(http.Flusher).Flush()
 		case err, ok := <-result.StreamResult.ErrorChan:
 			if !ok {

@@ -10,7 +10,7 @@ import (
 
 // startComposeServicesWithDependencies starts all services with proper Docker Compose dependency orchestration
 func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServiceConfig, project *types.Project, streamResult *StreamingResult) error {
-	streamResult.StdoutChan <- fmt.Sprintf("Starting Docker Compose project %s with %d services", project.Name, len(project.Services))
+	streamResult.LogChan <- fmt.Sprintf("Starting Docker Compose project %s with %d services", project.Name, len(project.Services))
 
 	// Step 1: Create networks first
 	if err := createProjectNetworks(ctx, cfg.Client, project, streamResult, cfg.Generator); err != nil {
@@ -52,6 +52,6 @@ func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServic
 		return fmt.Errorf("failed to start services in dependency order: %w", err)
 	}
 
-	streamResult.StdoutChan <- fmt.Sprintf("Successfully started Docker Compose project %s", project.Name)
+	streamResult.LogChan <- fmt.Sprintf("Successfully started Docker Compose project %s", project.Name)
 	return nil
 }

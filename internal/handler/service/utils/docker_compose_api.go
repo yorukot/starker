@@ -23,8 +23,7 @@ type DockerServiceConfig struct {
 
 // StreamingResult provides streaming output from Docker operations
 type StreamingResult struct {
-	StdoutChan chan string
-	StderrChan chan string
+	LogChan    chan string
 	ErrorChan  chan error
 	DoneChan   chan struct{}
 	finalError error
@@ -33,10 +32,9 @@ type StreamingResult struct {
 // NewStreamingResult creates a new StreamingResult
 func NewStreamingResult() *StreamingResult {
 	return &StreamingResult{
-		StdoutChan: make(chan string, 100),
-		StderrChan: make(chan string, 100),
-		ErrorChan:  make(chan error, 10),
-		DoneChan:   make(chan struct{}),
+		LogChan:   make(chan string, 100),
+		ErrorChan: make(chan error, 10),
+		DoneChan:  make(chan struct{}),
 	}
 }
 
@@ -135,8 +133,7 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 	// Start containers in a goroutine for streaming with proper dependency order
 	go func() {
 		defer close(streamResult.DoneChan)
-		defer close(streamResult.StdoutChan)
-		defer close(streamResult.StderrChan)
+		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
 		err := startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
@@ -179,8 +176,7 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 	// Stop containers in a goroutine for streaming with reverse dependency order
 	go func() {
 		defer close(streamResult.DoneChan)
-		defer close(streamResult.StdoutChan)
-		defer close(streamResult.StderrChan)
+		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
 		err := stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
@@ -228,8 +224,7 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 	// Restart containers in a goroutine for streaming with proper dependency ordering
 	go func() {
 		defer close(streamResult.DoneChan)
-		defer close(streamResult.StdoutChan)
-		defer close(streamResult.StderrChan)
+		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
 		// First stop services in reverse dependency order

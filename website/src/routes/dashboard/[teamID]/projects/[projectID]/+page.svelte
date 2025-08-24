@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import type { PageData } from './$types';
+	import { ServiceState } from '$lib/schemas/service';
 	import LucideFolder from '~icons/lucide/folder';
 	import LucideArrowLeft from '~icons/lucide/arrow-left';
 	import LucideSettings from '~icons/lucide/settings';
@@ -27,15 +28,15 @@
 
 	function getStateColor(state: string) {
 		switch (state) {
-			case 'running':
+			case ServiceState.RUNNING:
 				return 'text-green-500';
-			case 'stopped':
+			case ServiceState.STOPPED:
 				return 'text-red-500';
-			case 'starting':
+			case ServiceState.STARTING:
 				return 'text-yellow-500';
-			case 'stopping':
+			case ServiceState.STOPPING:
 				return 'text-orange-500';
-			case 'restarting':
+			case ServiceState.RESTARTING:
 				return 'text-blue-500';
 			default:
 				return 'text-gray-500';

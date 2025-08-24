@@ -27,7 +27,7 @@ func createProjectNetworks(ctx context.Context, dockerClient *client.Client, pro
 		}
 		zap.L().Debug("Existing networks", zap.Any("networks", networks))
 		if len(networks) == 0 {
-			streamResult.StdoutChan <- fmt.Sprintf("Creating network: %s", fullNetworkName)
+			streamResult.LogChan <- fmt.Sprintf("Creating network: %s", fullNetworkName)
 			_, err = dockerClient.NetworkCreate(ctx, fullNetworkName, network.CreateOptions{
 				Driver: networkConfig.Driver,
 				Labels: namingGen.GetNetworkLabels(project.Name, networkName),
@@ -35,9 +35,9 @@ func createProjectNetworks(ctx context.Context, dockerClient *client.Client, pro
 			if err != nil {
 				return fmt.Errorf("failed to create network %s: %w", fullNetworkName, err)
 			}
-			streamResult.StdoutChan <- fmt.Sprintf("Created network: %s", fullNetworkName)
+			streamResult.LogChan <- fmt.Sprintf("Created network: %s", fullNetworkName)
 		} else {
-			streamResult.StdoutChan <- fmt.Sprintf("Network %s already exists", fullNetworkName)
+			streamResult.LogChan <- fmt.Sprintf("Network %s already exists", fullNetworkName)
 		}
 	}
 
@@ -61,20 +61,20 @@ func cleanupProjectNetworks(ctx context.Context, dockerClient *client.Client, pr
 		// Check if network is in use by other containers
 		networkInfo, err := dockerClient.NetworkInspect(ctx, net.ID, network.InspectOptions{})
 		if err != nil {
-			streamResult.StderrChan <- fmt.Sprintf("Failed to inspect network %s: %v", net.Name, err)
+			streamResult.LogChan <- fmt.Sprintf("Failed to inspect network %s: %v", net.Name, err)
 			continue
 		}
 
 		// If network has no connected containers, remove it
 		if len(networkInfo.Containers) == 0 {
-			streamResult.StdoutChan <- fmt.Sprintf("Removing network: %s", net.Name)
+			streamResult.LogChan <- fmt.Sprintf("Removing network: %s", net.Name)
 			if err := dockerClient.NetworkRemove(ctx, net.ID); err != nil {
-				streamResult.StderrChan <- fmt.Sprintf("Failed to remove network %s: %v", net.Name, err)
+				streamResult.LogChan <- fmt.Sprintf("Failed to remove network %s: %v", net.Name, err)
 				continue
 			}
-			streamResult.StdoutChan <- fmt.Sprintf("Removed network: %s", net.Name)
+			streamResult.LogChan <- fmt.Sprintf("Removed network: %s", net.Name)
 		} else {
-			streamResult.StdoutChan <- fmt.Sprintf("Network %s still in use, keeping it", net.Name)
+			streamResult.LogChan <- fmt.Sprintf("Network %s still in use, keeping it", net.Name)
 		}
 	}
 
