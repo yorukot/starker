@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,9 +17,54 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// sshPipeConn implements net.Conn using SSH session stdin/stdout pipes
+type sshPipeConn struct {
+	stdin   io.WriteCloser
+	stdout  io.Reader
+	session *ssh.Session
+}
+
+func (c *sshPipeConn) Read(b []byte) (n int, err error) {
+	return c.stdout.Read(b)
+}
+
+func (c *sshPipeConn) Write(b []byte) (n int, err error) {
+	return c.stdin.Write(b)
+}
+
+func (c *sshPipeConn) Close() error {
+	c.stdin.Close()
+	// stdout from SSH session doesn't need explicit closing
+	return c.session.Close()
+}
+
+func (c *sshPipeConn) LocalAddr() net.Addr {
+	return &net.UnixAddr{Name: "ssh-pipe", Net: "unix"}
+}
+
+func (c *sshPipeConn) RemoteAddr() net.Addr {
+	return &net.UnixAddr{Name: "/var/run/docker.sock", Net: "unix"}
+}
+
+func (c *sshPipeConn) SetDeadline(t time.Time) error {
+	// SSH sessions don't support deadlines
+	return nil
+}
+
+func (c *sshPipeConn) SetReadDeadline(t time.Time) error {
+	// SSH sessions don't support deadlines
+	return nil
+}
+
+func (c *sshPipeConn) SetWriteDeadline(t time.Time) error {
+	// SSH sessions don't support deadlines
+	return nil
+}
+
 // ConnectionInfo is the information of a connection
 type ConnectionInfo struct {
 	client    *client.Client
+	sshConn   *ssh.Client
 	lastUsed  time.Time
 	createdAt time.Time
 }
@@ -86,7 +132,7 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 	}
 
 	// Create new connection with private key
-	dockerClient, err := p.createDockerClient(host, privateKeyContent, opts...)
+	dockerClient, sshConn, err := p.createDockerClient(host, privateKeyContent, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker connection: %w", err)
 	}
@@ -94,6 +140,7 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 	now := time.Now()
 	p.connections[connectionID] = &ConnectionInfo{
 		client:    dockerClient,
+		sshConn:   sshConn,
 		lastUsed:  now,
 		createdAt: now,
 	}
@@ -154,6 +201,9 @@ func (p *DockerConnectionPool) removeConnection(connectionID string, connInfo *C
 	if connInfo.client != nil {
 		connInfo.client.Close()
 	}
+	if connInfo.sshConn != nil {
+		connInfo.sshConn.Close()
+	}
 }
 
 // RemoveConnection removes a connection from the pool by connectionID
@@ -212,11 +262,14 @@ func (p *DockerConnectionPool) cleanup() {
 // This function bypasses the connection pool and accepts private key content directly
 func (p *DockerConnectionPool) TestConnection(host string, privateKeyContent []byte, opts ...client.Opt) error {
 	// Create a new Docker client for testing with the provided key
-	dockerClient, err := p.createDockerClient(host, privateKeyContent, opts...)
+	dockerClient, sshConn, err := p.createDockerClient(host, privateKeyContent, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create Docker connection: %w", err)
 	}
 	defer dockerClient.Close()
+	if sshConn != nil {
+		defer sshConn.Close()
+	}
 
 	// Test the connection with a ping
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -231,27 +284,27 @@ func (p *DockerConnectionPool) TestConnection(host string, privateKeyContent []b
 }
 
 // createDockerClient creates a new Docker client with SSH key-based authentication using provided key content
-func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
+func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, *ssh.Client, error) {
 	// Only allow SSH connections
 	if len(host) < 6 || host[:6] != "ssh://" {
-		return nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
+		return nil, nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
 	}
 
 	// Validate SSH key authentication
 	if err := p.validateSSHKeyAuth(host); err != nil {
-		return nil, fmt.Errorf("SSH key validation failed: %w", err)
+		return nil, nil, fmt.Errorf("SSH key validation failed: %w", err)
 	}
 
 	// Parse the SSH URL
 	parsedURL, err := url.Parse(host)
 	if err != nil {
-		return nil, fmt.Errorf("invalid SSH URL format: %w", err)
+		return nil, nil, fmt.Errorf("invalid SSH URL format: %w", err)
 	}
 
 	// Parse the private key
 	block, _ := pem.Decode(privateKeyContent)
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse private key PEM block")
+		return nil, nil, fmt.Errorf("failed to parse private key PEM block")
 	}
 
 	var privateKey any
@@ -267,17 +320,17 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 	case "OPENSSH PRIVATE KEY":
 		privateKey, parseErr = ssh.ParseRawPrivateKey(privateKeyContent)
 	default:
-		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+		return nil, nil, fmt.Errorf("unsupported private key type: %s", block.Type)
 	}
 
 	if parseErr != nil {
-		return nil, fmt.Errorf("failed to parse private key: %w", parseErr)
+		return nil, nil, fmt.Errorf("failed to parse private key: %w", parseErr)
 	}
 
 	// Create SSH signer
 	signer, err := ssh.NewSignerFromKey(privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create SSH signer: %w", err)
+		return nil, nil, fmt.Errorf("failed to create SSH signer: %w", err)
 	}
 
 	// Create SSH client config
@@ -290,23 +343,50 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 		Timeout:         10 * time.Second,
 	}
 
-	// Create custom dialer that uses our SSH connection
+	// Establish persistent SSH connection
+	sshConn, err := ssh.Dial("tcp", parsedURL.Host, sshConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect via SSH: %w", err)
+	}
+
+	// Create custom dialer that uses the established SSH connection
 	dialer := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// Connect to SSH server
-		sshConn, err := ssh.Dial("tcp", parsedURL.Host, sshConfig)
+		
+		// Use SSH to execute a command that connects to the Docker socket
+		// This is more compatible than direct unix socket forwarding
+		session, err := sshConn.NewSession()
 		if err != nil {
-			return nil, fmt.Errorf("failed to connect via SSH: %w", err)
+			return nil, fmt.Errorf("failed to create SSH session: %w", err)
 		}
-
-		// Create a connection to the Docker socket via SSH tunnel
-		dockerSocketPath := "/var/run/docker.sock"
-		conn, err := sshConn.Dial("unix", dockerSocketPath)
+		
+		// Use socat to bridge the connection to the Docker socket
+		// This creates a bidirectional pipe to the Unix socket
+		cmd := "socat STDIO UNIX-CONNECT:/var/run/docker.sock"
+		
+		stdin, err := session.StdinPipe()
 		if err != nil {
-			sshConn.Close()
-			return nil, fmt.Errorf("failed to connect to Docker socket via SSH: %w", err)
+			session.Close()
+			return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
 		}
-
-		return conn, nil
+		
+		stdout, err := session.StdoutPipe()
+		if err != nil {
+			session.Close()
+			return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+		}
+		
+		if err := session.Start(cmd); err != nil {
+			session.Close()
+			return nil, fmt.Errorf("failed to start socat command: %w", err)
+		}
+		
+		
+		// Create a bidirectional connection using stdin/stdout pipes
+		return &sshPipeConn{
+			stdin:   stdin,
+			stdout:  stdout,
+			session: session,
+		}, nil
 	}
 
 	httpClient := &http.Client{
@@ -317,14 +397,19 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 
 	clientOpts := []client.Opt{
 		client.WithHTTPClient(httpClient),
-		client.WithHost("unix:///var/run/docker.sock"),
 		client.WithAPIVersionNegotiation(),
 	}
 
 	// Append any additional options provided
 	clientOpts = append(clientOpts, opts...)
 
-	return client.NewClientWithOpts(clientOpts...)
+	dockerClient, err := client.NewClientWithOpts(clientOpts...)
+	if err != nil {
+		sshConn.Close()
+		return nil, nil, fmt.Errorf("failed to create Docker client: %w", err)
+	}
+
+	return dockerClient, sshConn, nil
 }
 
 // Close closes the connection pool and all connections

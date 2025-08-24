@@ -28,11 +28,8 @@
 	// Navigation tabs configuration
 	const tabs = [
 		{ id: 'overview', label: 'Overview', path: 'overview' },
-		{ id: 'containers', label: 'Containers', path: 'Containers' },
-		{ id: 'deployments', label: 'Deployments', path: 'deployments' },
 		{ id: 'domains', label: 'Domains', path: 'domains' },
 		{ id: 'logs', label: 'Logs', path: 'logs' },
-		{ id: 'monitoring', label: 'Monitoring', path: 'mointoring' },
 		{ id: 'settings', label: 'Settings', path: 'settings' }
 	];
 
