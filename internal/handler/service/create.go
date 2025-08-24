@@ -94,7 +94,7 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 		response.RespondWithError(w, http.StatusBadRequest, "Server not found", "SERVER_NOT_FOUND")
 		return
 	}
-	
+
 	// Generate service model
 	service := servicesvc.GenerateService(createServiceRequest, teamID, createServiceRequest.ServerID, project.ID)
 

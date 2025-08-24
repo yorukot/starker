@@ -59,19 +59,19 @@ func GeneratePrivateKey(createPrivateKeyRequest CreatePrivateKeyRequest, teamID 
 // UpdatePrivateKeyFields updates the private key model with the update request fields
 func UpdatePrivateKeyFields(privateKey *models.PrivateKey, updateRequest UpdatePrivateKeyRequest) {
 	now := time.Now()
-	
+
 	if updateRequest.Name != nil {
 		privateKey.Name = *updateRequest.Name
 	}
-	
+
 	if updateRequest.Description != nil {
 		privateKey.Description = updateRequest.Description
 	}
-	
+
 	if updateRequest.PrivateKey != nil {
 		privateKey.PrivateKey = *updateRequest.PrivateKey
 		privateKey.Fingerprint = GenerateFingerprint(*updateRequest.PrivateKey)
 	}
-	
+
 	privateKey.UpdatedAt = now
 }

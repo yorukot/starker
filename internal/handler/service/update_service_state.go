@@ -20,7 +20,6 @@ import (
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
 	"github.com/yorukot/starker/pkg/response"
-	"github.com/yorukot/starker/pkg/sshpool"
 )
 
 type updateServiceStateRequest struct {
@@ -88,7 +87,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		response.RespondWithError(w, http.StatusBadRequest, "Team access denied", "TEAM_ACCESS_DENIED")
 		return
 	}
-	
+
 	// Check if service exists
 	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
 	if err != nil {
@@ -100,7 +99,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		response.RespondWithError(w, http.StatusBadRequest, "Service not found", "SERVICE_NOT_FOUND")
 		return
 	}
-	
+
 	// Check if the current state allows the requested operation
 	if !checkStateIsRight(service.State, newState) {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid state transition", "INVALID_STATE_TRANSITION")
@@ -123,28 +122,26 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Don't commit transaction yet - we need to wait for the operation to complete
 	h.streamServiceOutputWithUpdate(w, result, service, r.Context())
-
-	// Commit transaction after successful completion
-	repository.CommitTransaction(tx, r.Context())
 }
 
 func checkStateIsRight(state models.ServiceState, newState string) bool {
 	switch newState {
-		case "start":
-			return state == models.ServiceStateStopped
-		case "stop":
-			return state == models.ServiceStateRunning
-		case "restart":
-			return state == models.ServiceStateRunning
-		default:
-			return false
+	case "start":
+		return state == models.ServiceStateStopped
+	case "stop":
+		return state == models.ServiceStateRunning
+	case "restart":
+		return state == models.ServiceStateRunning
+	default:
+		return false
 	}
 }
 
 // serviceOperationResult contains the result of a service operation
 type serviceOperationResult struct {
-	StreamResult  *sshpool.StreamingCommandResult
+	StreamResult  *utils.StreamingResult
 	InitialStatus models.ServiceState
 	SuccessStatus models.ServiceState
 	FailureStatus models.ServiceState
@@ -152,7 +149,7 @@ type serviceOperationResult struct {
 
 // executeServiceOperation executes a service operation (start/stop/restart)
 func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation, serviceID, teamID, projectID string) (*serviceOperationResult, error) {
-	var streamResult *sshpool.StreamingCommandResult
+	var streamResult *utils.StreamingResult
 	var initialStatus, successStatus, failureStatus models.ServiceState
 	var err error
 
@@ -161,17 +158,17 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation,
 		initialStatus = models.ServiceStateStarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
+		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
 	case "stop":
 		initialStatus = models.ServiceStateStopping
 		successStatus = models.ServiceStateStopped
 		failureStatus = models.ServiceStateRunning
-		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
+		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
 	case "restart":
 		initialStatus = models.ServiceStateRestarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.SSHPool)
+		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
 	default:
 		return nil, fmt.Errorf("invalid operation: %s", operation)
 	}
@@ -244,6 +241,9 @@ func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, re
 				w.(http.Flusher).Flush()
 				return
 			}
+
+			// Commit transaction after successful service state update
+			repository.CommitTransaction(*h.Tx, ctx)
 
 			fmt.Fprintf(w, "data: {\"type\": \"status\", \"status\": \"completed\", \"final_state\": \"%s\"}\n\n", service.State)
 			w.(http.Flusher).Flush()

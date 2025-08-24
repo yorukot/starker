@@ -8,20 +8,20 @@ import (
 	"github.com/yorukot/starker/internal/handler"
 	"github.com/yorukot/starker/internal/handler/service"
 	"github.com/yorukot/starker/internal/middleware"
-	"github.com/yorukot/starker/pkg/sshpool"
+	"github.com/yorukot/starker/pkg/dockerpool"
 )
 
 func ServiceRouter(r chi.Router, app *handler.App) {
-	sshPool := sshpool.NewSSHConnectionPool(10*time.Minute, 1*time.Hour)
+	dockerPool := dockerpool.NewDockerConnectionPool(20*time.Minute, 1*time.Hour)
 
 	serviceHandler := service.ServiceHandler{
-		DB:      app.DB,
-		SSHPool: sshPool,
+		DB:         app.DB,
+		DockerPool: dockerPool,
 	}
 
 	r.Route("/teams/{teamID}/projects/{projectID}/services", func(r chi.Router) {
 		r.Use(middleware.AuthRequiredMiddleware)
-		
+
 		r.Get("/", serviceHandler.GetServices)
 		r.Get("/{serviceID}", serviceHandler.GetService)
 		r.Post("/", serviceHandler.CreateService)

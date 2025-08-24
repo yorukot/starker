@@ -25,7 +25,7 @@ import (
 
 // @title starker Go API Template
 // @version 1.0
-// 
+//
 // @description starker Go API Template
 // @termsOfService http://swagger.io/terms/
 
@@ -65,7 +65,7 @@ func main() {
 
 	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
 	r.Use(chiMiddleware.StripSlashes)
-	
+
 	// CORS configuration
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://" + config.Env().FrontendDomain, "https://" + config.Env().FrontendDomain},

@@ -8,17 +8,17 @@ import (
 	"github.com/yorukot/starker/internal/handler"
 	"github.com/yorukot/starker/internal/handler/server"
 	"github.com/yorukot/starker/internal/middleware"
-	"github.com/yorukot/starker/pkg/sshpool"
+	"github.com/yorukot/starker/pkg/dockerpool"
 )
 
 // ServerRouter sets up the server routes
 func ServerRouter(r chi.Router, app *handler.App) {
 
-	sshPool := sshpool.NewSSHConnectionPool(10*time.Minute, 1*time.Hour)
+	dockerPool := dockerpool.NewDockerConnectionPool(20*time.Minute, 1*time.Hour)
 
 	serverHandler := server.ServerHandler{
-		DB:      app.DB,
-		SSHPool: sshPool,
+		DB:         app.DB,
+		DockerPool: dockerPool,
 	}
 
 	r.Route("/teams/{teamID}/servers", func(r chi.Router) {

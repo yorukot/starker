@@ -46,7 +46,7 @@ func GenerateService(createServiceRequest CreateServiceRequest, teamID, serverID
 		Name:        createServiceRequest.Name,
 		Description: createServiceRequest.Description,
 		Type:        createServiceRequest.Type,
-		State:      models.ServiceStateStopped, // Default status
+		State:       models.ServiceStateStopped, // Default status
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

@@ -124,4 +124,3 @@ func CheckUserHaveAccessToTeam(db *pgxpool.Pool) func(http.Handler) http.Handler
 		})
 	}
 }
-

@@ -25,6 +25,5 @@ func TeamRouter(r chi.Router, app *handler.App) {
 
 		// TODO: Handle other team user management
 
-		
 	})
 }

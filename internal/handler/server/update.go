@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/starker/internal/handler/server/utils"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
@@ -127,7 +128,7 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Test the server connection before updating it
-	if err = serversvc.TestServerConnection(r.Context(), testServer, *privateKeyForTest, h.SSHPool); err != nil {
+	if err = utils.TestServerConnection(r.Context(), testServer, *privateKeyForTest, h.DockerPool); err != nil {
 		zap.L().Error("Failed to test server connection", zap.Error(err))
 		response.RespondWithError(w, http.StatusBadRequest, "Failed to connect to server with provided credentials", "SERVER_CONNECTION_FAILED")
 		return

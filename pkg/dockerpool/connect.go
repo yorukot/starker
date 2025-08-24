@@ -2,15 +2,18 @@ package dockerpool
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/client"
+	"golang.org/x/crypto/ssh"
 )
 
 // ConnectionInfo is the information of a connection
@@ -49,8 +52,9 @@ func NewDockerConnectionPool(maxIdle, maxLifetime time.Duration) *DockerConnecti
 	return pool
 }
 
-// GetConnection gets an SSH connection from the pool using connectionID and if the connection is not found, it will create a new SSH key-based connection
-func (p *DockerConnectionPool) GetConnection(connectionID, host string, opts ...client.Opt) (*client.Client, error) {
+// GetConnection gets an SSH connection from the pool using connectionID and privateKeyContent
+// If the connection is not found, it will create a new SSH key-based connection using the provided private key
+func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
 	p.mutex.RLock()
 	if connInfo, exists := p.connections[connectionID]; exists {
 		// Check if connection is still valid and not expired
@@ -81,8 +85,8 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, opts ...
 		}
 	}
 
-	// Create new connection
-	dockerClient, err := p.createDockerClient(host, opts...)
+	// Create new connection with private key
+	dockerClient, err := p.createDockerClient(host, privateKeyContent, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker connection: %w", err)
 	}
@@ -120,66 +124,6 @@ func (p *DockerConnectionPool) validateSSHKeyAuth(host string) error {
 	}
 
 	return nil
-}
-
-// createDockerClient creates a new Docker client with SSH key-based authentication only
-func (p *DockerConnectionPool) createDockerClient(host string, opts ...client.Opt) (*client.Client, error) {
-	// Only allow SSH connections
-	if len(host) < 6 || host[:6] != "ssh://" {
-		return nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
-	}
-
-	// Validate SSH key authentication
-	if err := p.validateSSHKeyAuth(host); err != nil {
-		return nil, fmt.Errorf("SSH key validation failed: %w", err)
-	}
-
-	// Get SSH connection helper
-	helper, err := connhelper.GetConnectionHelper(host)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get SSH connection helper: %w", err)
-	}
-
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			DialContext: helper.Dialer,
-		},
-	}
-
-	clientOpts := []client.Opt{
-		client.WithHTTPClient(httpClient),
-		client.WithHost(helper.Host),
-		client.WithDialContext(helper.Dialer),
-		client.WithAPIVersionNegotiation(),
-	}
-
-	// Append any additional options provided
-	clientOpts = append(clientOpts, opts...)
-
-	return client.NewClientWithOpts(clientOpts...)
-}
-
-// Stats Get connection pool statistics
-func (p *DockerConnectionPool) Stats() map[string]any {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
-
-	stats := map[string]any{
-		"total_connections": len(p.connections),
-		"connections":       make(map[string]map[string]any),
-	}
-
-	now := time.Now()
-	for connectionID, connInfo := range p.connections {
-		stats["connections"].(map[string]map[string]any)[connectionID] = map[string]any{
-			"created_at":    connInfo.createdAt,
-			"last_used":     connInfo.lastUsed,
-			"idle_duration": now.Sub(connInfo.lastUsed),
-			"age":           now.Sub(connInfo.createdAt),
-		}
-	}
-
-	return stats
 }
 
 // isConnectionValid checks if a connection is still valid and not expired
@@ -262,6 +206,125 @@ func (p *DockerConnectionPool) cleanup() {
 			p.removeConnection(connectionID, connInfo)
 		}
 	}
+}
+
+// TestConnection creates a new Docker connection using the provided private key, tests it, and immediately closes it
+// This function bypasses the connection pool and accepts private key content directly
+func (p *DockerConnectionPool) TestConnection(host string, privateKeyContent []byte, opts ...client.Opt) error {
+	// Create a new Docker client for testing with the provided key
+	dockerClient, err := p.createDockerClient(host, privateKeyContent, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create Docker connection: %w", err)
+	}
+	defer dockerClient.Close()
+
+	// Test the connection with a ping
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = dockerClient.Ping(ctx)
+	if err != nil {
+		return fmt.Errorf("Docker connection test failed: %w", err)
+	}
+
+	return nil
+}
+
+// createDockerClient creates a new Docker client with SSH key-based authentication using provided key content
+func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
+	// Only allow SSH connections
+	if len(host) < 6 || host[:6] != "ssh://" {
+		return nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
+	}
+
+	// Validate SSH key authentication
+	if err := p.validateSSHKeyAuth(host); err != nil {
+		return nil, fmt.Errorf("SSH key validation failed: %w", err)
+	}
+
+	// Parse the SSH URL
+	parsedURL, err := url.Parse(host)
+	if err != nil {
+		return nil, fmt.Errorf("invalid SSH URL format: %w", err)
+	}
+
+	// Parse the private key
+	block, _ := pem.Decode(privateKeyContent)
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse private key PEM block")
+	}
+
+	var privateKey any
+	var parseErr error
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		privateKey, parseErr = x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		privateKey, parseErr = x509.ParsePKCS8PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		privateKey, parseErr = x509.ParseECPrivateKey(block.Bytes)
+	case "OPENSSH PRIVATE KEY":
+		privateKey, parseErr = ssh.ParseRawPrivateKey(privateKeyContent)
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
+
+	if parseErr != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", parseErr)
+	}
+
+	// Create SSH signer
+	signer, err := ssh.NewSignerFromKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH signer: %w", err)
+	}
+
+	// Create SSH client config
+	sshConfig := &ssh.ClientConfig{
+		User: parsedURL.User.Username(),
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // In production, use proper host key validation
+		Timeout:         10 * time.Second,
+	}
+
+	// Create custom dialer that uses our SSH connection
+	dialer := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Connect to SSH server
+		sshConn, err := ssh.Dial("tcp", parsedURL.Host, sshConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect via SSH: %w", err)
+		}
+
+		// Create a connection to the Docker socket via SSH tunnel
+		dockerSocketPath := "/var/run/docker.sock"
+		conn, err := sshConn.Dial("unix", dockerSocketPath)
+		if err != nil {
+			sshConn.Close()
+			return nil, fmt.Errorf("failed to connect to Docker socket via SSH: %w", err)
+		}
+
+		return conn, nil
+	}
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: dialer,
+		},
+	}
+
+	clientOpts := []client.Opt{
+		client.WithHTTPClient(httpClient),
+		client.WithHost("unix:///var/run/docker.sock"),
+		client.WithAPIVersionNegotiation(),
+	}
+
+	// Append any additional options provided
+	clientOpts = append(clientOpts, opts...)
+
+	return client.NewClientWithOpts(clientOpts...)
 }
 
 // Close closes the connection pool and all connections
