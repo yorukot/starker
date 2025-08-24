@@ -103,7 +103,31 @@ func NewDockerConnectionPool(maxIdle, maxLifetime time.Duration) *DockerConnecti
 func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
 	p.mutex.RLock()
 	if connInfo, exists := p.connections[connectionID]; exists {
-		// Check if connection is still valid and not expired
+		// Check if connection needs reconnection due to lifetime expiration
+		now := time.Now()
+		if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
+			// Connection is lifetime-expired, needs reconnection
+			p.mutex.RUnlock()
+			p.mutex.Lock()
+			defer p.mutex.Unlock()
+
+			// Double-check after acquiring write lock
+			if connInfo, stillExists := p.connections[connectionID]; stillExists {
+				if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
+					// Reconnect the connection
+					err := p.reconnectConnection(connectionID, connInfo, host, privateKeyContent, opts...)
+					if err != nil {
+						return nil, fmt.Errorf("failed to reconnect connection: %w", err)
+					}
+					// Update last used time and return the reconnected client
+					connInfo = p.connections[connectionID]
+					connInfo.lastUsed = time.Now()
+					return connInfo.client, nil
+				}
+			}
+		}
+
+		// Check if connection is still valid (not lifetime-expired)
 		if p.isConnectionValid(connInfo) {
 			connInfo.lastUsed = time.Now()
 			p.mutex.RUnlock()
@@ -177,15 +201,13 @@ func (p *DockerConnectionPool) validateSSHKeyAuth(host string) error {
 func (p *DockerConnectionPool) isConnectionValid(connInfo *ConnectionInfo) bool {
 	now := time.Now()
 
-	// Check if connection has exceeded maximum lifetime
-	if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
-		return false
-	}
-
-	// Check if connection has been idle too long
+	// Check if connection has been idle too long - this should still invalidate
 	if p.maxIdle > 0 && now.Sub(connInfo.lastUsed) > p.maxIdle {
 		return false
 	}
+
+	// Don't invalidate based on lifetime here - let cleanup handle reconnection
+	// if connection is still being used
 
 	// Ping the Docker daemon to check if connection is alive
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -233,27 +255,31 @@ func (p *DockerConnectionPool) startCleanup() {
 	}
 }
 
-// cleanup removes expired connections
+// cleanup handles expired connections - reconnects active ones, removes idle ones
 func (p *DockerConnectionPool) cleanup() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
 	now := time.Now()
 	for connectionID, connInfo := range p.connections {
-		shouldRemove := false
-
-		// Check maximum lifetime
-		if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
-			shouldRemove = true
-		}
-
-		// Check idle timeout
+		// Check idle timeout - remove idle connections
 		if p.maxIdle > 0 && now.Sub(connInfo.lastUsed) > p.maxIdle {
-			shouldRemove = true
+			p.removeConnection(connectionID, connInfo)
+			continue
 		}
 
-		if shouldRemove {
-			p.removeConnection(connectionID, connInfo)
+		// Check maximum lifetime for reconnection
+		if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
+			// If connection was used recently (within idle timeout), reconnect it
+			if p.maxIdle == 0 || now.Sub(connInfo.lastUsed) <= p.maxIdle {
+				// Attempt to reconnect - we need to store the connection details
+				// Since we don't have them here, just reset the creation time
+				// The actual reconnection will happen on next use if ping fails
+				connInfo.createdAt = now
+			} else {
+				// Connection is old and not recently used, remove it
+				p.removeConnection(connectionID, connInfo)
+			}
 		}
 	}
 }
@@ -351,36 +377,35 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 
 	// Create custom dialer that uses the established SSH connection
 	dialer := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		
+
 		// Use SSH to execute a command that connects to the Docker socket
 		// This is more compatible than direct unix socket forwarding
 		session, err := sshConn.NewSession()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SSH session: %w", err)
 		}
-		
+
 		// Use socat to bridge the connection to the Docker socket
 		// This creates a bidirectional pipe to the Unix socket
 		cmd := "socat STDIO UNIX-CONNECT:/var/run/docker.sock"
-		
+
 		stdin, err := session.StdinPipe()
 		if err != nil {
 			session.Close()
 			return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
 		}
-		
+
 		stdout, err := session.StdoutPipe()
 		if err != nil {
 			session.Close()
 			return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 		}
-		
+
 		if err := session.Start(cmd); err != nil {
 			session.Close()
 			return nil, fmt.Errorf("failed to start socat command: %w", err)
 		}
-		
-		
+
 		// Create a bidirectional connection using stdin/stdout pipes
 		return &sshPipeConn{
 			stdin:   stdin,
@@ -410,6 +435,36 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 	}
 
 	return dockerClient, sshConn, nil
+}
+
+// reconnectConnection recreates a connection with the same parameters, preserving lastUsed time
+func (p *DockerConnectionPool) reconnectConnection(connectionID string, oldConnInfo *ConnectionInfo, host string, privateKeyContent []byte, opts ...client.Opt) error {
+	// Preserve the last used time
+	lastUsed := oldConnInfo.lastUsed
+
+	// Close the old connection
+	if oldConnInfo.client != nil {
+		oldConnInfo.client.Close()
+	}
+	if oldConnInfo.sshConn != nil {
+		oldConnInfo.sshConn.Close()
+	}
+
+	// Create new connection
+	dockerClient, sshConn, err := p.createDockerClient(host, privateKeyContent, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create new Docker connection: %w", err)
+	}
+
+	// Update connection info with new client but preserve lastUsed
+	p.connections[connectionID] = &ConnectionInfo{
+		client:    dockerClient,
+		sshConn:   sshConn,
+		lastUsed:  lastUsed,   // Preserve the last used time
+		createdAt: time.Now(), // Reset creation time
+	}
+
+	return nil
 }
 
 // Close closes the connection pool and all connections

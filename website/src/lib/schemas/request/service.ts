@@ -19,3 +19,12 @@ export const createServiceSchema = yup.object({
 });
 
 export type CreateServiceForm = yup.InferType<typeof createServiceSchema>;
+
+export const updateServiceComposeSchema = yup.object({
+	compose_file: yup
+		.string()
+		.required('Docker Compose file content is required')
+		.min(10, 'Compose file content is too short')
+});
+
+export type UpdateServiceComposeForm = yup.InferType<typeof updateServiceComposeSchema>;

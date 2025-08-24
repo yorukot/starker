@@ -24,6 +24,11 @@ type UpdateServiceRequest struct {
 	State       *models.ServiceState `json:"status,omitempty" validate:"omitempty,oneof=running stopped starting stopping"`
 }
 
+type UpdateServiceComposeRequest struct {
+	ComposeFile     *string `json:"compose_file,omitempty" validate:"omitempty,required"`
+	ComposeFilePath *string `json:"compose_file_path,omitempty" validate:"omitempty,max=500"`
+}
+
 // ServiceValidate validates the create service request
 func ServiceValidate(createServiceRequest CreateServiceRequest) error {
 	return validator.New().Struct(createServiceRequest)
@@ -32,6 +37,11 @@ func ServiceValidate(createServiceRequest CreateServiceRequest) error {
 // ServiceUpdateValidate validates the update service request
 func ServiceUpdateValidate(updateServiceRequest UpdateServiceRequest) error {
 	return validator.New().Struct(updateServiceRequest)
+}
+
+// ServiceComposeUpdateValidate validates the update service compose request
+func ServiceComposeUpdateValidate(updateServiceComposeRequest UpdateServiceComposeRequest) error {
+	return validator.New().Struct(updateServiceComposeRequest)
 }
 
 // GenerateService generates a service model for the create request
@@ -82,4 +92,17 @@ func UpdateServiceFromRequest(existingService models.Service, updateServiceReque
 	existingService.UpdatedAt = time.Now()
 
 	return existingService
+}
+
+// UpdateServiceComposeFromRequest updates a compose config model with new values from update request
+func UpdateServiceComposeFromRequest(existingConfig models.ServiceComposeConfig, updateServiceComposeRequest UpdateServiceComposeRequest) models.ServiceComposeConfig {
+	if updateServiceComposeRequest.ComposeFile != nil {
+		existingConfig.ComposeFile = *updateServiceComposeRequest.ComposeFile
+	}
+	if updateServiceComposeRequest.ComposeFilePath != nil {
+		existingConfig.ComposeFilePath = updateServiceComposeRequest.ComposeFilePath
+	}
+	existingConfig.UpdatedAt = time.Now()
+
+	return existingConfig
 }

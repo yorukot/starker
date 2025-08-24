@@ -22,7 +22,7 @@
 	const fallbackText = $derived(
 		displayName
 			.split(' ')
-			.map(name => name[0])
+			.map((name) => name[0])
 			.join('')
 			.substring(0, 2)
 			.toUpperCase()

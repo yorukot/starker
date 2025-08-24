@@ -12,7 +12,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const servers = $derived((data).servers || []);
+	const servers = $derived(data.servers || []);
 </script>
 
 <div class="flex flex-col gap-6">

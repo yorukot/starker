@@ -55,20 +55,6 @@ CREATE TABLE "public"."team_users" (
     PRIMARY KEY ("id")
 );
 
-CREATE TABLE "public"."service_environment_variables" (
-    "id" character varying(27) NOT NULL,
-    "service_id" character varying(27) NOT NULL,
-    "key" text NOT NULL,
-    "value" text NOT NULL,
-    "is_secret" boolean DEFAULT FALSE,
-    "created_at" timestamp NOT NULL,
-    "updated_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
-);
--- Indexes
-CREATE INDEX "service_environment_variables_idx_service_id" ON "public"."service_environment_variables" ("service_id");
-CREATE UNIQUE INDEX "service_environment_variables_service_key_unique" ON "public"."service_environment_variables" ("service_id", "key");
-
 CREATE TABLE "public"."servers" (
     "id" character varying(27) NOT NULL,
     "team_id" character varying(27) NOT NULL,
@@ -83,19 +69,6 @@ CREATE TABLE "public"."servers" (
     PRIMARY KEY ("id")
 );
 
-CREATE TABLE "public"."service_port_mappings" (
-    "id" character varying(27) NOT NULL,
-    "service_id" character varying(27) NOT NULL,
-    "host_port" integer NOT NULL,
-    "container_port" integer NOT NULL,
-    "protocol" varchar(10) DEFAULT 'tcp',
-    "created_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
-);
--- Indexes
-CREATE INDEX "service_port_mappings_service_port_mappings_idx_service_id" ON "public"."service_port_mappings" ("service_id");
-CREATE UNIQUE INDEX "service_port_mappings_service_host_port_unique" ON "public"."service_port_mappings" ("service_id", "host_port");
-
 CREATE TABLE "public"."services" (
     "id" character varying(27) NOT NULL,
     "team_id" character varying(27) NOT NULL,
@@ -104,17 +77,17 @@ CREATE TABLE "public"."services" (
     "name" text NOT NULL,
     "description" text,
     "type" character varying(20) NOT NULL,
-    "status" character varying(20) DEFAULT 'stopped',
+    "state" character varying(20) DEFAULT 'stopped',
     "container_id" text,
     "last_deployed_at" timestamp,
     "created_at" timestamp NOT NULL,
     "updated_at" timestamp NOT NULL,
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id", "state")
 );
 -- Indexes
 CREATE INDEX "services_services_idx_team_id" ON "public"."services" ("team_id");
 CREATE INDEX "services_services_idx_server_id" ON "public"."services" ("server_id");
-CREATE INDEX "services_services_idx_status" ON "public"."services" ("status");
+CREATE INDEX "services_services_idx_status" ON "public"."services" ("state");
 CREATE INDEX "services_services_idx_type" ON "public"."services" ("type");
 
 CREATE TABLE "public"."private_keys" (
@@ -150,7 +123,6 @@ CREATE TABLE "public"."service_compose_configs" (
     "id" character varying(27) NOT NULL,
     "service_id" character varying(27) NOT NULL,
     "compose_file" text NOT NULL,
-    "compose_file_path" text,
     "created_at" timestamp NOT NULL,
     "updated_at" timestamp NOT NULL,
     PRIMARY KEY ("id")
@@ -181,12 +153,63 @@ CREATE TABLE "public"."teams" (
     PRIMARY KEY ("id")
 );
 
+CREATE TABLE "public"."service_source_git" (
+    "id" character varying(27) NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "repo_url" text NOT NULL,
+    "branch" text NOT NULL,
+    "auto_deploy" boolean NOT NULL,
+    "docker_compose_file_path" text,
+    "webhook_secret" text NOT NULL,
+    "updated_at" timestamp,
+    "created_at" timestamp,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."service_containers" (
+    "id" character varying(27) NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "container_id" text NOT NULL,
+    "container_name" text NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."service_images" (
+    "id" character varying(27) NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "image_id" text,
+    "image_name" text NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."service_network" (
+    "id" character varying(27) NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "network_id" text,
+    "network_name" text NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."service_volume" (
+    "id" character varying(27) NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "volume_id" text,
+    "volume_name" text NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    "created_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
 -- Foreign key constraints
 -- Schema: public
 ALTER TABLE "public"."accounts" ADD CONSTRAINT "fk_accounts_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
 ALTER TABLE "public"."service_compose_configs" ADD CONSTRAINT "fk_service_compose_configs_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
-ALTER TABLE "public"."service_environment_variables" ADD CONSTRAINT "fk_service_environment_variables_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
-ALTER TABLE "public"."service_port_mappings" ADD CONSTRAINT "fk_service_port_mappings_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
 ALTER TABLE "public"."oauth_tokens" ADD CONSTRAINT "fk_oauth_tokens_account_id_accounts_id" FOREIGN KEY("account_id") REFERENCES "public"."accounts"("id");
 ALTER TABLE "public"."private_keys" ADD CONSTRAINT "fk_private_keys_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."projects" ADD CONSTRAINT "fk_projects_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
@@ -202,3 +225,8 @@ ALTER TABLE "public"."team_invites" ADD CONSTRAINT "fk_team_invites_team_id_team
 ALTER TABLE "public"."team_users" ADD CONSTRAINT "fk_team_users_team_id_teams_id" FOREIGN KEY("team_id") REFERENCES "public"."teams"("id");
 ALTER TABLE "public"."team_users" ADD CONSTRAINT "fk_team_users_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
 ALTER TABLE "public"."teams" ADD CONSTRAINT "fk_teams_owner_id_users_id" FOREIGN KEY("owner_id") REFERENCES "public"."users"("id");
+ALTER TABLE "public"."service_source_git" ADD CONSTRAINT "fk_service_source_git_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
+ALTER TABLE "public"."service_containers" ADD CONSTRAINT "fk_service_containers_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
+ALTER TABLE "public"."service_network" ADD CONSTRAINT "fk_service_network_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
+ALTER TABLE "public"."service_images" ADD CONSTRAINT "fk_service_images_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
+ALTER TABLE "public"."service_volume" ADD CONSTRAINT "fk_service_volume_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");

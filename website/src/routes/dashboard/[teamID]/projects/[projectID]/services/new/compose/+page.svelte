@@ -36,7 +36,13 @@
     restart: unless-stopped
 `);
 
-	const { form, errors, isSubmitting, setData, data: formData } = createForm<CreateServiceForm>({
+	const {
+		form,
+		errors,
+		isSubmitting,
+		setData,
+		data: formData
+	} = createForm<CreateServiceForm>({
 		extend: validator({ schema: createServiceSchema }),
 		initialValues: {
 			name: '',
