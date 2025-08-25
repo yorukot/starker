@@ -1,4 +1,4 @@
-package utils
+package dockerutils
 
 import (
 	"context"
@@ -27,7 +27,12 @@ func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServic
 		return fmt.Errorf("failed to pull images: %w", err)
 	}
 
-	// Step 4: Start services in proper dependency order using Docker Compose v2 API
+	// Step 4: Build images for services that have build configurations
+	if err := buildProjectImages(ctx, cfg.Client, project, cfg.ServiceID, streamResult); err != nil {
+		return fmt.Errorf("failed to build images: %w", err)
+	}
+
+	// Step 5: Start services in proper dependency order using Docker Compose v2 API
 	serviceStartFunc := func(ctx context.Context, serviceName string) error {
 		// Find the service configuration
 		var serviceConfig *types.ServiceConfig

@@ -8,11 +8,11 @@ import (
 	"github.com/yorukot/starker/internal/handler"
 	"github.com/yorukot/starker/internal/handler/service"
 	"github.com/yorukot/starker/internal/middleware"
-	"github.com/yorukot/starker/pkg/dockerpool"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
 func ServiceRouter(r chi.Router, app *handler.App) {
-	dockerPool := dockerpool.NewDockerConnectionPool(20*time.Minute, 1*time.Hour)
+	dockerPool := connection.NewConnectionPool(20*time.Minute, 1*time.Hour)
 
 	serviceHandler := service.ServiceHandler{
 		DB:         app.DB,
@@ -24,7 +24,10 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 
 		r.Get("/", serviceHandler.GetServices)
 		r.Get("/{serviceID}", serviceHandler.GetService)
-		r.Post("/", serviceHandler.CreateService)
+
+		r.Post("/compose", serviceHandler.CreateServiceCompose)
+		r.Post("/git", serviceHandler.CreateServiceCompose)
+
 		r.Patch("/{serviceID}/", serviceHandler.UpdateService)
 		r.Patch("/{serviceID}/state", serviceHandler.UpdateServiceState)
 

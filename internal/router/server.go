@@ -8,13 +8,13 @@ import (
 	"github.com/yorukot/starker/internal/handler"
 	"github.com/yorukot/starker/internal/handler/server"
 	"github.com/yorukot/starker/internal/middleware"
-	"github.com/yorukot/starker/pkg/dockerpool"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
 // ServerRouter sets up the server routes
 func ServerRouter(r chi.Router, app *handler.App) {
 
-	dockerPool := dockerpool.NewDockerConnectionPool(20*time.Minute, 1*time.Hour)
+	dockerPool := connection.NewConnectionPool(20*time.Minute, 1*time.Hour)
 
 	serverHandler := server.ServerHandler{
 		DB:         app.DB,

@@ -15,7 +15,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/starker/internal/handler/service/utils"
+	"github.com/yorukot/starker/internal/handler/service/utils/dockerutils"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
@@ -141,7 +141,7 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 
 // serviceOperationResult contains the result of a service operation
 type serviceOperationResult struct {
-	StreamResult  *utils.StreamingResult
+	StreamResult  *dockerutils.StreamingResult
 	InitialStatus models.ServiceState
 	SuccessStatus models.ServiceState
 	FailureStatus models.ServiceState
@@ -149,7 +149,7 @@ type serviceOperationResult struct {
 
 // executeServiceOperation executes a service operation (start/stop/restart)
 func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation, serviceID, teamID, projectID string) (*serviceOperationResult, error) {
-	var streamResult *utils.StreamingResult
+	var streamResult *dockerutils.StreamingResult
 	var initialStatus, successStatus, failureStatus models.ServiceState
 	var err error
 
@@ -158,17 +158,17 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation,
 		initialStatus = models.ServiceStateStarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
+		streamResult, err = dockerutils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	case "stop":
 		initialStatus = models.ServiceStateStopping
 		successStatus = models.ServiceStateStopped
 		failureStatus = models.ServiceStateRunning
-		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
+		streamResult, err = dockerutils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	case "restart":
 		initialStatus = models.ServiceStateRestarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
+		streamResult, err = dockerutils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	default:
 		return nil, fmt.Errorf("invalid operation: %s", operation)
 	}

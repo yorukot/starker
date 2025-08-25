@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/pkg/dockerpool"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
 type DockerConfig struct {
@@ -17,7 +17,7 @@ type DockerConfig struct {
 	ProjectName string
 }
 
-func PrepareDockerConfigForService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *dockerpool.DockerConnectionPool) (*DockerConfig, error) {
+func PrepareDockerConfigForService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *connection.ConnectionPool) (*DockerConfig, error) {
 	service, err := repository.GetServiceByID(ctx, db, serviceID, teamID, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service: %w", err)
@@ -38,7 +38,7 @@ func PrepareDockerConfigForService(ctx context.Context, serviceID, teamID, proje
 	host := fmt.Sprintf("ssh://%s@%s:%s", server.User, server.IP, server.Port)
 
 	connectionID := generator.ConnectionID()
-	dockerClient, err := dockerPool.GetConnection(connectionID, host, []byte(privateKey.PrivateKey))
+	dockerClient, err := dockerPool.GetDockerConnection(connectionID, host, []byte(privateKey.PrivateKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Docker connection: %w", err)
 	}

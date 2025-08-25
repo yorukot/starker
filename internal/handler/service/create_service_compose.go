@@ -3,21 +3,24 @@ package service
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
+	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/servicesvc"
 	"github.com/yorukot/starker/pkg/response"
 )
 
 // +----------------------------------------------+
-// | Create Service                               |
+// | Create Service Compose                       |
 // +----------------------------------------------+
 
-// CreateService godoc
+// CreateServiceCompose godoc
 // @Summary Create a new service
 // @Description Creates a new service with Docker compose configuration within a team and project
 // @Tags service
@@ -30,22 +33,22 @@ import (
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or project not found"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{teamID}/projects/{projectID}/services [post]
+// @Router /teams/{teamID}/projects/{projectID}/services/compose [post]
 // @Security BearerAuth
-func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Request) {
 	// Get teamID and projectID from the request
 	teamID := chi.URLParam(r, "teamID")
 	projectID := chi.URLParam(r, "projectID")
 
 	// Get the service request from the request body
-	var createServiceRequest servicesvc.CreateServiceRequest
+	var createServiceRequest createServiceRequest
 	if err := json.NewDecoder(r.Body).Decode(&createServiceRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the request body
-	if err := servicesvc.ServiceValidate(createServiceRequest); err != nil {
+	if err := serviceValidate(createServiceRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -96,10 +99,10 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate service model
-	service := servicesvc.GenerateService(createServiceRequest, teamID, createServiceRequest.ServerID, project.ID)
+	service := generateService(createServiceRequest, teamID, createServiceRequest.ServerID, project.ID)
 
 	// Generate compose config model
-	composeConfig := servicesvc.GenerateServiceComposeConfig(service.ID, createServiceRequest.ComposeFile)
+	composeConfig := generateServiceComposeConfig(service.ID, createServiceRequest.ComposeFile)
 
 	// Create the service
 	if err = repository.CreateService(r.Context(), tx, service); err != nil {
@@ -120,4 +123,48 @@ func (h *ServiceHandler) CreateService(w http.ResponseWriter, r *http.Request) {
 
 	// Return the created service
 	response.RespondWithJSON(w, http.StatusCreated, service)
+}
+
+type createServiceRequest struct {
+	Name        string  `json:"name" validate:"required,min=3,max=255"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	Type        string  `json:"type" validate:"required,oneof=docker compose"`
+	ServerID    string  `json:"server_id" validate:"required"`
+	ComposeFile string  `json:"compose_file" validate:"required"`
+}
+
+// serviceValidate validates the create service request
+func serviceValidate(createServiceRequest createServiceRequest) error {
+	return validator.New().Struct(createServiceRequest)
+}
+
+// GenerateService generates a service model for the create request
+func generateService(createServiceRequest createServiceRequest, teamID, serverID, projectID string) models.Service {
+	now := time.Now()
+
+	return models.Service{
+		ID:          ksuid.New().String(),
+		TeamID:      teamID,
+		ServerID:    serverID,
+		ProjectID:   projectID,
+		Name:        createServiceRequest.Name,
+		Description: createServiceRequest.Description,
+		Type:        createServiceRequest.Type,
+		State:       models.ServiceStateStopped, // Default status
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+}
+
+// GenerateServiceComposeConfig generates a compose config model
+func generateServiceComposeConfig(serviceID, composeFile string) models.ServiceComposeConfig {
+	now := time.Now()
+
+	return models.ServiceComposeConfig{
+		ID:          ksuid.New().String(),
+		ServiceID:   serviceID,
+		ComposeFile: composeFile,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
 }

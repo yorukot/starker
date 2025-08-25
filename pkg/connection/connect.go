@@ -1,4 +1,4 @@
-package dockerpool
+package connection
 
 import (
 	"context"
@@ -61,16 +61,25 @@ func (c *sshPipeConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-// ConnectionInfo is the information of a connection
+// ConnectionType represents the type of connection
+type ConnectionType int
+
+const (
+	DockerConnection ConnectionType = iota
+	SSHConnection
+)
+
+// ConnectionInfo holds information about a connection
 type ConnectionInfo struct {
-	client    *client.Client
-	sshConn   *ssh.Client
-	lastUsed  time.Time
-	createdAt time.Time
+	dockerClient *client.Client // Docker API client (via SSH)
+	sshClient    *ssh.Client    // Raw SSH client
+	connType     ConnectionType // Type of primary connection
+	lastUsed     time.Time
+	createdAt    time.Time
 }
 
-// DockerConnectionPool is a pool of Docker connections that only supports SSH key-based authentication
-type DockerConnectionPool struct {
+// ConnectionPool manages SSH-based connections for both Docker API access and direct SSH commands
+type ConnectionPool struct {
 	connections map[string]*ConnectionInfo
 	mutex       sync.RWMutex
 	maxIdle     time.Duration
@@ -80,11 +89,11 @@ type DockerConnectionPool struct {
 	closed      bool
 }
 
-// NewDockerConnectionPool creates a new Docker connection pool that only supports SSH key-based authentication
-func NewDockerConnectionPool(maxIdle, maxLifetime time.Duration) *DockerConnectionPool {
+// NewConnectionPool creates a new connection pool that supports SSH key-based authentication
+func NewConnectionPool(maxIdle, maxLifetime time.Duration) *ConnectionPool {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	pool := &DockerConnectionPool{
+	pool := &ConnectionPool{
 		connections: make(map[string]*ConnectionInfo),
 		maxIdle:     maxIdle,
 		maxLifetime: maxLifetime,
@@ -98,9 +107,15 @@ func NewDockerConnectionPool(maxIdle, maxLifetime time.Duration) *DockerConnecti
 	return pool
 }
 
-// GetConnection gets an SSH connection from the pool using connectionID and privateKeyContent
+// NewDockerConnectionPool is deprecated, use NewConnectionPool instead
+// Kept for backward compatibility
+func NewDockerConnectionPool(maxIdle, maxLifetime time.Duration) *ConnectionPool {
+	return NewConnectionPool(maxIdle, maxLifetime)
+}
+
+// GetDockerConnection gets a Docker client from the pool using connectionID and privateKeyContent
 // If the connection is not found, it will create a new SSH key-based connection using the provided private key
-func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
+func (p *ConnectionPool) GetDockerConnection(connectionID, host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
 	p.mutex.RLock()
 	if connInfo, exists := p.connections[connectionID]; exists {
 		// Check if connection needs reconnection due to lifetime expiration
@@ -122,7 +137,7 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 					// Update last used time and return the reconnected client
 					connInfo = p.connections[connectionID]
 					connInfo.lastUsed = time.Now()
-					return connInfo.client, nil
+					return connInfo.dockerClient, nil
 				}
 			}
 		}
@@ -131,7 +146,7 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 		if p.isConnectionValid(connInfo) {
 			connInfo.lastUsed = time.Now()
 			p.mutex.RUnlock()
-			return connInfo.client, nil
+			return connInfo.dockerClient, nil
 		}
 	}
 	p.mutex.RUnlock()
@@ -148,7 +163,7 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 	if connInfo, exists := p.connections[connectionID]; exists {
 		if p.isConnectionValid(connInfo) {
 			connInfo.lastUsed = time.Now()
-			return connInfo.client, nil
+			return connInfo.dockerClient, nil
 		} else {
 			// Clean up invalid connection
 			p.removeConnection(connectionID, connInfo)
@@ -163,17 +178,100 @@ func (p *DockerConnectionPool) GetConnection(connectionID, host string, privateK
 
 	now := time.Now()
 	p.connections[connectionID] = &ConnectionInfo{
-		client:    dockerClient,
-		sshConn:   sshConn,
-		lastUsed:  now,
-		createdAt: now,
+		dockerClient: dockerClient,
+		sshClient:    sshConn,
+		connType:     DockerConnection,
+		lastUsed:     now,
+		createdAt:    now,
 	}
 
 	return dockerClient, nil
 }
 
+// GetConnection is deprecated, use GetDockerConnection instead
+// GetConnection gets an SSH connection from the pool using connectionID and privateKeyContent
+// If the connection is not found, it will create a new SSH key-based connection using the provided private key
+func (p *ConnectionPool) GetConnection(connectionID, host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, error) {
+	return p.GetDockerConnection(connectionID, host, privateKeyContent, opts...)
+}
+
+// GetSSHConnection gets a raw SSH client from the pool using connectionID and privateKeyContent
+// If the connection is not found, it will create a new SSH connection using the provided private key
+func (p *ConnectionPool) GetSSHConnection(connectionID, host string, privateKeyContent []byte) (*ssh.Client, error) {
+	p.mutex.RLock()
+	if connInfo, exists := p.connections[connectionID]; exists {
+		// Check if connection needs reconnection due to lifetime expiration
+		now := time.Now()
+		if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
+			// Connection is lifetime-expired, needs reconnection
+			p.mutex.RUnlock()
+			p.mutex.Lock()
+			defer p.mutex.Unlock()
+
+			// Double-check after acquiring write lock
+			if connInfo, stillExists := p.connections[connectionID]; stillExists {
+				if p.maxLifetime > 0 && now.Sub(connInfo.createdAt) > p.maxLifetime {
+					// Reconnect the SSH connection
+					err := p.reconnectSSHConnection(connectionID, connInfo, host, privateKeyContent)
+					if err != nil {
+						return nil, fmt.Errorf("failed to reconnect SSH connection: %w", err)
+					}
+					// Update last used time and return the reconnected SSH client
+					connInfo = p.connections[connectionID]
+					connInfo.lastUsed = time.Now()
+					return connInfo.sshClient, nil
+				}
+			}
+		}
+
+		// Check if connection is still valid (not lifetime-expired)
+		if p.isConnectionValid(connInfo) {
+			connInfo.lastUsed = time.Now()
+			p.mutex.RUnlock()
+			return connInfo.sshClient, nil
+		}
+	}
+	p.mutex.RUnlock()
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	// Check if pool is closed
+	if p.closed {
+		return nil, fmt.Errorf("connection pool is closed")
+	}
+
+	// Double-check pattern
+	if connInfo, exists := p.connections[connectionID]; exists {
+		if p.isConnectionValid(connInfo) {
+			connInfo.lastUsed = time.Now()
+			return connInfo.sshClient, nil
+		} else {
+			// Clean up invalid connection
+			p.removeConnection(connectionID, connInfo)
+		}
+	}
+
+	// Create new SSH connection
+	sshConn, err := p.createRawSSHConnection(host, privateKeyContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH connection: %w", err)
+	}
+
+	now := time.Now()
+	p.connections[connectionID] = &ConnectionInfo{
+		dockerClient: nil, // No Docker client for raw SSH connections
+		sshClient:    sshConn,
+		connType:     SSHConnection,
+		lastUsed:     now,
+		createdAt:    now,
+	}
+
+	return sshConn, nil
+}
+
 // validateSSHKeyAuth validates that the SSH connection uses key-based authentication
-func (p *DockerConnectionPool) validateSSHKeyAuth(host string) error {
+func (p *ConnectionPool) validateSSHKeyAuth(host string) error {
 	// Parse the SSH URL to check for key-based authentication requirements
 	parsedURL, err := url.Parse(host)
 	if err != nil {
@@ -198,7 +296,7 @@ func (p *DockerConnectionPool) validateSSHKeyAuth(host string) error {
 }
 
 // isConnectionValid checks if a connection is still valid and not expired
-func (p *DockerConnectionPool) isConnectionValid(connInfo *ConnectionInfo) bool {
+func (p *ConnectionPool) isConnectionValid(connInfo *ConnectionInfo) bool {
 	now := time.Now()
 
 	// Check if connection has been idle too long - this should still invalidate
@@ -209,27 +307,35 @@ func (p *DockerConnectionPool) isConnectionValid(connInfo *ConnectionInfo) bool 
 	// Don't invalidate based on lifetime here - let cleanup handle reconnection
 	// if connection is still being used
 
-	// Ping the Docker daemon to check if connection is alive
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Check connection based on type
+	if connInfo.connType == DockerConnection && connInfo.dockerClient != nil {
+		// Ping the Docker daemon to check if connection is alive
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, err := connInfo.dockerClient.Ping(ctx)
+		return err == nil
+	} else if connInfo.connType == SSHConnection && connInfo.sshClient != nil {
+		// For SSH connections, we assume they're valid if not nil
+		// More sophisticated checking could be added here
+		return true
+	}
 
-	_, err := connInfo.client.Ping(ctx)
-	return err == nil
+	return false
 }
 
 // removeConnection removes a connection from the pool and closes it
-func (p *DockerConnectionPool) removeConnection(connectionID string, connInfo *ConnectionInfo) {
+func (p *ConnectionPool) removeConnection(connectionID string, connInfo *ConnectionInfo) {
 	delete(p.connections, connectionID)
-	if connInfo.client != nil {
-		connInfo.client.Close()
+	if connInfo.dockerClient != nil {
+		connInfo.dockerClient.Close()
 	}
-	if connInfo.sshConn != nil {
-		connInfo.sshConn.Close()
+	if connInfo.sshClient != nil {
+		connInfo.sshClient.Close()
 	}
 }
 
 // RemoveConnection removes a connection from the pool by connectionID
-func (p *DockerConnectionPool) RemoveConnection(connectionID string) error {
+func (p *ConnectionPool) RemoveConnection(connectionID string) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -241,7 +347,7 @@ func (p *DockerConnectionPool) RemoveConnection(connectionID string) error {
 }
 
 // startCleanup starts the cleanup goroutine
-func (p *DockerConnectionPool) startCleanup() {
+func (p *ConnectionPool) startCleanup() {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
@@ -256,7 +362,7 @@ func (p *DockerConnectionPool) startCleanup() {
 }
 
 // cleanup handles expired connections - reconnects active ones, removes idle ones
-func (p *DockerConnectionPool) cleanup() {
+func (p *ConnectionPool) cleanup() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -286,7 +392,7 @@ func (p *DockerConnectionPool) cleanup() {
 
 // TestConnection creates a new Docker connection using the provided private key, tests it, and immediately closes it
 // This function bypasses the connection pool and accepts private key content directly
-func (p *DockerConnectionPool) TestConnection(host string, privateKeyContent []byte, opts ...client.Opt) error {
+func (p *ConnectionPool) TestConnection(host string, privateKeyContent []byte, opts ...client.Opt) error {
 	// Create a new Docker client for testing with the provided key
 	dockerClient, sshConn, err := p.createDockerClient(host, privateKeyContent, opts...)
 	if err != nil {
@@ -310,7 +416,7 @@ func (p *DockerConnectionPool) TestConnection(host string, privateKeyContent []b
 }
 
 // createDockerClient creates a new Docker client with SSH key-based authentication using provided key content
-func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, *ssh.Client, error) {
+func (p *ConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, *ssh.Client, error) {
 	// Only allow SSH connections
 	if len(host) < 6 || host[:6] != "ssh://" {
 		return nil, nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
@@ -438,16 +544,16 @@ func (p *DockerConnectionPool) createDockerClient(host string, privateKeyContent
 }
 
 // reconnectConnection recreates a connection with the same parameters, preserving lastUsed time
-func (p *DockerConnectionPool) reconnectConnection(connectionID string, oldConnInfo *ConnectionInfo, host string, privateKeyContent []byte, opts ...client.Opt) error {
+func (p *ConnectionPool) reconnectConnection(connectionID string, oldConnInfo *ConnectionInfo, host string, privateKeyContent []byte, opts ...client.Opt) error {
 	// Preserve the last used time
 	lastUsed := oldConnInfo.lastUsed
 
 	// Close the old connection
-	if oldConnInfo.client != nil {
-		oldConnInfo.client.Close()
+	if oldConnInfo.dockerClient != nil {
+		oldConnInfo.dockerClient.Close()
 	}
-	if oldConnInfo.sshConn != nil {
-		oldConnInfo.sshConn.Close()
+	if oldConnInfo.sshClient != nil {
+		oldConnInfo.sshClient.Close()
 	}
 
 	// Create new connection
@@ -458,17 +564,115 @@ func (p *DockerConnectionPool) reconnectConnection(connectionID string, oldConnI
 
 	// Update connection info with new client but preserve lastUsed
 	p.connections[connectionID] = &ConnectionInfo{
-		client:    dockerClient,
-		sshConn:   sshConn,
-		lastUsed:  lastUsed,   // Preserve the last used time
-		createdAt: time.Now(), // Reset creation time
+		dockerClient: dockerClient,
+		sshClient:    sshConn,
+		connType:     DockerConnection,
+		lastUsed:     lastUsed,   // Preserve the last used time
+		createdAt:    time.Now(), // Reset creation time
+	}
+
+	return nil
+}
+
+// createRawSSHConnection creates a raw SSH client connection using the provided private key
+func (p *ConnectionPool) createRawSSHConnection(host string, privateKeyContent []byte) (*ssh.Client, error) {
+	// Only allow SSH connections
+	if len(host) < 6 || host[:6] != "ssh://" {
+		return nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
+	}
+
+	// Validate SSH key authentication
+	if err := p.validateSSHKeyAuth(host); err != nil {
+		return nil, fmt.Errorf("SSH key validation failed: %w", err)
+	}
+
+	// Parse the SSH URL
+	parsedURL, err := url.Parse(host)
+	if err != nil {
+		return nil, fmt.Errorf("invalid SSH URL format: %w", err)
+	}
+
+	// Parse the private key
+	block, _ := pem.Decode(privateKeyContent)
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse private key PEM block")
+	}
+
+	var privateKey any
+	var parseErr error
+
+	switch block.Type {
+	case "RSA PRIVATE KEY":
+		privateKey, parseErr = x509.ParsePKCS1PrivateKey(block.Bytes)
+	case "PRIVATE KEY":
+		privateKey, parseErr = x509.ParsePKCS8PrivateKey(block.Bytes)
+	case "EC PRIVATE KEY":
+		privateKey, parseErr = x509.ParseECPrivateKey(block.Bytes)
+	case "OPENSSH PRIVATE KEY":
+		privateKey, parseErr = ssh.ParseRawPrivateKey(privateKeyContent)
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
+
+	if parseErr != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", parseErr)
+	}
+
+	// Create SSH signer
+	signer, err := ssh.NewSignerFromKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH signer: %w", err)
+	}
+
+	// Create SSH client config
+	sshConfig := &ssh.ClientConfig{
+		User: parsedURL.User.Username(),
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // In production, use proper host key validation
+		Timeout:         10 * time.Second,
+	}
+
+	// Establish SSH connection
+	sshConn, err := ssh.Dial("tcp", parsedURL.Host, sshConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect via SSH: %w", err)
+	}
+
+	return sshConn, nil
+}
+
+// reconnectSSHConnection recreates an SSH connection with the same parameters, preserving lastUsed time
+func (p *ConnectionPool) reconnectSSHConnection(connectionID string, oldConnInfo *ConnectionInfo, host string, privateKeyContent []byte) error {
+	// Preserve the last used time
+	lastUsed := oldConnInfo.lastUsed
+
+	// Close the old connection
+	if oldConnInfo.sshClient != nil {
+		oldConnInfo.sshClient.Close()
+	}
+
+	// Create new SSH connection
+	sshConn, err := p.createRawSSHConnection(host, privateKeyContent)
+	if err != nil {
+		return fmt.Errorf("failed to create new SSH connection: %w", err)
+	}
+
+	// Update connection info with new SSH client but preserve lastUsed
+	p.connections[connectionID] = &ConnectionInfo{
+		dockerClient: oldConnInfo.dockerClient, // Keep existing Docker client if any
+		sshClient:    sshConn,
+		connType:     SSHConnection, // This is primarily an SSH connection
+		lastUsed:     lastUsed,      // Preserve the last used time
+		createdAt:    time.Now(),    // Reset creation time
 	}
 
 	return nil
 }
 
 // Close closes the connection pool and all connections
-func (p *DockerConnectionPool) Close() {
+func (p *ConnectionPool) Close() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 

@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	"github.com/yorukot/starker/internal/models"
-	"github.com/yorukot/starker/pkg/dockerpool"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
 // TestServerConnection tests a Docker connection using the provided server and private key
-func TestServerConnection(ctx context.Context, server models.Server, privateKey models.PrivateKey, dockerPool *dockerpool.DockerConnectionPool) error {
+func TestServerConnection(ctx context.Context, server models.Server, privateKey models.PrivateKey, dockerPool *connection.ConnectionPool) error {
 	// Build SSH connection string for Docker
 	host := fmt.Sprintf("ssh://%s@%s:%s", server.User, server.IP, server.Port)
 

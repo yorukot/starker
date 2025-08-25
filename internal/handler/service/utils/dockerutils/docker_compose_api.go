@@ -1,4 +1,4 @@
-package utils
+package dockerutils
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/pkg/dockerpool"
+	"github.com/yorukot/starker/pkg/connection"
 	"github.com/yorukot/starker/pkg/dockeryaml"
 	"github.com/yorukot/starker/pkg/generator"
 )
@@ -45,7 +45,7 @@ func (sr *StreamingResult) GetFinalError() error {
 }
 
 // prepareDockerConfig prepares Docker API configuration for service operations
-func prepareDockerConfig(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *dockerpool.DockerConnectionPool) (*DockerServiceConfig, error) {
+func prepareDockerConfig(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *connection.ConnectionPool) (*DockerServiceConfig, error) {
 	// Get the service by ID
 	service, err := repository.GetServiceByID(ctx, db, serviceID, teamID, projectID)
 	if err != nil {
@@ -72,7 +72,7 @@ func prepareDockerConfig(ctx context.Context, serviceID, teamID, projectID strin
 
 	// Get Docker client from pool using generated connection ID
 	connectionID := namingGenerator.ConnectionID()
-	dockerClient, err := dockerPool.GetConnection(connectionID, host, []byte(privateKey.PrivateKey))
+	dockerClient, err := dockerPool.GetDockerConnection(connectionID, host, []byte(privateKey.PrivateKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Docker connection: %w", err)
 	}
@@ -100,7 +100,7 @@ func validateComposeFile(composeContent string) error {
 }
 
 // StartService starts a service using Docker API
-func StartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func StartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *connection.ConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
@@ -178,7 +178,7 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 }
 
 // StopService stops a service using Docker API with proper dependency ordering
-func StopService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func StopService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *connection.ConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
@@ -243,7 +243,7 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 }
 
 // RestartService restarts a service using Docker API with proper dependency ordering
-func RestartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func RestartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *connection.ConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
