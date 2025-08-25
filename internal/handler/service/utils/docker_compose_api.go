@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/yorukot/starker/internal/repository"
 	"github.com/yorukot/starker/pkg/dockerpool"
@@ -99,7 +100,7 @@ func validateComposeFile(composeContent string) error {
 }
 
 // StartService starts a service using Docker API
-func StartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func StartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
@@ -136,18 +137,48 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
-		err := startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		// Create a new transaction for the goroutine
+		tx, err := repository.StartTransaction(dbPool, ctx)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+		defer repository.DeferRollback(tx, ctx)
+
+		// Purge existing Docker resources and clean database records first
+		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+
+		// Synchronize Docker Compose resources to database
+		err = DockerComposeToDatabase(ctx, project, cfg, tx, streamResult)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+
+		// Commit the transaction if successful
+		repository.CommitTransaction(tx, ctx)
+
+		err = startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
 		if err != nil {
 			streamResult.finalError = err
 			streamResult.ErrorChan <- err
+			return
 		}
+
 	}()
 
 	return streamResult, nil
 }
 
 // StopService stops a service using Docker API with proper dependency ordering
-func StopService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func StopService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
@@ -179,18 +210,40 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
-		err := stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		// Create a new transaction for the goroutine
+		tx, err := repository.StartTransaction(dbPool, ctx)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+		defer repository.DeferRollback(tx, ctx)
+
+		// Purge existing Docker resources and clean database records first
+		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+
+		// Commit the transaction if successful
+		repository.CommitTransaction(tx, ctx)
+
+		err = stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
 		if err != nil {
 			streamResult.finalError = err
 			streamResult.ErrorChan <- err
+			return
 		}
+
 	}()
 
 	return streamResult, nil
 }
 
 // RestartService restarts a service using Docker API with proper dependency ordering
-func RestartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
+func RestartService(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dbPool *pgxpool.Pool, dockerPool *dockerpool.DockerConnectionPool) (*StreamingResult, error) {
 	// Prepare Docker configuration
 	cfg, err := prepareDockerConfig(ctx, serviceID, teamID, projectID, db, dockerPool)
 	if err != nil {
@@ -227,20 +280,62 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
+		// Create a new transaction for the goroutine
+		tx, err := repository.StartTransaction(dbPool, ctx)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+		defer repository.DeferRollback(tx, ctx)
+
+		// Purge existing Docker resources and clean database records first
+		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+
+		// Commit the transaction if successful
+		repository.CommitTransaction(tx, ctx)
+
 		// First stop services in reverse dependency order
-		err := stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		err = stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
 		if err != nil {
 			streamResult.finalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
 
+		// Create a new transaction for the goroutine
+		tx, err = repository.StartTransaction(dbPool, ctx)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+		defer repository.DeferRollback(tx, ctx)
+
+		// Synchronize Docker Compose resources to database
+		err = DockerComposeToDatabase(ctx, project, cfg, tx, streamResult)
+		if err != nil {
+			streamResult.finalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
+			streamResult.ErrorChan <- streamResult.finalError
+			return
+		}
+
+		// Commit the transaction if successful
+		repository.CommitTransaction(tx, ctx)
+
 		// Then start them again in proper dependency order
 		err = startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
 		if err != nil {
 			streamResult.finalError = err
 			streamResult.ErrorChan <- err
+			return
 		}
+
 	}()
 
 	return streamResult, nil

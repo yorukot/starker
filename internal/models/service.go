@@ -28,17 +28,6 @@ type Service struct {
 	UpdatedAt      time.Time    `json:"updated_at" example:"2023-01-01T12:00:00Z"`                    // Timestamp when the service was last updated
 }
 
-// ServiceEnvironmentVariable represents environment variables for services
-type ServiceEnvironmentVariable struct {
-	ID        string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the environment variable
-	ServiceID string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
-	Key       string    `json:"key" example:"DATABASE_URL"`                      // Environment variable key
-	Value     string    `json:"value" example:"postgres://..."`                  // Environment variable value
-	IsSecret  bool      `json:"is_secret" example:"true"`                        // Whether this is a secret value
-	CreatedAt time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the variable was created
-	UpdatedAt time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the variable was last updated
-}
-
 // ServiceComposeConfig represents Docker compose configurations
 type ServiceComposeConfig struct {
 	ID          string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the compose config
@@ -50,25 +39,25 @@ type ServiceComposeConfig struct {
 
 // ServiceSourceGit represents Git source configuration for services
 type ServiceSourceGit struct {
-	ID                     string     `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                       // Unique identifier for the Git source
-	ServiceID              string     `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`               // Associated service ID
-	RepoURL                string     `json:"repo_url" example:"https://github.com/user/repo.git"`           // Git repository URL
-	Branch                 string     `json:"branch" example:"main"`                                         // Git branch
-	AutoDeploy             bool       `json:"auto_deploy" example:"true"`                                    // Whether to auto-deploy on changes
-	DockerComposeFilePath  *string    `json:"docker_compose_file_path,omitempty" example:"docker-compose.yml"` // Path to Docker Compose file in repo
-	WebhookSecret          string     `json:"webhook_secret" example:"secret123"`                            // Webhook secret for Git events
-	UpdatedAt              *time.Time `json:"updated_at,omitempty" example:"2023-01-01T12:00:00Z"`           // Timestamp when the source was last updated
-	CreatedAt              *time.Time `json:"created_at,omitempty" example:"2023-01-01T12:00:00Z"`           // Timestamp when the source was created
+	ID                    string     `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                         // Unique identifier for the Git source
+	ServiceID             string     `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                 // Associated service ID
+	RepoURL               string     `json:"repo_url" example:"https://github.com/user/repo.git"`             // Git repository URL
+	Branch                string     `json:"branch" example:"main"`                                           // Git branch
+	AutoDeploy            bool       `json:"auto_deploy" example:"true"`                                      // Whether to auto-deploy on changes
+	DockerComposeFilePath *string    `json:"docker_compose_file_path,omitempty" example:"docker-compose.yml"` // Path to Docker Compose file in repo
+	WebhookSecret         string     `json:"webhook_secret" example:"secret123"`                              // Webhook secret for Git events
+	UpdatedAt             *time.Time `json:"updated_at,omitempty" example:"2023-01-01T12:00:00Z"`             // Timestamp when the source was last updated
+	CreatedAt             *time.Time `json:"created_at,omitempty" example:"2023-01-01T12:00:00Z"`             // Timestamp when the source was created
 }
 
 // ServiceContainer represents Docker containers associated with a service
 type ServiceContainer struct {
-	ID            string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`           // Unique identifier for the container record
-	ServiceID     string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`   // Associated service ID
-	ContainerID   string    `json:"container_id" example:"abc123def456"`               // Docker container ID
-	ContainerName string    `json:"container_name" example:"web-app-container"`        // Docker container name
-	UpdatedAt     time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`         // Timestamp when the container was last updated
-	CreatedAt     time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`         // Timestamp when the container was created
+	ID            string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the container record
+	ServiceID     string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
+	ContainerID   string    `json:"container_id" example:"abc123def456"`             // Docker container ID
+	ContainerName string    `json:"container_name" example:"web-app-container"`      // Docker container name
+	UpdatedAt     time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was last updated
+	CreatedAt     time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was created
 }
 
 // ServiceImage represents Docker images associated with a service

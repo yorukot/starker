@@ -158,17 +158,17 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation,
 		initialStatus = models.ServiceStateStarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
+		streamResult, err = utils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	case "stop":
 		initialStatus = models.ServiceStateStopping
 		successStatus = models.ServiceStateStopped
 		failureStatus = models.ServiceStateRunning
-		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
+		streamResult, err = utils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	case "restart":
 		initialStatus = models.ServiceStateRestarting
 		successStatus = models.ServiceStateRunning
 		failureStatus = models.ServiceStateStopped
-		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DockerPool)
+		streamResult, err = utils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
 	default:
 		return nil, fmt.Errorf("invalid operation: %s", operation)
 	}

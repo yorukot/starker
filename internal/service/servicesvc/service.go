@@ -99,9 +99,6 @@ func UpdateServiceComposeFromRequest(existingConfig models.ServiceComposeConfig,
 	if updateServiceComposeRequest.ComposeFile != nil {
 		existingConfig.ComposeFile = *updateServiceComposeRequest.ComposeFile
 	}
-	if updateServiceComposeRequest.ComposeFilePath != nil {
-		existingConfig.ComposeFilePath = updateServiceComposeRequest.ComposeFilePath
-	}
 	existingConfig.UpdatedAt = time.Now()
 
 	return existingConfig

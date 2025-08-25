@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -16,7 +17,21 @@ import (
 // InitDatabase initialize the database connection pool and return the pool and also migrate the database
 func InitDatabase() (*pgxpool.Pool, error) {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, getDatabaseURL())
+
+	// Configure connection pool to handle concurrent operations better
+	config, err := pgxpool.ParseConfig(getDatabaseURL())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse database config: %w", err)
+	}
+
+	// Increase pool size to handle more concurrent connections
+	config.MaxConns = 25
+	config.MinConns = 5
+
+	// Reduce prepared statement cache to prevent "conn busy" errors
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err
 	}

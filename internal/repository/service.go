@@ -144,7 +144,7 @@ func DeleteService(ctx context.Context, db pgx.Tx, serviceID, teamID, projectID 
 // GetServiceComposeConfig gets the compose config for a service
 func GetServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string) (*models.ServiceComposeConfig, error) {
 	query := `
-		SELECT id, service_id, compose_file, compose_file_path, created_at, updated_at
+		SELECT id, service_id, compose_file, created_at, updated_at
 		FROM service_compose_configs
 		WHERE service_id = $1
 	`
@@ -153,7 +153,6 @@ func GetServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string) (
 		&config.ID,
 		&config.ServiceID,
 		&config.ComposeFile,
-		&config.ComposeFilePath,
 		&config.CreatedAt,
 		&config.UpdatedAt,
 	)
@@ -170,14 +169,13 @@ func GetServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string) (
 // CreateServiceComposeConfig creates a new compose config
 func CreateServiceComposeConfig(ctx context.Context, db pgx.Tx, config models.ServiceComposeConfig) error {
 	query := `
-		INSERT INTO service_compose_configs (id, service_id, compose_file, compose_file_path, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO service_compose_configs (id, service_id, compose_file, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
 	_, err := db.Exec(ctx, query,
 		config.ID,
 		config.ServiceID,
 		config.ComposeFile,
-		config.ComposeFilePath,
 		config.CreatedAt,
 		config.UpdatedAt,
 	)
@@ -188,13 +186,12 @@ func CreateServiceComposeConfig(ctx context.Context, db pgx.Tx, config models.Se
 func UpdateServiceComposeConfig(ctx context.Context, db pgx.Tx, config models.ServiceComposeConfig) error {
 	query := `
 		UPDATE service_compose_configs
-		SET compose_file = $2, compose_file_path = $3, updated_at = $4
+		SET compose_file = $2, updated_at = $3
 		WHERE id = $1
 	`
 	_, err := db.Exec(ctx, query,
 		config.ID,
 		config.ComposeFile,
-		config.ComposeFilePath,
 		config.UpdatedAt,
 	)
 	return err
@@ -203,6 +200,254 @@ func UpdateServiceComposeConfig(ctx context.Context, db pgx.Tx, config models.Se
 // DeleteServiceComposeConfig deletes a compose config
 func DeleteServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string) error {
 	query := `DELETE FROM service_compose_configs WHERE service_id = $1`
+	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// +----------------------------------------------+
+// | Service Container Functions                  |
+// +----------------------------------------------+
+
+// GetServiceContainers gets all containers for a service
+func GetServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) ([]models.ServiceContainer, error) {
+	query := `
+		SELECT id, service_id, container_id, container_name, created_at, updated_at
+		FROM service_containers
+		WHERE service_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := db.Query(ctx, query, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var containers []models.ServiceContainer
+	for rows.Next() {
+		var container models.ServiceContainer
+		err := rows.Scan(
+			&container.ID,
+			&container.ServiceID,
+			&container.ContainerID,
+			&container.ContainerName,
+			&container.CreatedAt,
+			&container.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, container)
+	}
+
+	return containers, rows.Err()
+}
+
+// CreateServiceContainer creates a new service container
+func CreateServiceContainer(ctx context.Context, db pgx.Tx, container models.ServiceContainer) error {
+	query := `
+		INSERT INTO service_containers (id, service_id, container_id, container_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := db.Exec(ctx, query,
+		container.ID,
+		container.ServiceID,
+		container.ContainerID,
+		container.ContainerName,
+		container.CreatedAt,
+		container.UpdatedAt,
+	)
+	return err
+}
+
+// DeleteServiceContainers deletes all containers for a service
+func DeleteServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) error {
+	query := `DELETE FROM service_containers WHERE service_id = $1`
+	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// +----------------------------------------------+
+// | Service Image Functions                      |
+// +----------------------------------------------+
+
+// GetServiceImages gets all images for a service
+func GetServiceImages(ctx context.Context, db pgx.Tx, serviceID string) ([]models.ServiceImage, error) {
+	query := `
+		SELECT id, service_id, image_id, image_name, created_at, updated_at
+		FROM service_images
+		WHERE service_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := db.Query(ctx, query, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var images []models.ServiceImage
+	for rows.Next() {
+		var image models.ServiceImage
+		err := rows.Scan(
+			&image.ID,
+			&image.ServiceID,
+			&image.ImageID,
+			&image.ImageName,
+			&image.CreatedAt,
+			&image.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		images = append(images, image)
+	}
+
+	return images, rows.Err()
+}
+
+// CreateServiceImage creates a new service image
+func CreateServiceImage(ctx context.Context, db pgx.Tx, image models.ServiceImage) error {
+	query := `
+		INSERT INTO service_images (id, service_id, image_id, image_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := db.Exec(ctx, query,
+		image.ID,
+		image.ServiceID,
+		image.ImageID,
+		image.ImageName,
+		image.CreatedAt,
+		image.UpdatedAt,
+	)
+	return err
+}
+
+// DeleteServiceImages deletes all images for a service
+func DeleteServiceImages(ctx context.Context, db pgx.Tx, serviceID string) error {
+	query := `DELETE FROM service_images WHERE service_id = $1`
+	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// +----------------------------------------------+
+// | Service Network Functions                    |
+// +----------------------------------------------+
+
+// GetServiceNetworks gets all networks for a service
+func GetServiceNetworks(ctx context.Context, db pgx.Tx, serviceID string) ([]models.ServiceNetwork, error) {
+	query := `
+		SELECT id, service_id, network_id, network_name, created_at, updated_at
+		FROM service_networks
+		WHERE service_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := db.Query(ctx, query, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var networks []models.ServiceNetwork
+	for rows.Next() {
+		var network models.ServiceNetwork
+		err := rows.Scan(
+			&network.ID,
+			&network.ServiceID,
+			&network.NetworkID,
+			&network.NetworkName,
+			&network.CreatedAt,
+			&network.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		networks = append(networks, network)
+	}
+
+	return networks, rows.Err()
+}
+
+// CreateServiceNetwork creates a new service network
+func CreateServiceNetwork(ctx context.Context, db pgx.Tx, network models.ServiceNetwork) error {
+	query := `
+		INSERT INTO service_networks (id, service_id, network_id, network_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := db.Exec(ctx, query,
+		network.ID,
+		network.ServiceID,
+		network.NetworkID,
+		network.NetworkName,
+		network.CreatedAt,
+		network.UpdatedAt,
+	)
+	return err
+}
+
+// DeleteServiceNetworks deletes all networks for a service
+func DeleteServiceNetworks(ctx context.Context, db pgx.Tx, serviceID string) error {
+	query := `DELETE FROM service_networks WHERE service_id = $1`
+	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// +----------------------------------------------+
+// | Service Volume Functions                     |
+// +----------------------------------------------+
+
+// GetServiceVolumes gets all volumes for a service
+func GetServiceVolumes(ctx context.Context, db pgx.Tx, serviceID string) ([]models.ServiceVolume, error) {
+	query := `
+		SELECT id, service_id, volume_id, volume_name, created_at, updated_at
+		FROM service_volumes
+		WHERE service_id = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := db.Query(ctx, query, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var volumes []models.ServiceVolume
+	for rows.Next() {
+		var volume models.ServiceVolume
+		err := rows.Scan(
+			&volume.ID,
+			&volume.ServiceID,
+			&volume.VolumeID,
+			&volume.VolumeName,
+			&volume.CreatedAt,
+			&volume.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, volume)
+	}
+
+	return volumes, rows.Err()
+}
+
+// CreateServiceVolume creates a new service volume
+func CreateServiceVolume(ctx context.Context, db pgx.Tx, volume models.ServiceVolume) error {
+	query := `
+		INSERT INTO service_volumes (id, service_id, volume_id, volume_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	_, err := db.Exec(ctx, query,
+		volume.ID,
+		volume.ServiceID,
+		volume.VolumeID,
+		volume.VolumeName,
+		volume.CreatedAt,
+		volume.UpdatedAt,
+	)
+	return err
+}
+
+// DeleteServiceVolumes deletes all volumes for a service
+func DeleteServiceVolumes(ctx context.Context, db pgx.Tx, serviceID string) error {
+	query := `DELETE FROM service_volumes WHERE service_id = $1`
 	_, err := db.Exec(ctx, query, serviceID)
 	return err
 }

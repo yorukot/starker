@@ -46,7 +46,7 @@ func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Cli
 		}
 	} else {
 		// Create new container with proper compose configuration
-		containerID, err = createComposeContainerFromProject(ctx, dockerClient, service, project, containerName, streamResult, namingGen)
+		_, err = createComposeContainerFromProject(ctx, dockerClient, service, project, containerName, streamResult, namingGen)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", service.Name, err)
 		}
