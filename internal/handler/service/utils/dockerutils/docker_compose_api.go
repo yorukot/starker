@@ -47,23 +47,102 @@ func NewStreamingResult() *StreamingResult {
 }
 
 // checkServiceHasGitSource checks if service has git source and logs accordingly
-// Returns git source config if found, nil if not found, and always returns existing compose config immediately
-func checkServiceHasGitSource(ctx context.Context, serviceID string, db pgx.Tx, streamResult *StreamingResult) (*models.ServiceSourceGit, *models.ServiceComposeConfig, error) {
+// Returns git source config if found, nil if not found
+func checkServiceHasGitSource(ctx context.Context, serviceID string, db pgx.Tx, streamResult *StreamingResult) (*models.ServiceSourceGit, error) {
 	// Check if service has git source
 	gitSource, err := repository.GetServiceSourceGit(ctx, db, serviceID)
 	if err != nil {
-		// No git source found, proceed with existing compose config
+		// No git source found
 		streamResult.LogChan <- "No git source found, using existing compose configuration"
-		composeConfig, err := repository.GetServiceComposeConfig(ctx, db, serviceID)
-		return nil, composeConfig, err
+		return nil, nil
 	}
 
 	streamResult.LogChan <- fmt.Sprintf("Git source found: %s (branch: %s)", gitSource.RepoURL, gitSource.Branch)
-	streamResult.LogChan <- "Git update will be performed in background"
+	streamResult.LogChan <- "Git update will be performed before starting service"
 
-	// Get existing compose config to use immediately
-	composeConfig, err := repository.GetServiceComposeConfig(ctx, db, serviceID)
-	return gitSource, composeConfig, err
+	return gitSource, nil
+}
+
+// performSyncGitUpdateAndGetConfig performs git update synchronously and returns updated compose config
+func performSyncGitUpdateAndGetConfig(ctx context.Context, gitSource *models.ServiceSourceGit, serviceID string, cfg *DockerServiceConfig, db pgx.Tx, streamResult *StreamingResult) (*models.ServiceComposeConfig, error) {
+	// Build git workflow config
+	gitConfig := git.BuildGitWorkflowConfig(serviceID, gitSource, cfg.ConnectionPool, cfg.ConnectionID, cfg.Host, cfg.PrivateKeyContent)
+
+	// Execute git update workflow
+	safeLogWrite(streamResult.LogChan, "Starting git update...")
+	gitResult, err := git.ExecuteGitUpdate(ctx, gitConfig)
+	if err != nil {
+		safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to start git update: %v (using existing code)", err))
+		// Fall back to existing compose config
+		return repository.GetServiceComposeConfig(ctx, db, serviceID)
+	}
+
+	// Forward git update streaming output
+	go func() {
+		for {
+			select {
+			case log, ok := <-gitResult.LogChan:
+				if !ok {
+					return
+				}
+				safeLogWrite(streamResult.LogChan, log)
+			case err, ok := <-gitResult.ErrorChan:
+				if !ok {
+					return
+				}
+				safeErrorWrite(streamResult.ErrorChan, err)
+			case <-gitResult.DoneChan:
+				return
+			}
+		}
+	}()
+
+	// Wait for git update to complete
+	select {
+	case <-gitResult.DoneChan:
+		if gitResult.GetFinalError() != nil {
+			safeLogWrite(streamResult.LogChan, fmt.Sprintf("Git update failed: %v (using existing code)", gitResult.GetFinalError()))
+			// Fall back to existing compose config
+			return repository.GetServiceComposeConfig(ctx, db, serviceID)
+		}
+
+		// If git update succeeded and we got updated compose content, update the database
+		if gitResult.ComposeFile != "" {
+			safeLogWrite(streamResult.LogChan, "Git update successful, updating compose configuration in database")
+
+			// Get existing compose config to update it
+			existingConfig, err := repository.GetServiceComposeConfig(ctx, db, serviceID)
+			if err != nil {
+				safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to get existing compose config: %v (using git result)", err))
+				// Create new config with git result
+				newConfig := &models.ServiceComposeConfig{
+					ServiceID:   serviceID,
+					ComposeFile: gitResult.ComposeFile,
+					UpdatedAt:   time.Now(),
+				}
+				return newConfig, nil
+			}
+
+			// Update the compose file content
+			existingConfig.ComposeFile = gitResult.ComposeFile
+			existingConfig.UpdatedAt = time.Now()
+
+			if err := repository.UpdateServiceComposeConfig(ctx, db, *existingConfig); err != nil {
+				safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to update compose config in database: %v (using git result)", err))
+			} else {
+				safeLogWrite(streamResult.LogChan, "Compose configuration updated successfully in database")
+			}
+
+			return existingConfig, nil
+		}
+	case <-ctx.Done():
+		safeLogWrite(streamResult.LogChan, "Git update cancelled due to context cancellation (using existing code)")
+		// Fall back to existing compose config
+		return repository.GetServiceComposeConfig(ctx, db, serviceID)
+	}
+
+	safeLogWrite(streamResult.LogChan, "Git update completed, retrieving compose configuration")
+	return repository.GetServiceComposeConfig(ctx, db, serviceID)
 }
 
 // safeLogWrite safely writes to log channel, recovering from panic if channel is closed
@@ -89,97 +168,6 @@ func safeErrorWrite(errorChan chan error, err error) {
 		// Error sent successfully
 	default:
 		// Channel is closed or full, ignore silently
-	}
-}
-
-// performAsyncGitUpdate performs git update in background and updates database if successful
-func performAsyncGitUpdate(ctx context.Context, gitSource *models.ServiceSourceGit, serviceID string, cfg *DockerServiceConfig, dbPool *pgxpool.Pool, streamResult *StreamingResult) {
-	// Build git workflow config
-	gitConfig := git.BuildGitWorkflowConfig(serviceID, gitSource, cfg.ConnectionPool, cfg.ConnectionID, cfg.Host, cfg.PrivateKeyContent)
-
-	// Execute git update workflow
-	safeLogWrite(streamResult.LogChan, "Starting git update in background")
-	gitResult, err := git.ExecuteGitUpdate(ctx, gitConfig)
-	if err != nil {
-		safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to start git update: %v (continuing with existing code)", err))
-		return
-	}
-
-	// Forward git update streaming output in a separate goroutine
-	gitUpdateDone := make(chan struct{})
-	go func() {
-		defer close(gitUpdateDone)
-		forwardGitStreaming(gitResult, streamResult)
-	}()
-
-	// Wait for git update to complete with timeout
-	select {
-	case <-gitResult.DoneChan:
-		if gitResult.GetFinalError() != nil {
-			safeLogWrite(streamResult.LogChan, fmt.Sprintf("Git update failed: %v (continuing with existing code)", gitResult.GetFinalError()))
-			return
-		}
-
-		// If git update succeeded and we got updated compose content, update the database
-		if gitResult.ComposeFile != "" {
-			safeLogWrite(streamResult.LogChan, "Git update successful, updating compose configuration in database")
-
-			// Create a new transaction for database update
-			tx, err := repository.StartTransaction(dbPool, ctx)
-			if err != nil {
-				safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to start transaction for compose update: %v", err))
-				return
-			}
-			defer repository.DeferRollback(tx, ctx)
-
-			// Get existing compose config to update it
-			existingConfig, err := repository.GetServiceComposeConfig(ctx, tx, serviceID)
-			if err != nil {
-				safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to get existing compose config: %v", err))
-				return
-			}
-
-			// Update the compose file content
-			existingConfig.ComposeFile = gitResult.ComposeFile
-			if err := repository.UpdateServiceComposeConfig(ctx, tx, *existingConfig); err != nil {
-				safeLogWrite(streamResult.LogChan, fmt.Sprintf("Failed to update compose config in database: %v", err))
-				return
-			}
-
-			// Commit the transaction
-			repository.CommitTransaction(tx, ctx)
-			safeLogWrite(streamResult.LogChan, "Compose configuration updated successfully")
-		}
-	case <-ctx.Done():
-		safeLogWrite(streamResult.LogChan, "Git update cancelled due to context cancellation")
-		return
-	}
-
-	// Wait for streaming to finish with timeout
-	select {
-	case <-gitUpdateDone:
-	case <-time.After(5 * time.Second):
-		// Streaming timeout, continue anyway
-	}
-
-	safeLogWrite(streamResult.LogChan, "Background git update completed")
-}
-
-// forwardGitStreaming forwards streaming output from git operations to docker streaming
-func forwardGitStreaming(gitResult *git.GitWorkflowResult, streamResult *StreamingResult) {
-	for {
-		select {
-		case log, ok := <-gitResult.LogChan:
-			if !ok {
-				return
-			}
-			safeLogWrite(streamResult.LogChan, log)
-		case err, ok := <-gitResult.ErrorChan:
-			if !ok {
-				return
-			}
-			safeErrorWrite(streamResult.ErrorChan, err)
-		}
 	}
 }
 
@@ -232,25 +220,8 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		return nil, err
 	}
 
-	// Create streaming result first
+	// Create streaming result immediately and return it for immediate SSE streaming
 	streamResult := NewStreamingResult()
-
-	// Check for git source and get compose config immediately
-	gitSource, composeConfig, err := checkServiceHasGitSource(ctx, serviceID, db, streamResult)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compose config: %w", err)
-	}
-
-	// Parse compose file to get service definitions
-	composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse compose file: %w", err)
-	}
-
-	// Validate the compose file
-	if err := dockeryaml.Validate(composeProject); err != nil {
-		return nil, fmt.Errorf("compose file validation failed: %w", err)
-	}
 
 	// Start containers in a goroutine for streaming with proper dependency order
 	go func() {
@@ -258,12 +229,7 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
-		// If service has git source, perform async git update
-		if gitSource != nil {
-			go performAsyncGitUpdate(ctx, gitSource, serviceID, cfg, dbPool, streamResult)
-		}
-
-		// Create a new transaction for the goroutine
+		// Create a new transaction for git and compose operations
 		tx, err := repository.StartTransaction(dbPool, ctx)
 		if err != nil {
 			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
@@ -271,6 +237,51 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
+
+		// Check for git source
+		gitSource, err := checkServiceHasGitSource(ctx, serviceID, tx, streamResult)
+		if err != nil {
+			streamResult.FinalError = fmt.Errorf("failed to check git source: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		// Get compose config - either from git update or existing database
+		var composeConfig *models.ServiceComposeConfig
+		if gitSource != nil {
+			// Perform synchronous git update and get updated compose config
+			composeConfig, err = performSyncGitUpdateAndGetConfig(ctx, gitSource, serviceID, cfg, tx, streamResult)
+			if err != nil {
+				streamResult.FinalError = fmt.Errorf("failed to update from git and get compose config: %w", err)
+				streamResult.ErrorChan <- streamResult.FinalError
+				return
+			}
+		} else {
+			// No git source, get existing compose config
+			composeConfig, err = repository.GetServiceComposeConfig(ctx, tx, serviceID)
+			if err != nil {
+				streamResult.FinalError = fmt.Errorf("failed to get compose config: %w", err)
+				streamResult.ErrorChan <- streamResult.FinalError
+				return
+			}
+		}
+
+		// Parse compose file to get service definitions
+		composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
+		if err != nil {
+			streamResult.FinalError = fmt.Errorf("failed to parse compose file: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		// Validate the compose file
+		if err := dockeryaml.Validate(composeProject); err != nil {
+			streamResult.FinalError = fmt.Errorf("compose file validation failed: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		streamResult.LogChan <- "Compose file validated successfully, proceeding with Docker operations"
 
 		// Purge existing Docker resources and clean database records first
 		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
@@ -376,25 +387,8 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		return nil, err
 	}
 
-	// Create streaming result first
+	// Create streaming result immediately and return it for immediate SSE streaming
 	streamResult := NewStreamingResult()
-
-	// Check for git source and get compose config immediately
-	gitSource, composeConfig, err := checkServiceHasGitSource(ctx, serviceID, db, streamResult)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compose config: %w", err)
-	}
-
-	// Parse compose file to get service definitions
-	composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse compose file: %w", err)
-	}
-
-	// Validate the compose file
-	if err := dockeryaml.Validate(composeProject); err != nil {
-		return nil, fmt.Errorf("compose file validation failed: %w", err)
-	}
 
 	// Restart containers in a goroutine for streaming with proper dependency ordering
 	go func() {
@@ -402,12 +396,7 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		defer close(streamResult.LogChan)
 		defer close(streamResult.ErrorChan)
 
-		// If service has git source, perform async git update
-		if gitSource != nil {
-			go performAsyncGitUpdate(ctx, gitSource, serviceID, cfg, dbPool, streamResult)
-		}
-
-		// Create a new transaction for the goroutine
+		// Create a new transaction for git and compose operations
 		tx, err := repository.StartTransaction(dbPool, ctx)
 		if err != nil {
 			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
@@ -415,6 +404,51 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
+
+		// Check for git source
+		gitSource, err := checkServiceHasGitSource(ctx, serviceID, tx, streamResult)
+		if err != nil {
+			streamResult.FinalError = fmt.Errorf("failed to check git source: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		// Get compose config - either from git update or existing database
+		var composeConfig *models.ServiceComposeConfig
+		if gitSource != nil {
+			// Perform synchronous git update and get updated compose config
+			composeConfig, err = performSyncGitUpdateAndGetConfig(ctx, gitSource, serviceID, cfg, tx, streamResult)
+			if err != nil {
+				streamResult.FinalError = fmt.Errorf("failed to update from git and get compose config: %w", err)
+				streamResult.ErrorChan <- streamResult.FinalError
+				return
+			}
+		} else {
+			// No git source, get existing compose config
+			composeConfig, err = repository.GetServiceComposeConfig(ctx, tx, serviceID)
+			if err != nil {
+				streamResult.FinalError = fmt.Errorf("failed to get compose config: %w", err)
+				streamResult.ErrorChan <- streamResult.FinalError
+				return
+			}
+		}
+
+		// Parse compose file to get service definitions
+		composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
+		if err != nil {
+			streamResult.FinalError = fmt.Errorf("failed to parse compose file: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		// Validate the compose file
+		if err := dockeryaml.Validate(composeProject); err != nil {
+			streamResult.FinalError = fmt.Errorf("compose file validation failed: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
+			return
+		}
+
+		streamResult.LogChan <- "Compose file validated successfully, proceeding with Docker restart operations"
 
 		// Purge existing Docker resources and clean database records first
 		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
@@ -435,7 +469,7 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 			return
 		}
 
-		// Create a new transaction for the goroutine
+		// Create a new transaction for starting services
 		tx, err = repository.StartTransaction(dbPool, ctx)
 		if err != nil {
 			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
