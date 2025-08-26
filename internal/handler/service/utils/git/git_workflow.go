@@ -75,14 +75,14 @@ func ExecuteGitWorkflow(ctx context.Context, config *GitWorkflowConfig) (*GitWor
 		defer close(workflowResult.LogChan)
 		defer close(workflowResult.ErrorChan)
 
-		workflowResult.LogChan <- "=== Starting Git Workflow ==="
+		workflowResult.LogChan <- "Starting Git workflow"
 		workflowResult.LogChan <- fmt.Sprintf("Service ID: %s", config.ServiceID)
 		workflowResult.LogChan <- fmt.Sprintf("Repository: %s", config.RepoURL)
 		workflowResult.LogChan <- fmt.Sprintf("Branch: %s", config.Branch)
 		workflowResult.LogChan <- fmt.Sprintf("Target path: %s", clonePath)
 
 		// Step 1: Clone the repository
-		workflowResult.LogChan <- "=== Step 1: Cloning Repository ==="
+		workflowResult.LogChan <- "Cloning repository"
 		cloneResult, err := CloneRepository(ctx, config.ConnectionPool, config.ConnectionID, config.Host, config.PrivateKeyContent, config.RepoURL, clonePath, config.Branch, config.Timeout/2)
 		if err != nil {
 			workflowResult.finalError = fmt.Errorf("failed to start git clone: %w", err)
@@ -118,7 +118,7 @@ func ExecuteGitWorkflow(ctx context.Context, config *GitWorkflowConfig) (*GitWor
 			// Streaming timeout, continue anyway
 		}
 
-		workflowResult.LogChan <- "=== Step 2: Extracting Docker Compose File ==="
+		workflowResult.LogChan <- "Extracting Docker Compose file"
 
 		// Step 2: Extract Docker Compose file
 		customComposePath := ""
@@ -170,7 +170,7 @@ func ExecuteGitWorkflow(ctx context.Context, config *GitWorkflowConfig) (*GitWor
 		// Set the extracted compose file content
 		workflowResult.ComposeFile = extractResult.ComposeFile
 
-		workflowResult.LogChan <- "=== Git Workflow Completed Successfully ==="
+		workflowResult.LogChan <- "Git workflow completed successfully"
 		workflowResult.LogChan <- fmt.Sprintf("Repository cloned to: %s", clonePath)
 		workflowResult.LogChan <- fmt.Sprintf("Docker Compose file found: %s", extractResult.FilePath)
 		workflowResult.LogChan <- fmt.Sprintf("Compose file size: %d bytes", len(extractResult.ComposeFile))
@@ -238,6 +238,162 @@ func forwardExtractionStreaming(extractResult *DockerComposeExtractResult, workf
 			func() {
 				defer func() { recover() }()
 				workflowResult.ErrorChan <- fmt.Errorf("extraction error: %w", err)
+			}()
+		}
+	}
+}
+
+// ExecuteGitUpdate executes a git pull/update workflow for existing repositories
+// This is used when starting/restarting services to pull latest changes
+func ExecuteGitUpdate(ctx context.Context, config *GitWorkflowConfig) (*GitWorkflowResult, error) {
+	if config == nil {
+		return nil, fmt.Errorf("git workflow config cannot be nil")
+	}
+
+	if config.Timeout == 0 {
+		config.Timeout = 5 * time.Minute // Default timeout for git update
+	}
+
+	// Create workflow result
+	workflowResult := NewGitWorkflowResult()
+
+	// Set the repository path following the workflow specification
+	repositoryPath := fmt.Sprintf("/data/starker/services/%s", config.ServiceID)
+	workflowResult.ClonePath = repositoryPath
+
+	// Execute update workflow in a goroutine for streaming
+	go func() {
+		defer close(workflowResult.DoneChan)
+		defer close(workflowResult.LogChan)
+		defer close(workflowResult.ErrorChan)
+
+		workflowResult.LogChan <- "Starting Git update workflow"
+		workflowResult.LogChan <- fmt.Sprintf("Service ID: %s", config.ServiceID)
+		workflowResult.LogChan <- fmt.Sprintf("Repository: %s", config.RepoURL)
+		workflowResult.LogChan <- fmt.Sprintf("Branch: %s", config.Branch)
+		workflowResult.LogChan <- fmt.Sprintf("Repository path: %s", repositoryPath)
+
+		// Step 1: Update the repository
+		workflowResult.LogChan <- "Updating repository"
+		updateResult, err := UpdateRepository(ctx, config.ConnectionPool, config.ConnectionID, config.Host, config.PrivateKeyContent, repositoryPath, config.Branch, config.Timeout/2)
+		if err != nil {
+			workflowResult.finalError = fmt.Errorf("failed to start git update: %w", err)
+			workflowResult.ErrorChan <- workflowResult.finalError
+			return
+		}
+
+		// Forward update streaming output in a separate goroutine
+		updateDone := make(chan struct{})
+		go func() {
+			defer close(updateDone)
+			forwardUpdateStreaming(updateResult, workflowResult)
+		}()
+
+		// Wait for update to complete
+		select {
+		case <-updateResult.DoneChan:
+			if updateResult.GetFinalError() != nil {
+				// Log error but don't fail - graceful degradation
+				workflowResult.LogChan <- fmt.Sprintf("Git update failed (continuing with existing code): %v", updateResult.GetFinalError())
+				workflowResult.ErrorChan <- fmt.Errorf("git update failed: %w", updateResult.GetFinalError())
+			} else {
+				workflowResult.LogChan <- "Git update completed successfully"
+			}
+		case <-ctx.Done():
+			workflowResult.finalError = fmt.Errorf("git update workflow cancelled: %w", ctx.Err())
+			workflowResult.ErrorChan <- workflowResult.finalError
+			return
+		}
+
+		// Wait for update streaming to finish with timeout
+		select {
+		case <-updateDone:
+		case <-time.After(5 * time.Second):
+			// Streaming timeout, continue anyway
+		}
+
+		workflowResult.LogChan <- "Re-extracting Docker Compose file"
+
+		// Step 2: Re-extract Docker Compose file after update
+		customComposePath := ""
+		if config.DockerComposeFilePath != nil {
+			customComposePath = *config.DockerComposeFilePath
+		}
+
+		extractResult, err := ExtractDockerCompose(ctx, config.ConnectionPool, config.ConnectionID, config.Host, config.PrivateKeyContent, repositoryPath, customComposePath)
+		if err != nil {
+			workflowResult.finalError = fmt.Errorf("failed to start compose extraction after update: %w", err)
+			workflowResult.ErrorChan <- workflowResult.finalError
+			return
+		}
+
+		// Forward extraction streaming output in a separate goroutine
+		extractDone := make(chan struct{})
+		go func() {
+			defer close(extractDone)
+			forwardExtractionStreaming(extractResult, workflowResult)
+		}()
+
+		// Wait for extraction to complete
+		select {
+		case <-extractResult.DoneChan:
+			if extractResult.GetFinalError() != nil {
+				workflowResult.finalError = fmt.Errorf("compose extraction failed after update: %w", extractResult.GetFinalError())
+				workflowResult.ErrorChan <- workflowResult.finalError
+				return
+			}
+		case <-ctx.Done():
+			workflowResult.finalError = fmt.Errorf("git update workflow cancelled during extraction: %w", ctx.Err())
+			workflowResult.ErrorChan <- workflowResult.finalError
+			return
+		}
+
+		// Wait for extraction streaming to finish with timeout
+		select {
+		case <-extractDone:
+		case <-time.After(5 * time.Second):
+			// Streaming timeout, continue anyway
+		}
+
+		// Set the extracted compose file content
+		workflowResult.ComposeFile = extractResult.ComposeFile
+
+		workflowResult.LogChan <- "Git update workflow completed successfully"
+		workflowResult.LogChan <- fmt.Sprintf("Repository updated at: %s", repositoryPath)
+		workflowResult.LogChan <- fmt.Sprintf("Docker Compose file found: %s", extractResult.FilePath)
+		workflowResult.LogChan <- fmt.Sprintf("Compose file size: %d bytes", len(extractResult.ComposeFile))
+	}()
+
+	return workflowResult, nil
+}
+
+// forwardUpdateStreaming forwards streaming output from update operation
+func forwardUpdateStreaming(updateResult *GitCloneResult, workflowResult *GitWorkflowResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Recover from panic if trying to send on closed channel
+		}
+	}()
+
+	for {
+		select {
+		case log, ok := <-updateResult.LogChan:
+			if !ok {
+				return
+			}
+			// Safe channel write with recovery
+			func() {
+				defer func() { recover() }()
+				workflowResult.LogChan <- fmt.Sprintf("[UPDATE] %s", log)
+			}()
+		case err, ok := <-updateResult.ErrorChan:
+			if !ok {
+				return
+			}
+			// Safe channel write with recovery
+			func() {
+				defer func() { recover() }()
+				workflowResult.ErrorChan <- fmt.Errorf("update error: %w", err)
 			}()
 		}
 	}

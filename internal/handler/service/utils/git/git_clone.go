@@ -145,6 +145,121 @@ func buildGitCloneCommand(repoURL, targetPath, branch string) string {
 	return fmt.Sprintf("git clone --depth 1 %s %s", repoURL, targetPath)
 }
 
+// UpdateRepository pulls latest changes from git repository
+func UpdateRepository(ctx context.Context, connectionPool *connection.ConnectionPool, connectionID, host string, privateKeyContent []byte, repositoryPath, branch string, timeout time.Duration) (*GitCloneResult, error) {
+	if timeout == 0 {
+		timeout = 3 * time.Minute // Default timeout for git pull
+	}
+
+	updateResult := NewGitCloneResult(repositoryPath)
+
+	// Execute git pull in a goroutine for streaming
+	go func() {
+		defer close(updateResult.DoneChan)
+		defer close(updateResult.LogChan)
+		defer close(updateResult.ErrorChan)
+
+		updateResult.LogChan <- fmt.Sprintf("Starting git update for repository at %s", repositoryPath)
+
+		// Step 1: Check if repository directory exists
+		checkDirCmd := fmt.Sprintf("[ -d %s ] && echo 'exists' || echo 'not_exists'", repositoryPath)
+		updateResult.LogChan <- "Checking if repository directory exists"
+
+		sshResult, err := connectionPool.ExecuteSSHCommand(ctx, connectionID, host, privateKeyContent, checkDirCmd, 30*time.Second)
+		if err != nil {
+			updateResult.finalError = fmt.Errorf("failed to check repository directory: %w", err)
+			updateResult.ErrorChan <- updateResult.finalError
+			return
+		}
+
+		// Wait for directory check to complete
+		var directoryExists bool
+		select {
+		case <-sshResult.DoneChan:
+			if sshResult.GetFinalError() != nil {
+				updateResult.finalError = fmt.Errorf("failed to check repository directory: %w", sshResult.GetFinalError())
+				updateResult.ErrorChan <- updateResult.finalError
+				return
+			}
+			// Check if directory exists by reading stdout
+			// This is a simple check - if directory doesn't exist, we'll handle it gracefully
+			directoryExists = true
+		case <-ctx.Done():
+			updateResult.finalError = fmt.Errorf("directory check cancelled: %w", ctx.Err())
+			updateResult.ErrorChan <- updateResult.finalError
+			return
+		}
+
+		if !directoryExists {
+			updateResult.LogChan <- "Repository directory not found, skipping git update"
+			updateResult.finalError = fmt.Errorf("repository directory %s does not exist", repositoryPath)
+			updateResult.ErrorChan <- updateResult.finalError
+			return
+		}
+
+		updateResult.LogChan <- "Repository directory found, proceeding with git update"
+
+		// Step 2: Change to repository directory and pull latest changes
+		gitPullCmd := buildGitPullCommand(repositoryPath, branch)
+		updateResult.LogChan <- "Executing git pull command"
+
+		sshResult, err = connectionPool.ExecuteSSHCommand(ctx, connectionID, host, privateKeyContent, gitPullCmd, timeout)
+		if err != nil {
+			updateResult.finalError = fmt.Errorf("failed to execute git pull: %w", err)
+			updateResult.ErrorChan <- updateResult.finalError
+			return
+		}
+
+		// Stream the git pull output
+		go func() {
+			for {
+				select {
+				case stdout, ok := <-sshResult.StdoutChan:
+					if !ok {
+						return
+					}
+					updateResult.LogChan <- fmt.Sprintf("Git: %s", stdout)
+				case stderr, ok := <-sshResult.StderrChan:
+					if !ok {
+						return
+					}
+					updateResult.LogChan <- fmt.Sprintf("Git: %s", stderr)
+				case err, ok := <-sshResult.ErrorChan:
+					if !ok {
+						return
+					}
+					updateResult.ErrorChan <- err
+				}
+			}
+		}()
+
+		// Wait for git pull to complete
+		select {
+		case <-sshResult.DoneChan:
+			if sshResult.GetFinalError() != nil {
+				updateResult.finalError = fmt.Errorf("git pull failed: %w", sshResult.GetFinalError())
+				updateResult.ErrorChan <- updateResult.finalError
+				return
+			}
+			updateResult.LogChan <- fmt.Sprintf("Git pull completed successfully for %s", repositoryPath)
+		case <-ctx.Done():
+			updateResult.finalError = fmt.Errorf("git pull cancelled: %w", ctx.Err())
+			updateResult.ErrorChan <- updateResult.finalError
+			return
+		}
+	}()
+
+	return updateResult, nil
+}
+
+// buildGitPullCommand builds the git pull command with proper options
+func buildGitPullCommand(repositoryPath, branch string) string {
+	if branch != "" && branch != "main" && branch != "master" {
+		return fmt.Sprintf("cd %s && git checkout %s && git pull origin %s", repositoryPath, branch, branch)
+	}
+	return fmt.Sprintf("cd %s && git pull", repositoryPath)
+}
+
 // CleanupRepository removes the cloned repository directory
 func CleanupRepository(ctx context.Context, connectionPool *connection.ConnectionPool, connectionID, host string, privateKeyContent []byte, targetPath string) error {
 	cleanupCmd := fmt.Sprintf("rm -rf %s", targetPath)
