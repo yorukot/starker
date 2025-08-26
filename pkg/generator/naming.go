@@ -29,15 +29,15 @@ func NewNamingGenerator(serviceID, teamID, serverID string) *NamingGenerator {
 
 func (ng *NamingGenerator) ProjectName() string {
 	sanitizedServiceID := sanitizeProjectName(ng.serviceID)
-	return fmt.Sprintf("%s_%s", StarkerPrefix, sanitizedServiceID)
+	return fmt.Sprintf("%s-%s", StarkerPrefix, sanitizedServiceID)
 }
 
 func (ng *NamingGenerator) ContainerName(serviceName string) string {
-	return fmt.Sprintf("%s_%s", serviceName, ng.serviceID)
+	return fmt.Sprintf("%s-%s", serviceName, ng.serviceID)
 }
 
 func (ng *NamingGenerator) NetworkName(networkName string) string {
-	return fmt.Sprintf("%s_%s", networkName, ng.serviceID)
+	return fmt.Sprintf("%s-%s", networkName, ng.serviceID)
 }
 
 // ResolveNetworkName resolves the correct network name based on Docker Compose network configuration
@@ -52,11 +52,11 @@ func (ng *NamingGenerator) ResolveNetworkName(networkName, configuredName string
 }
 
 func (ng *NamingGenerator) VolumeName(volumeName string) string {
-	return fmt.Sprintf("%s_%s", volumeName, ng.serviceID)
+	return fmt.Sprintf("%s-%s", volumeName, ng.serviceID)
 }
 
 func (ng *NamingGenerator) ConnectionID() string {
-	return fmt.Sprintf("%s_%s", ng.teamID, ng.serverID)
+	return fmt.Sprintf("%s-%s", ng.teamID, ng.serverID)
 }
 
 func (ng *NamingGenerator) GetLabels() map[string]string {
@@ -99,7 +99,7 @@ func sanitizeProjectName(name string) string {
 	name = strings.ToLower(name)
 
 	reg := regexp.MustCompile(`[^a-z0-9_-]`)
-	name = reg.ReplaceAllString(name, "_")
+	name = reg.ReplaceAllString(name, "-")
 
 	if len(name) > 0 && !regexp.MustCompile(`^[a-z0-9]`).MatchString(name) {
 		name = "s" + name
