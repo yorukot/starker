@@ -17,6 +17,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm check` - Type check with svelte-check
 - `pnpm check:watch` - Type check in watch mode
 
+### Testing
+
+- `pnpm test:ssh-key` - Run SSH key generation tests using tsx
+
 ## Project Architecture
 
 This is a SvelteKit website using Svelte 5 with TypeScript, TailwindCSS 4.0, and shadcn-svelte components.
@@ -67,6 +71,11 @@ Uses shadcn-svelte component library with:
 - **Icons:** Lucide icons via unplugin-icons with `~icons/` prefix
 - **UI Components:** bits-ui, tailwind-variants, tailwind-merge, clsx
 - **Development:** TypeScript, ESLint, Prettier with Svelte plugins, tw-animate-css
+- **Cryptography:** node-forge and tweetnacl for SSH key generation (Ed25519 and RSA)
+- **Code Editor:** CodeMirror 6 with YAML language support and One Dark theme
+- **Avatars:** Dicebear collection for avatar generation
+- **Notifications:** svelte-sonner for toast notifications
+- **State Management:** mode-watcher for dark/light mode handling
 
 ### Configuration Files
 
@@ -105,6 +114,15 @@ Uses shadcn-svelte component library with:
 - Utility types for component props: `WithoutChild`, `WithoutChildren`, `WithElementRef`
 - Mobile responsive utilities via `IsMobile` class extending Svelte's `MediaQuery`
 
+### SSH Key Management Architecture
+
+- Client-side SSH key generation supporting Ed25519 and RSA key types
+- Key size validation for RSA keys (2048, 3072, 4096 bits)
+- SHA256 fingerprint generation for public keys
+- OpenSSH private key format compliance with proper encoding
+- Comment support for generated keys with validation (max 255 chars, no newlines)
+- Type-safe error handling via `SSHKeyError` class with key type context
+
 ### Styling and Theme System
 
 - TailwindCSS 4.0 with custom CSS variables and OKLCH color space
@@ -112,3 +130,9 @@ Uses shadcn-svelte component library with:
 - Custom radius system with sm/md/lg/xl variants
 - Sidebar-specific theming variables for consistent navigation styling
 - Animation utilities via `tw-animate-css` plugin
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

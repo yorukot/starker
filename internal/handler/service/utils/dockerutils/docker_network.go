@@ -13,32 +13,30 @@ import (
 	"github.com/yorukot/starker/pkg/generator"
 )
 
-// createProjectNetworks creates networks defined in the compose project
-func createProjectNetworks(ctx context.Context, dockerClient *client.Client, project *types.Project, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
-	for networkName, networkConfig := range project.Networks {
-		fullNetworkName := namingGen.ResolveNetworkName(networkName, networkConfig.Name)
-
-		// Check if network already exists
-		networks, err := dockerClient.NetworkList(ctx, network.ListOptions{
-			Filters: filters.NewArgs(filters.Arg("name", fullNetworkName)),
+// createProjectNetwork creates networks defined in the compose project
+func createProjectNetwork(ctx context.Context, dockerClient *client.Client, networkKey string, networkConfig types.NetworkConfig, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
+	// Check if network already exists
+	zap.L().With(zap.Any("network", networkConfig)).Debug("Checking existing networks before creation")
+	networks, err := dockerClient.NetworkList(ctx, network.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", networkConfig.Name)),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list networks: %w", err)
+	}
+	zap.L().With(zap.String("network", networkConfig.Name)).Debug("Checking existing networks")
+	zap.L().Debug("Existing networks", zap.Any("networks", networks))
+	if len(networks) == 0 {
+		streamResult.LogChan <- fmt.Sprintf("Creating network: %s", networkConfig.Name)
+		_, err = dockerClient.NetworkCreate(ctx, networkConfig.Name, network.CreateOptions{
+			Driver: networkConfig.Driver,
+			Labels: namingGen.GetNetworkLabels(namingGen.ProjectName(), networkKey),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to list networks: %w", err)
+			return fmt.Errorf("failed to create network %s: %w", networkConfig.Name, err)
 		}
-		zap.L().Debug("Existing networks", zap.Any("networks", networks))
-		if len(networks) == 0 {
-			streamResult.LogChan <- fmt.Sprintf("Creating network: %s", fullNetworkName)
-			_, err = dockerClient.NetworkCreate(ctx, fullNetworkName, network.CreateOptions{
-				Driver: networkConfig.Driver,
-				Labels: namingGen.GetNetworkLabels(project.Name, networkName),
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create network %s: %w", fullNetworkName, err)
-			}
-			streamResult.LogChan <- fmt.Sprintf("Created network: %s", fullNetworkName)
-		} else {
-			streamResult.LogChan <- fmt.Sprintf("Network %s already exists", fullNetworkName)
-		}
+		streamResult.LogChan <- fmt.Sprintf("Created network: %s", networkConfig.Name)
+	} else {
+		streamResult.LogChan <- fmt.Sprintf("Network %s already exists", networkConfig.Name)
 	}
 
 	return nil

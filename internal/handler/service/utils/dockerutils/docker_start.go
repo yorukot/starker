@@ -13,23 +13,32 @@ func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServic
 	streamResult.LogChan <- fmt.Sprintf("Starting Docker Compose project %s with %d services", project.Name, len(project.Services))
 
 	// Step 1: Create networks first
-	if err := createProjectNetworks(ctx, cfg.Client, project, streamResult, cfg.Generator); err != nil {
-		return fmt.Errorf("failed to create networks: %w", err)
+	for networkKey, network := range project.Networks {
+		if err := createProjectNetwork(ctx, cfg.Client, networkKey, network, streamResult, cfg.Generator); err != nil {
+			return fmt.Errorf("failed to create network %s: %w", network.Name, err)
+		}
 	}
 
 	// Step 2: Create volumes
-	if err := createProjectVolumes(ctx, cfg.Client, project, streamResult, cfg.Generator); err != nil {
-		return fmt.Errorf("failed to create volumes: %w", err)
+	for _, volume := range project.Volumes {
+		if err := createProjectVolume(ctx, cfg.Client, volume, streamResult, cfg.Generator); err != nil {
+			return fmt.Errorf("failed to create volume %s: %w", volume.Name, err)
+		}
 	}
 
 	// Step 3: Pull images for all services
-	if err := pullProjectImages(ctx, cfg.Client, project, streamResult); err != nil {
-		return fmt.Errorf("failed to pull images: %w", err)
+	for _, service := range project.Services {
+		if err := pullServiceImage(ctx, cfg.Client, service, streamResult); err != nil {
+			return fmt.Errorf("failed to pull image for service %s: %w", service.Name, err)
+		}
 	}
 
 	// Step 4: Build images for services that have build configurations
-	if err := buildProjectImages(ctx, cfg.Client, project, cfg.ServiceID, streamResult); err != nil {
-		return fmt.Errorf("failed to build images: %w", err)
+
+	for _, service := range project.Services {
+		if err := buildServiceImages(ctx, cfg.Client, service, cfg.ServiceID, streamResult, cfg.Generator, cfg.ConnectionPool, cfg.ConnectionID, cfg.Host, cfg.PrivateKeyContent); err != nil {
+			return fmt.Errorf("failed to build images: %w", err)
+		}
 	}
 
 	// Step 5: Start services in proper dependency order using Docker Compose v2 API

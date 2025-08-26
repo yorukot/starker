@@ -220,7 +220,7 @@ func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, re
 			w.(http.Flusher).Flush()
 		case <-result.StreamResult.DoneChan:
 			// Command finished, determine final status
-			finalError := result.StreamResult.GetFinalError()
+			finalError := result.StreamResult.FinalError
 			if finalError != nil {
 				fmt.Fprintf(w, "data: {\"type\": \"error\", \"message\": \"%s\"}\n\n", escapeJSONString(finalError.Error()))
 				service.State = result.FailureStatus

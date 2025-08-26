@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/docker/api/types/container"
@@ -108,12 +109,28 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 		env = append(env, fmt.Sprintf("%s=%s", key, value))
 	}
 
+	// Determine the image name - if service has build config but no image, generate one
+	imageName := service.Image
+	if imageName == "" && service.Build != nil {
+		// Generate image name for built services (same as what would be built)
+		imageName = fmt.Sprintf("%s-%s:latest", project.Name, service.Name)
+		streamResult.LogChan <- fmt.Sprintf("Service %s has no image specified, using generated name: %s", service.Name, imageName)
+	}
+
+	if imageName == "" {
+		return "", fmt.Errorf("service %s has no image specified and no build configuration", service.Name)
+	}
+
 	// Create container configuration
 	containerConfig := &container.Config{
-		Image:        service.Image,
+		Image:        imageName,
 		Env:          env,
 		ExposedPorts: exposedPorts,
 		Labels:       namingGen.GetServiceLabels(project.Name, service.Name),
+		Cmd:          []string(service.Command),
+		Entrypoint:   []string(service.Entrypoint),
+		WorkingDir:   service.WorkingDir,
+		User:         service.User,
 	}
 
 	// Create host configuration
@@ -146,9 +163,18 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 
 	streamResult.LogChan <- fmt.Sprintf("Creating container: %s", containerName)
 	zap.L().Debug("Creating container", zap.Any("networkconfig", networkConfig))
-	// Create container
+	// Create container with detailed error logging
 	resp, err := dockerClient.ContainerCreate(ctx, containerConfig, hostConfig, networkConfig, nil, containerName)
 	if err != nil {
+		streamResult.LogChan <- fmt.Sprintf("Failed to create container %s: %v", containerName, err)
+		streamResult.LogChan <- fmt.Sprintf("Container config - Image: %s, Cmd: %v, Entrypoint: %v",
+			containerConfig.Image, containerConfig.Cmd, containerConfig.Entrypoint)
+
+		// Check if this is an image not found error
+		if strings.Contains(err.Error(), "No such image") || strings.Contains(err.Error(), "pull access denied") {
+			streamResult.LogChan <- fmt.Sprintf("Image %s not found. For services with build config, the image should be built first or a fallback image should be specified.", containerConfig.Image)
+		}
+
 		return "", fmt.Errorf("failed to create container: %w", err)
 	}
 

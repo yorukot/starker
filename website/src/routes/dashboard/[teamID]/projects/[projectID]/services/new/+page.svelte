@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import LucideArrowLeft from '~icons/lucide/arrow-left';
 	import LucideContainer from '~icons/lucide/container';
+	import LucideGitBranch from '~icons/lucide/git-branch';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
@@ -18,8 +19,11 @@
 	}
 
 	function selectCompose() {
-		// For now, just navigate to a compose setup page (to be created later)
 		goto(`/dashboard/${page.params.teamID}/projects/${page.params.projectID}/services/new/compose`);
+	}
+
+	function selectGit() {
+		goto(`/dashboard/${page.params.teamID}/projects/${page.params.projectID}/services/new/git`);
 	}
 </script>
 
@@ -54,6 +58,32 @@
 			</p>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+				<!-- Git Repository Template -->
+				<Card.Root
+					class="cursor-pointer border border-border/50 bg-card/50 transition-colors hover:border-border hover:bg-card"
+					onclick={selectGit}
+				>
+					<Card.Header>
+						<div class="flex items-center gap-2">
+							<div class="rounded-lg border border-primary/20 bg-primary/10 p-2">
+								<LucideGitBranch class="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<h3 class="font-medium">Git Repository</h3>
+								<p class="text-xs text-muted-foreground">Deploy from Git repository</p>
+							</div>
+						</div>
+					</Card.Header>
+					<Card.Content>
+						<div class="space-y-2">
+							<p class="text-sm text-muted-foreground">
+								Clone a Git repository and automatically extract Docker Compose configurations with
+								real-time progress tracking.
+							</p>
+						</div>
+					</Card.Content>
+				</Card.Root>
+
 				<!-- Docker Compose Template -->
 				<Card.Root
 					class="cursor-pointer border border-border/50 bg-card/50 transition-colors hover:border-border hover:bg-card"

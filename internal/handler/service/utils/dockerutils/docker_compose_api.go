@@ -16,10 +16,14 @@ import (
 
 // DockerServiceConfig holds Docker API connection configuration for service operations
 type DockerServiceConfig struct {
-	Client      *client.Client
-	ServiceID   string
-	ProjectName string
-	Generator   *generator.NamingGenerator
+	Client            *client.Client
+	ServiceID         string
+	ProjectName       string
+	Generator         *generator.NamingGenerator
+	ConnectionPool    *connection.ConnectionPool
+	ConnectionID      string
+	Host              string
+	PrivateKeyContent []byte
 }
 
 // StreamingResult provides streaming output from Docker operations
@@ -27,7 +31,7 @@ type StreamingResult struct {
 	LogChan    chan string
 	ErrorChan  chan error
 	DoneChan   chan struct{}
-	finalError error
+	FinalError error
 }
 
 // NewStreamingResult creates a new StreamingResult
@@ -39,32 +43,23 @@ func NewStreamingResult() *StreamingResult {
 	}
 }
 
-// GetFinalError returns the final error from the operation
-func (sr *StreamingResult) GetFinalError() error {
-	return sr.finalError
-}
-
 // prepareDockerConfig prepares Docker API configuration for service operations
 func prepareDockerConfig(ctx context.Context, serviceID, teamID, projectID string, db pgx.Tx, dockerPool *connection.ConnectionPool) (*DockerServiceConfig, error) {
-	// Get the service by ID
 	service, err := repository.GetServiceByID(ctx, db, serviceID, teamID, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service: %w", err)
 	}
 
-	// Get the server details
 	server, err := repository.GetServerByID(ctx, db, service.ServerID, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get server: %w", err)
 	}
 
-	// Get the private key for authentication
 	privateKey, err := repository.GetPrivateKeyByID(ctx, db, server.PrivateKeyID, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get private key: %w", err)
 	}
 
-	// Create naming generator for consistent naming
 	namingGenerator := generator.NewNamingGenerator(serviceID, teamID, server.ID)
 
 	// Create host string for Docker connection
@@ -78,25 +73,15 @@ func prepareDockerConfig(ctx context.Context, serviceID, teamID, projectID strin
 	}
 
 	return &DockerServiceConfig{
-		Client:      dockerClient,
-		ServiceID:   serviceID,
-		ProjectName: namingGenerator.ProjectName(),
-		Generator:   namingGenerator,
+		Client:            dockerClient,
+		ServiceID:         serviceID,
+		ProjectName:       namingGenerator.ProjectName(),
+		Generator:         namingGenerator,
+		ConnectionPool:    dockerPool,
+		ConnectionID:      connectionID,
+		Host:              host,
+		PrivateKeyContent: []byte(privateKey.PrivateKey),
 	}, nil
-}
-
-// validateComposeFile validates the compose file using dockeryaml parser
-func validateComposeFile(composeContent string) error {
-	composeFile, err := dockeryaml.ParseComposeContent(composeContent, "validation")
-	if err != nil {
-		return fmt.Errorf("failed to parse compose content: %w", err)
-	}
-
-	if err := composeFile.Validate(); err != nil {
-		return fmt.Errorf("compose file validation failed: %w", err)
-	}
-
-	return nil
 }
 
 // StartService starts a service using Docker API
@@ -113,20 +98,16 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		return nil, fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	// Validate compose file
-	if err := validateComposeFile(composeConfig.ComposeFile); err != nil {
-		return nil, fmt.Errorf("compose validation failed: %w", err)
-	}
-
 	// Parse compose file to get service definitions
-	composeFile, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
+	composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse compose file: %w", err)
 	}
 
-	// Get the Docker Compose v2 Project directly from the parser for dependency orchestration
-	project := composeFile.GetProject()
-	project.Name = cfg.ProjectName // Set the project name for this deployment
+	// Validate the compose file
+	if err := dockeryaml.Validate(composeProject); err != nil {
+		return nil, fmt.Errorf("compose file validation failed: %w", err)
+	}
 
 	// Create streaming result
 	streamResult := NewStreamingResult()
@@ -140,38 +121,37 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 		// Create a new transaction for the goroutine
 		tx, err := repository.StartTransaction(dbPool, ctx)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
 
 		// Purge existing Docker resources and clean database records first
-		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 
 		// Synchronize Docker Compose resources to database
-		err = DockerComposeToDatabase(ctx, project, cfg, tx, streamResult)
+		err = DockerComposeToDatabase(ctx, composeProject, cfg, tx, streamResult)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 
 		// Commit the transaction if successful
 		repository.CommitTransaction(tx, ctx)
 
-		err = startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
 		if err != nil {
-			streamResult.finalError = err
+			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
-
 	}()
 
 	return streamResult, nil
@@ -185,21 +165,22 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 		return nil, err
 	}
 
-	// Get the compose configuration for dependency information
+	// Get the compose configuration
 	composeConfig, err := repository.GetServiceComposeConfig(ctx, db, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get compose config: %w", err)
 	}
 
 	// Parse compose file to get service definitions
-	composeFile, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
+	composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse compose file: %w", err)
 	}
 
-	// Get the Docker Compose v2 Project directly from the parser for dependency orchestration
-	project := composeFile.GetProject()
-	project.Name = cfg.ProjectName // Set the project name for this deployment
+	// Validate the compose file
+	if err := dockeryaml.Validate(composeProject); err != nil {
+		return nil, fmt.Errorf("compose file validation failed: %w", err)
+	}
 
 	// Create streaming result
 	streamResult := NewStreamingResult()
@@ -213,26 +194,26 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 		// Create a new transaction for the goroutine
 		tx, err := repository.StartTransaction(dbPool, ctx)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
 
 		// Purge existing Docker resources and clean database records first
-		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 
 		// Commit the transaction if successful
 		repository.CommitTransaction(tx, ctx)
 
-		err = stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
 		if err != nil {
-			streamResult.finalError = err
+			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
@@ -256,20 +237,16 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		return nil, fmt.Errorf("failed to get compose config: %w", err)
 	}
 
-	// Validate compose file
-	if err := validateComposeFile(composeConfig.ComposeFile); err != nil {
-		return nil, fmt.Errorf("compose validation failed: %w", err)
-	}
-
 	// Parse compose file to get service definitions
-	composeFile, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
+	composeProject, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, cfg.ProjectName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse compose file: %w", err)
 	}
 
-	// Get the Docker Compose v2 Project directly from the parser for dependency orchestration
-	project := composeFile.GetProject()
-	project.Name = cfg.ProjectName // Set the project name for this deployment
+	// Validate the compose file
+	if err := dockeryaml.Validate(composeProject); err != nil {
+		return nil, fmt.Errorf("compose file validation failed: %w", err)
+	}
 
 	// Create streaming result
 	streamResult := NewStreamingResult()
@@ -283,17 +260,17 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		// Create a new transaction for the goroutine
 		tx, err := repository.StartTransaction(dbPool, ctx)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
 
 		// Purge existing Docker resources and clean database records first
-		err = DockerDatabaseToPurge(ctx, project, cfg, tx, streamResult)
+		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to purge existing resources: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to purge existing resources: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 
@@ -301,9 +278,9 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		repository.CommitTransaction(tx, ctx)
 
 		// First stop services in reverse dependency order
-		err = stopComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
 		if err != nil {
-			streamResult.finalError = err
+			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
@@ -311,17 +288,17 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		// Create a new transaction for the goroutine
 		tx, err = repository.StartTransaction(dbPool, ctx)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to start transaction: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to start transaction: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 		defer repository.DeferRollback(tx, ctx)
 
 		// Synchronize Docker Compose resources to database
-		err = DockerComposeToDatabase(ctx, project, cfg, tx, streamResult)
+		err = DockerComposeToDatabase(ctx, composeProject, cfg, tx, streamResult)
 		if err != nil {
-			streamResult.finalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
-			streamResult.ErrorChan <- streamResult.finalError
+			streamResult.FinalError = fmt.Errorf("failed to sync compose resources to database: %w", err)
+			streamResult.ErrorChan <- streamResult.FinalError
 			return
 		}
 
@@ -329,9 +306,9 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 		repository.CommitTransaction(tx, ctx)
 
 		// Then start them again in proper dependency order
-		err = startComposeServicesWithDependencies(ctx, cfg, project, streamResult)
+		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
 		if err != nil {
-			streamResult.finalError = err
+			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}

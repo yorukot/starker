@@ -91,6 +91,10 @@ func (ng *NamingGenerator) GetVolumeLabels(projectName, volumeName string) map[s
 	return labels
 }
 
+func (ng *NamingGenerator) GenerateServiceDataPath() string {
+	return fmt.Sprintf("/data/starker/services/%s", ng.serviceID)
+}
+
 func sanitizeProjectName(name string) string {
 	name = strings.ToLower(name)
 

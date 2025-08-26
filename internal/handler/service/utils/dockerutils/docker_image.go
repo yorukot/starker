@@ -1,20 +1,23 @@
 package dockerutils
 
 import (
-	"archive/tar"
 	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
-	composetypes "github.com/compose-spec/compose-go/v2/types"
-	"github.com/docker/docker/api/types"
+	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/docker/docker/api/types/build"
+	"github.com/docker/docker/api/types/filters"
 	dockerimage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+
+	"github.com/yorukot/starker/pkg/connection"
+	"github.com/yorukot/starker/pkg/generator"
 )
 
 // DockerPullProgress represents Docker pull progress event
@@ -41,31 +44,29 @@ type DockerBuildProgress struct {
 	ID string `json:"id"`
 }
 
-// pullProjectImages pulls Docker images for all services in the project with real-time progress streaming
+// pullServiceImages pulls Docker images for all services in the project with real-time progress streaming
 // Modified to handle both image pulls and builds
-func pullProjectImages(ctx context.Context, dockerClient *client.Client, project *composetypes.Project, streamResult *StreamingResult) error {
-	for _, service := range project.Services {
-		// Handle services with pre-built images
-		if service.Image != "" {
-			streamResult.LogChan <- fmt.Sprintf("Starting pull for image: %s", service.Image)
+func pullServiceImage(ctx context.Context, dockerClient *client.Client, serviceConfig types.ServiceConfig, streamResult *StreamingResult) error {
+	// Handle services with pre-built images
+	if serviceConfig.Image != "" {
+		streamResult.LogChan <- fmt.Sprintf("Starting pull for image: %s", serviceConfig.Image)
 
-			pullResponse, err := dockerClient.ImagePull(ctx, service.Image, dockerimage.PullOptions{})
-			if err != nil {
-				streamResult.LogChan <- fmt.Sprintf("Failed to initiate pull for image %s: %v", service.Image, err)
-				continue // Continue with existing local image if pull fails
-			}
-
-			// Stream Docker pull progress in real-time
-			err = streamDockerPullProgress(pullResponse, service.Image, streamResult)
-			pullResponse.Close()
-
-			if err != nil {
-				streamResult.LogChan <- fmt.Sprintf("Warning: Error during pull of %s: %v", service.Image, err)
-				continue // Continue with existing local image if pull encounters issues
-			}
-
-			streamResult.LogChan <- fmt.Sprintf("Successfully pulled image: %s", service.Image)
+		pullResponse, err := dockerClient.ImagePull(ctx, serviceConfig.Image, dockerimage.PullOptions{})
+		if err != nil {
+			streamResult.ErrorChan <- fmt.Errorf("failed to initiate pull for image %s: %v", serviceConfig.Image, err)
+			return nil
 		}
+
+		// Stream Docker pull progress in real-time
+		err = streamDockerPullProgress(pullResponse, serviceConfig.Image, streamResult)
+		pullResponse.Close()
+
+		if err != nil {
+			streamResult.ErrorChan <- fmt.Errorf("error during pull of %s: %v", serviceConfig.Image, err)
+			return nil
+		}
+
+		streamResult.LogChan <- fmt.Sprintf("Successfully pulled image: %s", serviceConfig.Image)
 	}
 
 	return nil
@@ -79,7 +80,6 @@ func streamDockerPullProgress(pullResponse io.ReadCloser, imageName string, stre
 	for scanner.Scan() {
 		var progress DockerPullProgress
 		if err := json.Unmarshal(scanner.Bytes(), &progress); err != nil {
-			// Skip malformed JSON lines but continue processing
 			continue
 		}
 
@@ -132,53 +132,79 @@ func streamDockerPullProgress(pullResponse io.ReadCloser, imageName string, stre
 	return nil
 }
 
-// buildProjectImages builds Docker images for services that have build configurations
-func buildProjectImages(ctx context.Context, dockerClient *client.Client, project *composetypes.Project, serviceID string, streamResult *StreamingResult) error {
-	for _, service := range project.Services {
-		if service.Build == nil {
-			continue // Skip services without build configuration
-		}
-
-		streamResult.LogChan <- fmt.Sprintf("Starting build for service: %s", service.Name)
-
-		// Resolve build context path - services are stored at /data/starker/{serviceID}/
-		buildContextPath := resolveBuildContext(serviceID, service.Build.Context)
-
-		// Create tar archive from build context
-		buildContextTar, err := createBuildContextTar(buildContextPath)
-		if err != nil {
-			streamResult.LogChan <- fmt.Sprintf("Failed to create build context for service %s: %v", service.Name, err)
-			continue
-		}
-		defer buildContextTar.Close()
-
-		// Create build options
-		buildOptions := types.ImageBuildOptions{
-			Dockerfile: service.Build.Dockerfile,
-			Tags:       []string{generateImageTag(service.Name, project.Name)},
-			BuildArgs:  convertBuildArgs(service.Build.Args),
-			Remove:     true,
-		}
-
-		streamResult.LogChan <- fmt.Sprintf("[%s] Building with context: %s", service.Name, buildContextPath)
-
-		buildResponse, err := dockerClient.ImageBuild(ctx, buildContextTar, buildOptions)
-		if err != nil {
-			streamResult.LogChan <- fmt.Sprintf("Failed to initiate build for service %s: %v", service.Name, err)
-			continue // Continue with other services if build fails
-		}
-
-		// Stream Docker build progress in real-time
-		err = streamDockerBuildProgress(buildResponse.Body, service.Name, streamResult)
-		buildResponse.Body.Close()
-
-		if err != nil {
-			streamResult.LogChan <- fmt.Sprintf("Warning: Error during build of %s: %v", service.Name, err)
-			continue // Continue with other services if build encounters issues
-		}
-
-		streamResult.LogChan <- fmt.Sprintf("Successfully built image for service: %s", service.Name)
+// buildServiceImages builds Docker images for services that have build configurations
+func buildServiceImages(ctx context.Context, dockerClient *client.Client, serviceConfig types.ServiceConfig, serviceID string, streamResult *StreamingResult, namingGen *generator.NamingGenerator, connectionPool *connection.ConnectionPool, connectionID, host string, privateKeyContent []byte) error {
+	if serviceConfig.Build == nil {
+		return nil
 	}
+
+	streamResult.LogChan <- fmt.Sprintf("Starting build for service: %s", serviceConfig.Name)
+
+	// Determine the target image name
+	imageName := serviceConfig.Image
+
+	if imageName == "" {
+		// Generate image name for services without explicit image
+		imageName = generateImageTag(serviceConfig.Name, namingGen.ProjectName())
+		streamResult.LogChan <- fmt.Sprintf("Service %s has no image specified, will build as: %s", serviceConfig.Name, imageName)
+	}
+
+	// Check if image already exists locally
+	images, err := dockerClient.ImageList(ctx, dockerimage.ListOptions{
+		Filters: filters.NewArgs(filters.Arg("reference", imageName)),
+	})
+	if err != nil {
+		streamResult.ErrorChan <- fmt.Errorf("warning: failed to check for existing image %s: %v", imageName, err)
+	} else if len(images) > 0 {
+		streamResult.LogChan <- fmt.Sprintf("Image %s already exists locally, skipping build", imageName)
+		return nil
+	}
+
+	// Build the image since it doesn't exist
+	streamResult.LogChan <- fmt.Sprintf("Building image %s for service %s", imageName, serviceConfig.Name)
+
+	buildContextPath := resolveBuildContext(serviceID, serviceConfig.Build.Context)
+	streamResult.LogChan <- fmt.Sprintf("Using build context: %s (on remote server)", buildContextPath)
+
+	// Use relative path to Dockerfile within the build context tar
+	DockerfilePath := serviceConfig.Build.Dockerfile
+	if DockerfilePath == "" {
+		DockerfilePath = "Dockerfile" // Default to "Dockerfile" if not specified
+	}
+	streamResult.LogChan <- fmt.Sprintf("Using Dockerfile path: %s (relative to build context)", DockerfilePath)
+
+	// Create build context tar from the remote directory via SSH
+	buildContextReader, err := createRemoteBuildContextTar(ctx, connectionPool, connectionID, host, privateKeyContent, buildContextPath, streamResult)
+	if err != nil {
+		streamResult.ErrorChan <- fmt.Errorf("failed to create remote build context tar for service %s: %v", serviceConfig.Name, err)
+		return err
+	}
+
+	// Set up build options
+	buildOptions := build.ImageBuildOptions{
+		Tags:       []string{imageName},
+		Dockerfile: DockerfilePath,
+		BuildArgs:  convertBuildArgs(serviceConfig.Build.Args),
+		Target:     serviceConfig.Build.Target,
+	}
+
+	// Start the build
+	buildResponse, err := dockerClient.ImageBuild(ctx, buildContextReader, buildOptions)
+	if err != nil {
+		streamResult.LogChan <- fmt.Sprintf("Failed to start build for %s: %v", serviceConfig.Name, err)
+		return fmt.Errorf("failed to start build for service %s: %w", serviceConfig.Name, err)
+	}
+
+	// Stream build progress
+	err = streamDockerBuildProgress(buildResponse.Body, serviceConfig.Name, streamResult)
+	buildResponse.Body.Close()
+
+	if err != nil {
+		streamResult.LogChan <- fmt.Sprintf("Build failed for %s: %v", serviceConfig.Name, err)
+		return fmt.Errorf("build failed for service %s: %w", serviceConfig.Name, err)
+	}
+
+	streamResult.LogChan <- fmt.Sprintf("Successfully built image %s for service %s", imageName, serviceConfig.Name)
 
 	return nil
 }
@@ -229,9 +255,10 @@ func streamDockerBuildProgress(buildResponse io.ReadCloser, serviceName string, 
 }
 
 // resolveBuildContext resolves the build context path for a service
+// Note: This runs on remote server via SSH, so no local filesystem validation needed
 func resolveBuildContext(serviceID, buildContext string) string {
-	// Base path where services are stored
-	basePath := fmt.Sprintf("/data/starker/%s", serviceID)
+	// Base path where services are stored on the remote server
+	basePath := fmt.Sprintf("/data/starker/services/%s", serviceID)
 
 	// If build context is empty or ".", use the base path
 	if buildContext == "" || buildContext == "." {
@@ -253,7 +280,7 @@ func generateImageTag(serviceName, projectName string) string {
 }
 
 // convertBuildArgs converts Docker Compose build args to Docker API format
-func convertBuildArgs(args composetypes.MappingWithEquals) map[string]*string {
+func convertBuildArgs(args types.MappingWithEquals) map[string]*string {
 	buildArgs := make(map[string]*string)
 	for key, value := range args {
 		buildArgs[key] = value
@@ -261,69 +288,100 @@ func convertBuildArgs(args composetypes.MappingWithEquals) map[string]*string {
 	return buildArgs
 }
 
-// createBuildContextTar creates a tar archive from a directory for Docker build context
-func createBuildContextTar(buildContextPath string) (io.ReadCloser, error) {
-	// Create a pipe for tar data
+// createRemoteBuildContextTar creates a tar archive from a remote directory via SSH
+// This function executes tar command on the remote server and streams the binary data
+func createRemoteBuildContextTar(ctx context.Context, connectionPool *connection.ConnectionPool, connectionID, host string, privateKeyContent []byte, buildContextPath string, streamResult *StreamingResult) (io.ReadCloser, error) {
+	// Validate that build context path exists on remote server first
+	checkCmd := fmt.Sprintf("test -d %s", buildContextPath)
+	checkResult, err := connectionPool.ExecuteSSHCommand(ctx, connectionID, host, privateKeyContent, checkCmd, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute remote path check: %w", err)
+	}
+
+	// Wait for check command to complete
+	select {
+	case <-checkResult.DoneChan:
+		if checkResult.GetFinalError() != nil {
+			return nil, fmt.Errorf("build context path %s does not exist on remote server: %w", buildContextPath, checkResult.GetFinalError())
+		}
+		if checkResult.GetExitCode() != 0 {
+			return nil, fmt.Errorf("build context path %s does not exist on remote server (exit code: %d)", buildContextPath, checkResult.GetExitCode())
+		}
+	case <-ctx.Done():
+		return nil, fmt.Errorf("build context path check cancelled: %w", ctx.Err())
+	case <-time.After(10 * time.Second):
+		return nil, fmt.Errorf("build context path check timed out")
+	}
+
+	streamResult.LogChan <- fmt.Sprintf("Build context path %s verified on remote server", buildContextPath)
+
+	// For tar binary data, we need to use the raw SSH client directly rather than ExecuteSSHCommand
+	// which is designed for text-based commands
+	sshClient, err := connectionPool.GetSSHConnection(connectionID, host, privateKeyContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SSH connection: %w", err)
+	}
+
+	// Create SSH session for tar command
+	session, err := sshClient.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH session: %w", err)
+	}
+
+	// Get stdout pipe for binary tar data
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		session.Close()
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	// Get stderr pipe for error messages
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		session.Close()
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Create tar command to archive the build context directory
+	tarCmd := fmt.Sprintf("tar -cf - -C %s .", buildContextPath)
+	streamResult.LogChan <- fmt.Sprintf("Creating build context tar with command: %s", tarCmd)
+
+	// Start the tar command
+	if err := session.Start(tarCmd); err != nil {
+		session.Close()
+		return nil, fmt.Errorf("failed to start tar command: %w", err)
+	}
+
+	// Create a pipe to return to Docker client
 	reader, writer := io.Pipe()
 
-	// Start a goroutine to write tar data
+	// Handle the tar streaming in a goroutine
 	go func() {
 		defer writer.Close()
+		defer session.Close()
 
-		tarWriter := tar.NewWriter(writer)
-		defer tarWriter.Close()
-
-		// Walk the build context directory
-		err := filepath.Walk(buildContextPath, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
+		// Handle stderr in a separate goroutine
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				streamResult.LogChan <- fmt.Sprintf("Tar stderr: %s", scanner.Text())
 			}
+		}()
 
-			// Get relative path from build context
-			relPath, err := filepath.Rel(buildContextPath, path)
-			if err != nil {
-				return err
-			}
-
-			// Skip the root directory itself
-			if relPath == "." {
-				return nil
-			}
-
-			// Create tar header
-			header, err := tar.FileInfoHeader(info, "")
-			if err != nil {
-				return err
-			}
-
-			// Use forward slashes in tar paths
-			header.Name = filepath.ToSlash(relPath)
-
-			// Write header
-			if err := tarWriter.WriteHeader(header); err != nil {
-				return err
-			}
-
-			// If it's a regular file, write content
-			if info.Mode().IsRegular() {
-				file, err := os.Open(path)
-				if err != nil {
-					return err
-				}
-				defer file.Close()
-
-				_, err = io.Copy(tarWriter, file)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		})
-
+		// Stream tar data directly from stdout to writer
+		_, err := io.Copy(writer, stdout)
 		if err != nil {
-			writer.CloseWithError(err)
+			writer.CloseWithError(fmt.Errorf("failed to stream tar data: %w", err))
+			return
 		}
+
+		// Wait for the command to complete
+		if err := session.Wait(); err != nil {
+			writer.CloseWithError(fmt.Errorf("tar command failed: %w", err))
+			return
+		}
+
+		streamResult.LogChan <- "Build context tar created successfully on remote server"
 	}()
 
 	return reader, nil

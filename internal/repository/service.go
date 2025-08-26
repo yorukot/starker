@@ -451,3 +451,83 @@ func DeleteServiceVolumes(ctx context.Context, db pgx.Tx, serviceID string) erro
 	_, err := db.Exec(ctx, query, serviceID)
 	return err
 }
+
+// +----------------------------------------------+
+// | Service Source Git Functions                 |
+// +----------------------------------------------+
+
+// GetServiceSourceGit gets the git source config for a service
+func GetServiceSourceGit(ctx context.Context, db pgx.Tx, serviceID string) (*models.ServiceSourceGit, error) {
+	query := `
+		SELECT id, service_id, repo_url, branch, auto_deploy, docker_compose_file_path, webhook_secret, created_at, updated_at
+		FROM service_source_gits
+		WHERE service_id = $1
+	`
+	var gitSource models.ServiceSourceGit
+	err := db.QueryRow(ctx, query, serviceID).Scan(
+		&gitSource.ID,
+		&gitSource.ServiceID,
+		&gitSource.RepoURL,
+		&gitSource.Branch,
+		&gitSource.AutoDeploy,
+		&gitSource.DockerComposeFilePath,
+		&gitSource.WebhookSecret,
+		&gitSource.CreatedAt,
+		&gitSource.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("git source not found")
+		}
+		return nil, err
+	}
+
+	return &gitSource, nil
+}
+
+// CreateServiceSourceGit creates a new git source config
+func CreateServiceSourceGit(ctx context.Context, db pgx.Tx, gitSource models.ServiceSourceGit) error {
+	query := `
+		INSERT INTO service_source_gits (id, service_id, repo_url, branch, auto_deploy, docker_compose_file_path, webhook_secret, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`
+	_, err := db.Exec(ctx, query,
+		gitSource.ID,
+		gitSource.ServiceID,
+		gitSource.RepoURL,
+		gitSource.Branch,
+		gitSource.AutoDeploy,
+		gitSource.DockerComposeFilePath,
+		gitSource.WebhookSecret,
+		gitSource.CreatedAt,
+		gitSource.UpdatedAt,
+	)
+	return err
+}
+
+// UpdateServiceSourceGit updates an existing git source config
+func UpdateServiceSourceGit(ctx context.Context, db pgx.Tx, gitSource models.ServiceSourceGit) error {
+	query := `
+		UPDATE service_source_gits
+		SET repo_url = $2, branch = $3, auto_deploy = $4, docker_compose_file_path = $5, 
+		    webhook_secret = $6, updated_at = $7
+		WHERE id = $1
+	`
+	_, err := db.Exec(ctx, query,
+		gitSource.ID,
+		gitSource.RepoURL,
+		gitSource.Branch,
+		gitSource.AutoDeploy,
+		gitSource.DockerComposeFilePath,
+		gitSource.WebhookSecret,
+		gitSource.UpdatedAt,
+	)
+	return err
+}
+
+// DeleteServiceSourceGit deletes a git source config
+func DeleteServiceSourceGit(ctx context.Context, db pgx.Tx, serviceID string) error {
+	query := `DELETE FROM service_source_gits WHERE service_id = $1`
+	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}

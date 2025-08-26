@@ -1,5 +1,3 @@
-package git
-
 // This works flow is:
 // 1. User sends a request to create a service with git config
 // 2. We try to connect to the user and try to excute the git clone to /data/starker/services/{serviceID}

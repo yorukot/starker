@@ -71,14 +71,14 @@
 					<div
 						class="rounded-r border-l-4 py-2 pl-3 transition-colors {getLogMessageClass(log.type)}"
 					>
-						<div class="flex items-start gap-3 text-sm">
+						<div class="flex items-start gap-3 text-sm min-w-0">
 							<span class="mt-0.5 min-w-[70px] font-mono text-xs text-muted-foreground">
 								{log.timestamp}
 							</span>
 							<span class="mt-0.5 min-w-[60px] text-xs font-medium tracking-wide uppercase">
 								{log.type}
 							</span>
-							<span class="flex-1 font-mono leading-5 break-words">
+							<span class="flex-1 font-mono leading-5 break-words whitespace-pre-wrap word-break overflow-wrap-anywhere">
 								{log.message}
 							</span>
 						</div>

@@ -272,15 +272,15 @@ func (p *ConnectionPool) GetSSHConnection(connectionID, host string, privateKeyC
 
 // validateSSHKeyAuth validates that the SSH connection uses key-based authentication
 func (p *ConnectionPool) validateSSHKeyAuth(host string) error {
+	// Check for password authentication indicators (which we want to reject)
+	if strings.Contains(host, "password") || strings.Contains(host, "passwd") {
+		return fmt.Errorf("password-based SSH authentication is not allowed, only SSH key authentication is supported")
+	}
+
 	// Parse the SSH URL to check for key-based authentication requirements
 	parsedURL, err := url.Parse(host)
 	if err != nil {
 		return fmt.Errorf("invalid SSH URL format: %w", err)
-	}
-
-	// Check for password authentication indicators (which we want to reject)
-	if strings.Contains(host, "password") || strings.Contains(host, "passwd") {
-		return fmt.Errorf("password-based SSH authentication is not allowed, only SSH key authentication is supported")
 	}
 
 	// Validate SSH URL format and ensure it's configured for key auth
@@ -417,9 +417,10 @@ func (p *ConnectionPool) TestConnection(host string, privateKeyContent []byte, o
 
 // createDockerClient creates a new Docker client with SSH key-based authentication using provided key content
 func (p *ConnectionPool) createDockerClient(host string, privateKeyContent []byte, opts ...client.Opt) (*client.Client, *ssh.Client, error) {
-	// Only allow SSH connections
-	if len(host) < 6 || host[:6] != "ssh://" {
-		return nil, nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
+	// Normalize host format - if it doesn't have ssh:// scheme, add it
+	if !strings.HasPrefix(host, "ssh://") {
+		// Assume user@host:port or host:port format and prepend ssh://
+		host = "ssh://" + host
 	}
 
 	// Validate SSH key authentication
@@ -465,9 +466,17 @@ func (p *ConnectionPool) createDockerClient(host string, privateKeyContent []byt
 		return nil, nil, fmt.Errorf("failed to create SSH signer: %w", err)
 	}
 
+	// Extract username from URL, default to "root" if not provided
+	username := "root"
+	if parsedURL.User != nil {
+		if user := parsedURL.User.Username(); user != "" {
+			username = user
+		}
+	}
+
 	// Create SSH client config
 	sshConfig := &ssh.ClientConfig{
-		User: parsedURL.User.Username(),
+		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
@@ -576,9 +585,10 @@ func (p *ConnectionPool) reconnectConnection(connectionID string, oldConnInfo *C
 
 // createRawSSHConnection creates a raw SSH client connection using the provided private key
 func (p *ConnectionPool) createRawSSHConnection(host string, privateKeyContent []byte) (*ssh.Client, error) {
-	// Only allow SSH connections
-	if len(host) < 6 || host[:6] != "ssh://" {
-		return nil, fmt.Errorf("only SSH connections are allowed, got: %s", host)
+	// Normalize host format - if it doesn't have ssh:// scheme, add it
+	if !strings.HasPrefix(host, "ssh://") {
+		// Assume user@host:port or host:port format and prepend ssh://
+		host = "ssh://" + host
 	}
 
 	// Validate SSH key authentication
@@ -624,9 +634,17 @@ func (p *ConnectionPool) createRawSSHConnection(host string, privateKeyContent [
 		return nil, fmt.Errorf("failed to create SSH signer: %w", err)
 	}
 
+	// Extract username from URL, default to "root" if not provided
+	username := "root"
+	if parsedURL.User != nil {
+		if user := parsedURL.User.Username(); user != "" {
+			username = user
+		}
+	}
+
 	// Create SSH client config
 	sshConfig := &ssh.ClientConfig{
-		User: parsedURL.User.Username(),
+		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
