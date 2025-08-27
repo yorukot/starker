@@ -262,13 +262,13 @@ func (h *ServiceHandler) saveComposeFileFromGitWorkflow(serviceID, composeFile s
 
 // CreateServiceGitRequest represents the request body for creating a service from git repository
 type CreateServiceGitRequest struct {
-	Name                  string  `json:"name" validate:"required,min=3,max=255" example:"my-app"`                           // Service name
-	Description           *string `json:"description,omitempty" validate:"omitempty,max=500" example:"Application from Git"` // Optional service description  
-	ServerID              string  `json:"server_id" validate:"required" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`               // Server ID where service will be deployed
-	RepoURL               string  `json:"repo_url" validate:"required,url" example:"https://github.com/user/repo.git"`      // Git repository URL
-	Branch                string  `json:"branch" validate:"required" example:"main"`                                        // Git branch to deploy
+	Name                  string  `json:"name" validate:"required,min=3,max=255" example:"my-app"`                                      // Service name
+	Description           *string `json:"description,omitempty" validate:"omitempty,max=500" example:"Application from Git"`            // Optional service description
+	ServerID              string  `json:"server_id" validate:"required" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                           // Server ID where service will be deployed
+	RepoURL               string  `json:"repo_url" validate:"required,url" example:"https://github.com/user/repo.git"`                  // Git repository URL
+	Branch                string  `json:"branch" validate:"required" example:"main"`                                                    // Git branch to deploy
 	DockerComposeFilePath *string `json:"docker_compose_file_path,omitempty" validate:"omitempty,max=255" example:"docker-compose.yml"` // Path to docker-compose file in repo
-	AutoDeploy            bool    `json:"auto_deploy" example:"true"`                                                       // Enable auto-deployment on Git changes
+	AutoDeploy            bool    `json:"auto_deploy" example:"true"`                                                                   // Enable auto-deployment on Git changes
 }
 
 // serviceGitValidate validates the create service git request

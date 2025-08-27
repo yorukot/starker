@@ -7,15 +7,22 @@ package service
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/servicesvc"
 	"github.com/yorukot/starker/pkg/response"
 )
+
+type updateServiceComposeRequest struct {
+	ComposeFile     *string `json:"compose_file,omitempty" validate:"omitempty,required"`
+	ComposeFilePath *string `json:"compose_file_path,omitempty" validate:"omitempty,max=500"`
+}
 
 // UpdateServiceCompose godoc
 // @Summary Update service Docker Compose configuration
@@ -40,14 +47,14 @@ func (h *ServiceHandler) UpdateServiceCompose(w http.ResponseWriter, r *http.Req
 	serviceID := chi.URLParam(r, "serviceID")
 
 	// Decode the request body
-	var updateServiceComposeRequest servicesvc.UpdateServiceComposeRequest
+	var updateServiceComposeRequest updateServiceComposeRequest
 	if err := json.NewDecoder(r.Body).Decode(&updateServiceComposeRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the request body
-	if err := servicesvc.ServiceComposeUpdateValidate(updateServiceComposeRequest); err != nil {
+	if err := validator.New().Struct(updateServiceComposeRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -101,7 +108,7 @@ func (h *ServiceHandler) UpdateServiceCompose(w http.ResponseWriter, r *http.Req
 	}
 
 	// Update compose config with new values
-	updatedComposeConfig := servicesvc.UpdateServiceComposeFromRequest(*composeConfig, updateServiceComposeRequest)
+	updatedComposeConfig := updateServiceComposeFromRequest(*composeConfig, updateServiceComposeRequest)
 
 	// Update the compose config in database
 	if err := repository.UpdateServiceComposeConfig(r.Context(), tx, updatedComposeConfig); err != nil {
@@ -115,4 +122,14 @@ func (h *ServiceHandler) UpdateServiceCompose(w http.ResponseWriter, r *http.Req
 
 	// Return the updated compose config
 	response.RespondWithJSON(w, http.StatusOK, updatedComposeConfig)
+}
+
+// UpdateServiceComposeFromRequest updates a compose config model with new values from update request
+func updateServiceComposeFromRequest(existingConfig models.ServiceComposeConfig, updateServiceComposeRequest updateServiceComposeRequest) models.ServiceComposeConfig {
+	if updateServiceComposeRequest.ComposeFile != nil {
+		existingConfig.ComposeFile = *updateServiceComposeRequest.ComposeFile
+	}
+	existingConfig.UpdatedAt = time.Now()
+
+	return existingConfig
 }

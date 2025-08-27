@@ -495,6 +495,15 @@ definitions:
         - compose
         type: string
     type: object
+  team.UpdateTeamRequest:
+    properties:
+      name:
+        maxLength: 255
+        minLength: 3
+        type: string
+    required:
+    - name
+    type: object
   teamsvc.CreateTeamRequest:
     properties:
       name:
@@ -829,6 +838,59 @@ paths:
       security:
       - BearerAuth: []
       summary: Get a specific team
+      tags:
+      - team
+    patch:
+      consumes:
+      - application/json
+      description: Updates a team's name if the authenticated user is the owner
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Update team request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/team.UpdateTeamRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Team updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Team'
+              type: object
+        "400":
+          description: Invalid request body or team ID is required
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Only team owner can update the team
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Team not found or user is not a member
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a team
       tags:
       - team
   /teams/{teamID}/private-keys:

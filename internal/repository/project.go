@@ -125,6 +125,14 @@ func UpdateProject(ctx context.Context, db pgx.Tx, teamID, projectID string, upd
 	return &updatedProject, nil
 }
 
+// CountProjectsByTeamID counts the number of projects in a team
+func CountProjectsByTeamID(ctx context.Context, db pgx.Tx, teamID string) (int, error) {
+	query := `SELECT COUNT(*) FROM projects WHERE team_id = $1`
+	var count int
+	err := db.QueryRow(ctx, query, teamID).Scan(&count)
+	return count, err
+}
+
 // DeleteProject deletes a project by ID and team ID
 func DeleteProject(ctx context.Context, db pgx.Tx, teamID, projectID string) (bool, error) {
 	query := `

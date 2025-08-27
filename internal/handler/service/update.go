@@ -3,15 +3,24 @@ package service
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/servicesvc"
 	"github.com/yorukot/starker/pkg/response"
 )
+
+type updateServiceRequest struct {
+	Name        *string              `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description *string              `json:"description,omitempty" validate:"omitempty,max=500"`
+	Type        *string              `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
+	State       *models.ServiceState `json:"status,omitempty" validate:"omitempty,oneof=running stopped starting stopping"`
+}
 
 // +----------------------------------------------+
 // | Update Service                               |
@@ -41,14 +50,14 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	serviceID := chi.URLParam(r, "serviceID")
 
 	// Decode the request body
-	var updateServiceRequest servicesvc.UpdateServiceRequest
+	var updateServiceRequest updateServiceRequest
 	if err := json.NewDecoder(r.Body).Decode(&updateServiceRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the request body
-	if err := servicesvc.ServiceUpdateValidate(updateServiceRequest); err != nil {
+	if err := validator.New().Struct(updateServiceRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -91,7 +100,7 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update service fields if provided
-	updatedService := servicesvc.UpdateServiceFromRequest(*service, updateServiceRequest)
+	updatedService := updateServiceFromRequest(*service, updateServiceRequest)
 
 	// Update the service in database
 	if err := repository.UpdateService(r.Context(), tx, updatedService); err != nil {
@@ -105,4 +114,23 @@ func (h *ServiceHandler) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	// Return the updated service
 	response.RespondWithJSON(w, http.StatusOK, updatedService)
+}
+
+// updateServiceFromRequest updates a service model with new values from update request
+func updateServiceFromRequest(existingService models.Service, updateServiceRequest updateServiceRequest) models.Service {
+	if updateServiceRequest.Name != nil {
+		existingService.Name = *updateServiceRequest.Name
+	}
+	if updateServiceRequest.Description != nil {
+		existingService.Description = updateServiceRequest.Description
+	}
+	if updateServiceRequest.Type != nil {
+		existingService.Type = *updateServiceRequest.Type
+	}
+	if updateServiceRequest.State != nil {
+		existingService.State = *updateServiceRequest.State
+	}
+	existingService.UpdatedAt = time.Now()
+
+	return existingService
 }

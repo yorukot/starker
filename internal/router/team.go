@@ -21,6 +21,7 @@ func TeamRouter(r chi.Router, app *handler.App) {
 		r.Post("/", teamHandler.CreateTeam)
 		r.Get("/", teamHandler.GetTeams)
 		r.Get("/{teamID}", teamHandler.GetTeam)
+		r.Patch("/{teamID}", teamHandler.UpdateTeam)
 		r.Delete("/{teamID}", teamHandler.DeleteTeam)
 
 		// TODO: Handle other team user management

@@ -127,6 +127,17 @@ func CreateTeamAndTeamUser(ctx context.Context, db pgx.Tx, team models.Team, tea
 	return nil
 }
 
+// UpdateTeam updates a team's name
+func UpdateTeam(ctx context.Context, db pgx.Tx, teamID, name string) error {
+	query := `
+		UPDATE teams 
+		SET name = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	_, err := db.Exec(ctx, query, name, teamID)
+	return err
+}
+
 // DeleteTeam deletes a team
 func DeleteTeam(ctx context.Context, db pgx.Tx, teamID string) error {
 	query := `DELETE FROM teams WHERE id = $1`
@@ -146,13 +157,13 @@ func DeleteTeamAndAllRelatedData(ctx context.Context, db pgx.Tx, teamID string) 
 		return err
 	}
 
-	// Delete private keys
-	if err := deleteTeamPrivateKeys(ctx, db, teamID); err != nil {
+	// Delete servers first (they reference private keys)
+	if err := deleteTeamServers(ctx, db, teamID); err != nil {
 		return err
 	}
 
-	// Delete servers
-	if err := deleteTeamServers(ctx, db, teamID); err != nil {
+	// Delete private keys after servers (to avoid foreign key constraint violation)
+	if err := deleteTeamPrivateKeys(ctx, db, teamID); err != nil {
 		return err
 	}
 
