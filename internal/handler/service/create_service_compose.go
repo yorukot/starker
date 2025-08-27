@@ -28,7 +28,7 @@ import (
 // @Produce json
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
-// @Param request body servicesvc.CreateServiceRequest true "Service creation request"
+// @Param request body createServiceRequest true "Service creation request"
 // @Success 201 {object} response.SuccessResponse{data=models.Service} "Service created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or project not found"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
@@ -125,12 +125,13 @@ func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Req
 	response.RespondWithJSON(w, http.StatusCreated, service)
 }
 
+// createServiceRequest represents a request to create a new service with Docker compose
 type createServiceRequest struct {
-	Name        string  `json:"name" validate:"required,min=3,max=255"`
-	Description *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	Type        string  `json:"type" validate:"required,oneof=docker compose"`
-	ServerID    string  `json:"server_id" validate:"required"`
-	ComposeFile string  `json:"compose_file" validate:"required"`
+	Name        string  `json:"name" validate:"required,min=3,max=255" example:"web-app"`                   // Service name
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500" example:"Web application service"` // Optional service description
+	Type        string  `json:"type" validate:"required,oneof=docker compose" example:"docker"`            // Service type (docker or compose)
+	ServerID    string  `json:"server_id" validate:"required" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`       // Server ID where service will be deployed
+	ComposeFile string  `json:"compose_file" validate:"required" example:"version: '3.8'..."`             // Docker compose file content
 }
 
 // serviceValidate validates the create service request

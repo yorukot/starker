@@ -29,6 +29,7 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 		r.Post("/git", serviceHandler.CreateServiceGit)
 
 		r.Patch("/{serviceID}/", serviceHandler.UpdateService)
+		r.Delete("/{serviceID}/", serviceHandler.DeleteService)
 		r.Patch("/{serviceID}/state", serviceHandler.UpdateServiceState)
 
 		r.Get("/{serviceID}/compose", serviceHandler.GetServiceCompose)

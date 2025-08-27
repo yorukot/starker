@@ -22,8 +22,9 @@ import (
 	"github.com/yorukot/starker/pkg/response"
 )
 
+// updateServiceStateRequest represents a request to update service state
 type updateServiceStateRequest struct {
-	State string `json:"state" validate:"required,oneof=start stop restart"`
+	State string `json:"state" validate:"required,oneof=start stop restart" example:"start"` // Service state action (start, stop, restart)
 }
 
 // UpdateServiceState godoc

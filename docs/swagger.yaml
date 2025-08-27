@@ -188,6 +188,29 @@ definitions:
         example: "2023-01-01T12:00:00Z"
         type: string
     type: object
+  models.ServiceComposeConfig:
+    properties:
+      compose_file:
+        description: Docker compose file content
+        example: 'version: ''3.8''...'
+        type: string
+      created_at:
+        description: Timestamp when the config was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      id:
+        description: Unique identifier for the compose config
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      service_id:
+        description: Associated service ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the config was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
   models.ServiceState:
     enum:
     - running
@@ -213,6 +236,29 @@ definitions:
       owner_id:
         type: string
       updated_at:
+        type: string
+    type: object
+  models.User:
+    properties:
+      avatar:
+        description: URL to user's avatar image
+        example: https://example.com/avatar.jpg
+        type: string
+      created_at:
+        description: Timestamp when the user was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      display_name:
+        description: Display name for the user
+        example: John Doe
+        type: string
+      id:
+        description: Unique identifier for the user
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the user was last updated
+        example: "2023-01-01T12:00:00Z"
         type: string
     type: object
   privatekeysvc.CreatePrivateKeyRequest:
@@ -329,40 +375,102 @@ definitions:
         minLength: 1
         type: string
     type: object
-  service.updateServiceStateRequest:
+  service.CreateServiceGitRequest:
     properties:
-      state:
-        enum:
-        - start
-        - stop
-        - restart
-        type: string
-    required:
-    - state
-    type: object
-  servicesvc.CreateServiceRequest:
-    properties:
-      compose_file:
+      auto_deploy:
+        description: Enable auto-deployment on Git changes
+        example: true
+        type: boolean
+      branch:
+        description: Git branch to deploy
+        example: main
         type: string
       description:
+        description: Optional service description
+        example: Application from Git
+        maxLength: 500
+        type: string
+      docker_compose_file_path:
+        description: Path to docker-compose file in repo
+        example: docker-compose.yml
+        maxLength: 255
+        type: string
+      name:
+        description: Service name
+        example: my-app
+        maxLength: 255
+        minLength: 3
+        type: string
+      repo_url:
+        description: Git repository URL
+        example: https://github.com/user/repo.git
+        type: string
+      server_id:
+        description: Server ID where service will be deployed
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+    required:
+    - branch
+    - name
+    - repo_url
+    - server_id
+    type: object
+  service.createServiceRequest:
+    properties:
+      compose_file:
+        description: Docker compose file content
+        example: 'version: ''3.8''...'
+        type: string
+      description:
+        description: Optional service description
+        example: Web application service
         maxLength: 500
         type: string
       name:
+        description: Service name
+        example: web-app
         maxLength: 255
         minLength: 3
         type: string
       server_id:
+        description: Server ID where service will be deployed
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
         type: string
       type:
+        description: Service type (docker or compose)
         enum:
         - docker
         - compose
+        example: docker
         type: string
     required:
     - compose_file
     - name
     - server_id
     - type
+    type: object
+  service.updateServiceStateRequest:
+    properties:
+      state:
+        description: Service state action (start, stop, restart)
+        enum:
+        - start
+        - stop
+        - restart
+        example: start
+        type: string
+    required:
+    - state
+    type: object
+  servicesvc.UpdateServiceComposeRequest:
+    properties:
+      compose_file:
+        type: string
+      compose_file_path:
+        maxLength: 500
+        type: string
+    required:
+    - compose_file
     type: object
   servicesvc.UpdateServiceRequest:
     properties:
@@ -429,7 +537,7 @@ paths:
         "200":
           description: Login successful
           schema:
-            type: string
+            $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Invalid request body, user not found, or invalid password
           schema:
@@ -523,7 +631,14 @@ paths:
         "201":
           description: Access token generated successfully
           schema:
-            type: string
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
         "400":
           description: Invalid request body, refresh token not found, or refresh token
             already used
@@ -554,7 +669,7 @@ paths:
         "201":
           description: User registered successfully
           schema:
-            type: string
+            $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Invalid request body or email already in use
           schema:
@@ -615,7 +730,7 @@ paths:
         "200":
           description: Team created successfully
           schema:
-            type: string
+            $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Invalid request body
           schema:
@@ -650,7 +765,7 @@ paths:
         "200":
           description: Team deleted successfully
           schema:
-            type: string
+            $ref: '#/definitions/response.SuccessResponse'
         "400":
           description: Team ID is required
           schema:
@@ -1178,11 +1293,11 @@ paths:
       tags:
       - project
   /teams/{teamID}/projects/{projectID}/services:
-    post:
+    get:
       consumes:
       - application/json
-      description: Creates a new service with Docker compose configuration within
-        a team and project
+      description: Retrieves all services belonging to a specific project within a
+        team
       parameters:
       - description: Team ID
         in: path
@@ -1194,26 +1309,22 @@ paths:
         name: projectID
         required: true
         type: string
-      - description: Service creation request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/servicesvc.CreateServiceRequest'
       produces:
       - application/json
       responses:
-        "201":
-          description: Service created successfully
+        "200":
+          description: List of services
           schema:
             allOf:
             - $ref: '#/definitions/response.SuccessResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/models.Service'
+                  items:
+                    $ref: '#/definitions/models.Service'
+                  type: array
               type: object
         "400":
-          description: Invalid request body, team access denied, or project not found
+          description: Team access denied
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "401":
@@ -1226,10 +1337,106 @@ paths:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create a new service
+      summary: Get all services for a project
       tags:
       - service
   /teams/{teamID}/projects/{projectID}/services/{serviceID}:
+    delete:
+      description: Deletes a service including stopping Docker containers, removing
+        networks/volumes, and cleaning up all related database records
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service deleted successfully
+          schema:
+            $ref: '#/definitions/response.SuccessResponse'
+        "400":
+          description: Invalid request or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete service with complete cleanup
+      tags:
+      - service
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a specific service by its ID within a project and team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service details
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Service'
+              type: object
+        "400":
+          description: Team access denied or service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a single service by ID
+      tags:
+      - service
     patch:
       consumes:
       - application/json
@@ -1290,6 +1497,111 @@ paths:
       summary: Update service metadata
       tags:
       - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/compose:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the Docker Compose configuration for a specific service
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service compose configuration
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ServiceComposeConfig'
+              type: object
+        "400":
+          description: Team access denied or compose config not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get service Docker Compose configuration
+      tags:
+      - service
+    patch:
+      consumes:
+      - application/json
+      description: Updates the Docker Compose configuration for a specific service
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      - description: Service compose update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/servicesvc.UpdateServiceComposeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Compose config updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ServiceComposeConfig'
+              type: object
+        "400":
+          description: Invalid request body, team access denied, or service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update service Docker Compose configuration
+      tags:
+      - service
   /teams/{teamID}/projects/{projectID}/services/{serviceID}/state:
     patch:
       consumes:
@@ -1344,6 +1656,105 @@ paths:
       security:
       - BearerAuth: []
       summary: Update service state with SSE streaming
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/compose:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new service with Docker compose configuration within
+        a team and project
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.createServiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Service created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Service'
+              type: object
+        "400":
+          description: Invalid request body, team access denied, or project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new service
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/git:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new service by cloning a Git repository and extracting
+        Docker Compose configuration
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Git service creation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateServiceGitRequest'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Server-Sent Events stream with git workflow progress
+          schema:
+            type: string
+        "400":
+          description: Invalid request body, team access denied, or project not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a service from a Git repository
       tags:
       - service
   /teams/{teamID}/servers:
@@ -1583,6 +1994,41 @@ paths:
       summary: Update a server
       tags:
       - server
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves the profile information of the currently authenticated
+        user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile information
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.User'
+              type: object
+        "401":
+          description: Unauthorized - invalid or missing token
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user information
+      tags:
+      - user
 schemes:
 - http
 - https

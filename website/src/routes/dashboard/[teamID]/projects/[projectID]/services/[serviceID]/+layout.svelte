@@ -44,7 +44,6 @@
 		{ id: 'overview', label: 'Overview', path: 'overview' },
 		{ id: 'compose', label: 'Compose', path: 'compose' },
 		{ id: 'domains', label: 'Domains', path: 'domains' },
-		{ id: 'logs', label: 'Logs', path: 'logs' },
 		{ id: 'settings', label: 'Settings', path: 'settings' }
 	];
 
@@ -56,7 +55,7 @@
 
 		// Find matching tab by path
 		const matchingTab = tabs.find((tab) => tab.path === lastSegment);
-		
+
 		// Default to overview if no match found or if we're at the base service URL
 		return matchingTab ? matchingTab.id : 'overview';
 	});
@@ -78,7 +77,7 @@
 	// Service status variants
 	function getStatusClass(status?: string) {
 		if (!status) return 'bg-secondary/50 border-secondary/30';
-		
+
 		switch (status) {
 			case ServiceState.RUNNING:
 				return 'bg-success/50 border-success/30';

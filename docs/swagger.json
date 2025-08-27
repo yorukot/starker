@@ -50,7 +50,7 @@
                     "200": {
                         "description": "Login successful",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/response.SuccessResponse"
                         }
                     },
                     "400": {
@@ -189,7 +189,22 @@
                     "201": {
                         "description": "Access token generated successfully",
                         "schema": {
-                            "type": "string"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
@@ -235,7 +250,7 @@
                     "201": {
                         "description": "User registered successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/response.SuccessResponse"
                         }
                     },
                     "400": {
@@ -339,7 +354,7 @@
                     "200": {
                         "description": "Team created successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/response.SuccessResponse"
                         }
                     },
                     "400": {
@@ -459,7 +474,7 @@
                     "200": {
                         "description": "Team deleted successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/response.SuccessResponse"
                         }
                     },
                     "400": {
@@ -1241,6 +1256,83 @@
             }
         },
         "/teams/{teamID}/projects/{projectID}/services": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves all services belonging to a specific project within a team",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get all services for a project",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of services",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.Service"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/compose": {
             "post": {
                 "security": [
                     {
@@ -1279,7 +1371,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/servicesvc.CreateServiceRequest"
+                            "$ref": "#/definitions/service.createServiceRequest"
                         }
                     }
                 ],
@@ -1323,7 +1415,227 @@
                 }
             }
         },
+        "/teams/{teamID}/projects/{projectID}/services/git": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new service by cloning a Git repository and extracting Docker Compose configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Create a service from a Git repository",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Git service creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CreateServiceGitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server-Sent Events stream with git workflow progress",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, team access denied, or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/teams/{teamID}/projects/{projectID}/services/{serviceID}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves a specific service by its ID within a project and team",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get a single service by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service details",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.Service"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Team access denied or service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a service including stopping Docker containers, removing networks/volumes, and cleaning up all related database records",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Delete service with complete cleanup",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/response.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "patch": {
                 "security": [
                     {
@@ -1406,6 +1718,175 @@
                     },
                     "404": {
                         "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/compose": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the Docker Compose configuration for a specific service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get service Docker Compose configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service compose configuration",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ServiceComposeConfig"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Team access denied or compose config not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the Docker Compose configuration for a specific service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Update service Docker Compose configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Service compose update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/servicesvc.UpdateServiceComposeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Compose config updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.ServiceComposeConfig"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body, team access denied, or service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -1879,6 +2360,64 @@
                     }
                 }
             }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves the profile information of the currently authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "user"
+                ],
+                "summary": "Get current user information",
+                "responses": {
+                    "200": {
+                        "description": "User profile information",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/models.User"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2128,6 +2667,36 @@
                 }
             }
         },
+        "models.ServiceComposeConfig": {
+            "type": "object",
+            "properties": {
+                "compose_file": {
+                    "description": "Docker compose file content",
+                    "type": "string",
+                    "example": "version: '3.8'..."
+                },
+                "created_at": {
+                    "description": "Timestamp when the config was created",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "id": {
+                    "description": "Unique identifier for the compose config",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "service_id": {
+                    "description": "Associated service ID",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "updated_at": {
+                    "description": "Timestamp when the config was last updated",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                }
+            }
+        },
         "models.ServiceState": {
             "type": "string",
             "enum": [
@@ -2162,6 +2731,36 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "models.User": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "description": "URL to user's avatar image",
+                    "type": "string",
+                    "example": "https://example.com/avatar.jpg"
+                },
+                "created_at": {
+                    "description": "Timestamp when the user was created",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "display_name": {
+                    "description": "Display name for the user",
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "id": {
+                    "description": "Unique identifier for the user",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "updated_at": {
+                    "description": "Timestamp when the user was last updated",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
                 }
             }
         },
@@ -2324,23 +2923,57 @@
                 }
             }
         },
-        "service.updateServiceStateRequest": {
+        "service.CreateServiceGitRequest": {
             "type": "object",
             "required": [
-                "state"
+                "branch",
+                "name",
+                "repo_url",
+                "server_id"
             ],
             "properties": {
-                "state": {
+                "auto_deploy": {
+                    "description": "Enable auto-deployment on Git changes",
+                    "type": "boolean",
+                    "example": true
+                },
+                "branch": {
+                    "description": "Git branch to deploy",
                     "type": "string",
-                    "enum": [
-                        "start",
-                        "stop",
-                        "restart"
-                    ]
+                    "example": "main"
+                },
+                "description": {
+                    "description": "Optional service description",
+                    "type": "string",
+                    "maxLength": 500,
+                    "example": "Application from Git"
+                },
+                "docker_compose_file_path": {
+                    "description": "Path to docker-compose file in repo",
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "docker-compose.yml"
+                },
+                "name": {
+                    "description": "Service name",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 3,
+                    "example": "my-app"
+                },
+                "repo_url": {
+                    "description": "Git repository URL",
+                    "type": "string",
+                    "example": "https://github.com/user/repo.git"
+                },
+                "server_id": {
+                    "description": "Server ID where service will be deployed",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
                 }
             }
         },
-        "servicesvc.CreateServiceRequest": {
+        "service.createServiceRequest": {
             "type": "object",
             "required": [
                 "compose_file",
@@ -2350,26 +2983,69 @@
             ],
             "properties": {
                 "compose_file": {
-                    "type": "string"
+                    "description": "Docker compose file content",
+                    "type": "string",
+                    "example": "version: '3.8'..."
                 },
                 "description": {
+                    "description": "Optional service description",
                     "type": "string",
-                    "maxLength": 500
+                    "maxLength": 500,
+                    "example": "Web application service"
                 },
                 "name": {
+                    "description": "Service name",
                     "type": "string",
                     "maxLength": 255,
-                    "minLength": 3
+                    "minLength": 3,
+                    "example": "web-app"
                 },
                 "server_id": {
-                    "type": "string"
+                    "description": "Server ID where service will be deployed",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
                 },
                 "type": {
+                    "description": "Service type (docker or compose)",
                     "type": "string",
                     "enum": [
                         "docker",
                         "compose"
-                    ]
+                    ],
+                    "example": "docker"
+                }
+            }
+        },
+        "service.updateServiceStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "Service state action (start, stop, restart)",
+                    "type": "string",
+                    "enum": [
+                        "start",
+                        "stop",
+                        "restart"
+                    ],
+                    "example": "start"
+                }
+            }
+        },
+        "servicesvc.UpdateServiceComposeRequest": {
+            "type": "object",
+            "required": [
+                "compose_file"
+            ],
+            "properties": {
+                "compose_file": {
+                    "type": "string"
+                },
+                "compose_file_path": {
+                    "type": "string",
+                    "maxLength": 500
                 }
             }
         },

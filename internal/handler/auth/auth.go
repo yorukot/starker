@@ -26,7 +26,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body authsvc.RegisterRequest true "Registration request"
-// @Success 201 {object} string "User registered successfully"
+// @Success 201 {object} response.SuccessResponse "User registered successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or email already in use"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/register [post]
@@ -113,7 +113,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param request body authsvc.LoginRequest true "Login request"
-// @Success 200 {object} string "Login successful"
+// @Success 200 {object} response.SuccessResponse "Login successful"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, user not found, or invalid password"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/login [post]
@@ -197,7 +197,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Success 201 {object} string "Access token generated successfully"
+// @Success 201 {object} response.SuccessResponse{data=map[string]string} "Access token generated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, refresh token not found, or refresh token already used"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
 // @Router /auth/refresh [post]

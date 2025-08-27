@@ -23,7 +23,7 @@ import (
 // @Produce json
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
-// @Success 200 {array} models.Service "List of services"
+// @Success 200 {object} response.SuccessResponse{data=[]models.Service} "List of services"
 // @Failure 400 {object} response.ErrorResponse "Team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"

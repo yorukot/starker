@@ -17,11 +17,11 @@ import (
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} models.User "User profile information"
+// @Success 200 {object} response.SuccessResponse{data=models.User} "User profile information"
 // @Failure 401 {object} response.ErrorResponse "Unauthorized - invalid or missing token"
 // @Failure 404 {object} response.ErrorResponse "User not found"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /user/me [get]
+// @Router /users/me [get]
 func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	// Get userID from context (set by AuthRequiredMiddleware)
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)

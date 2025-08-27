@@ -24,7 +24,7 @@ import (
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
 // @Param serviceID path string true "Service ID"
-// @Success 200 {object} models.ServiceComposeConfig "Service compose configuration"
+// @Success 200 {object} response.SuccessResponse{data=models.ServiceComposeConfig} "Service compose configuration"
 // @Failure 400 {object} response.ErrorResponse "Team access denied or compose config not found"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"

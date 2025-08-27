@@ -24,7 +24,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param request body teamsvc.CreateTeamRequest true "Create team request"
-// @Success 200 {object} string "Team created successfully"
+// @Success 200 {object} response.SuccessResponse "Team created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
@@ -189,7 +189,7 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
-// @Success 200 {object} string "Team deleted successfully"
+// @Success 200 {object} response.SuccessResponse "Team deleted successfully"
 // @Failure 400 {object} response.ErrorResponse "Team ID is required"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 403 {object} response.ErrorResponse "Only team owner can delete the team"
