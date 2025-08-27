@@ -29,7 +29,7 @@ type createTeamRequest struct {
 // @Tags team
 // @Accept json
 // @Produce json
-// @Param request body teamsvc.CreateTeamRequest true "Create team request"
+// @Param request body createTeamRequest true "Create team request"
 // @Success 200 {object} response.SuccessResponse "Team created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"

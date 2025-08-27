@@ -325,7 +325,7 @@ definitions:
       message:
         type: string
     type: object
-  serversvc.CreateServerRequest:
+  server.createServerRequest:
     properties:
       description:
         maxLength: 500
@@ -353,7 +353,7 @@ definitions:
     - private_key_id
     - user
     type: object
-  serversvc.UpdateServerRequest:
+  server.updateServerRequest:
     properties:
       description:
         maxLength: 500
@@ -449,20 +449,7 @@ definitions:
     - server_id
     - type
     type: object
-  service.updateServiceStateRequest:
-    properties:
-      state:
-        description: Service state action (start, stop, restart)
-        enum:
-        - start
-        - stop
-        - restart
-        example: start
-        type: string
-    required:
-    - state
-    type: object
-  servicesvc.UpdateServiceComposeRequest:
+  service.updateServiceComposeRequest:
     properties:
       compose_file:
         type: string
@@ -472,7 +459,7 @@ definitions:
     required:
     - compose_file
     type: object
-  servicesvc.UpdateServiceRequest:
+  service.updateServiceRequest:
     properties:
       description:
         maxLength: 500
@@ -495,6 +482,19 @@ definitions:
         - compose
         type: string
     type: object
+  service.updateServiceStateRequest:
+    properties:
+      state:
+        description: Service state action (start, stop, restart)
+        enum:
+        - start
+        - stop
+        - restart
+        example: start
+        type: string
+    required:
+    - state
+    type: object
   team.UpdateTeamRequest:
     properties:
       name:
@@ -504,7 +504,7 @@ definitions:
     required:
     - name
     type: object
-  teamsvc.CreateTeamRequest:
+  team.createTeamRequest:
     properties:
       name:
         maxLength: 255
@@ -732,7 +732,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/teamsvc.CreateTeamRequest'
+          $ref: '#/definitions/team.createTeamRequest'
       produces:
       - application/json
       responses:
@@ -1525,7 +1525,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/servicesvc.UpdateServiceRequest'
+          $ref: '#/definitions/service.updateServiceRequest'
       produces:
       - application/json
       responses:
@@ -1634,7 +1634,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/servicesvc.UpdateServiceComposeRequest'
+          $ref: '#/definitions/service.updateServiceComposeRequest'
       produces:
       - application/json
       responses:
@@ -1878,7 +1878,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/serversvc.CreateServerRequest'
+          $ref: '#/definitions/server.createServerRequest'
       produces:
       - application/json
       responses:
@@ -2022,7 +2022,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/serversvc.UpdateServerRequest'
+          $ref: '#/definitions/server.updateServerRequest'
       produces:
       - application/json
       responses:

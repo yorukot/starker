@@ -33,7 +33,7 @@ type updateServiceComposeRequest struct {
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
 // @Param serviceID path string true "Service ID"
-// @Param request body servicesvc.UpdateServiceComposeRequest true "Service compose update request"
+// @Param request body updateServiceComposeRequest true "Service compose update request"
 // @Success 200 {object} response.SuccessResponse{data=models.ServiceComposeConfig} "Compose config updated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or service not found"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"

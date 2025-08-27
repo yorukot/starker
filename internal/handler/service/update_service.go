@@ -15,16 +15,16 @@ import (
 	"github.com/yorukot/starker/pkg/response"
 )
 
+// +----------------------------------------------+
+// | Update Service                               |
+// +----------------------------------------------+
+
 type updateServiceRequest struct {
 	Name        *string              `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
 	Description *string              `json:"description,omitempty" validate:"omitempty,max=500"`
 	Type        *string              `json:"type,omitempty" validate:"omitempty,oneof=docker compose"`
 	State       *models.ServiceState `json:"status,omitempty" validate:"omitempty,oneof=running stopped starting stopping"`
 }
-
-// +----------------------------------------------+
-// | Update Service                               |
-// +----------------------------------------------+
 
 // UpdateService godoc
 // @Summary Update service metadata
@@ -35,7 +35,7 @@ type updateServiceRequest struct {
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
 // @Param serviceID path string true "Service ID"
-// @Param request body servicesvc.UpdateServiceRequest true "Service update request"
+// @Param request body updateServiceRequest true "Service update request"
 // @Success 200 {object} response.SuccessResponse{data=models.Service} "Service updated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"

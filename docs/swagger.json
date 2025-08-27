@@ -346,7 +346,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/teamsvc.CreateTeamRequest"
+                            "$ref": "#/definitions/team.createTeamRequest"
                         }
                     }
                 ],
@@ -1767,7 +1767,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/servicesvc.UpdateServiceRequest"
+                            "$ref": "#/definitions/service.updateServiceRequest"
                         }
                     }
                 ],
@@ -1942,7 +1942,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/servicesvc.UpdateServiceComposeRequest"
+                            "$ref": "#/definitions/service.updateServiceComposeRequest"
                         }
                     }
                 ],
@@ -2170,7 +2170,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/serversvc.CreateServerRequest"
+                            "$ref": "#/definitions/server.createServerRequest"
                         }
                     }
                 ],
@@ -2331,7 +2331,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/serversvc.UpdateServerRequest"
+                            "$ref": "#/definitions/server.updateServerRequest"
                         }
                     }
                 ],
@@ -2942,7 +2942,7 @@
                 }
             }
         },
-        "serversvc.CreateServerRequest": {
+        "server.createServerRequest": {
             "type": "object",
             "required": [
                 "ip",
@@ -2979,7 +2979,7 @@
                 }
             }
         },
-        "serversvc.UpdateServerRequest": {
+        "server.updateServerRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3102,25 +3102,7 @@
                 }
             }
         },
-        "service.updateServiceStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "description": "Service state action (start, stop, restart)",
-                    "type": "string",
-                    "enum": [
-                        "start",
-                        "stop",
-                        "restart"
-                    ],
-                    "example": "start"
-                }
-            }
-        },
-        "servicesvc.UpdateServiceComposeRequest": {
+        "service.updateServiceComposeRequest": {
             "type": "object",
             "required": [
                 "compose_file"
@@ -3135,7 +3117,7 @@
                 }
             }
         },
-        "servicesvc.UpdateServiceRequest": {
+        "service.updateServiceRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3169,6 +3151,24 @@
                 }
             }
         },
+        "service.updateServiceStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "Service state action (start, stop, restart)",
+                    "type": "string",
+                    "enum": [
+                        "start",
+                        "stop",
+                        "restart"
+                    ],
+                    "example": "start"
+                }
+            }
+        },
         "team.UpdateTeamRequest": {
             "type": "object",
             "required": [
@@ -3182,7 +3182,7 @@
                 }
             }
         },
-        "teamsvc.CreateTeamRequest": {
+        "team.createTeamRequest": {
             "type": "object",
             "required": [
                 "name"

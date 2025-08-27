@@ -20,6 +20,15 @@ import (
 // | Create Service Compose                       |
 // +----------------------------------------------+
 
+// createServiceRequest represents a request to create a new service with Docker compose
+type createServiceRequest struct {
+	Name        string  `json:"name" validate:"required,min=3,max=255" example:"web-app"`                             // Service name
+	Description *string `json:"description,omitempty" validate:"omitempty,max=500" example:"Web application service"` // Optional service description
+	Type        string  `json:"type" validate:"required,oneof=docker compose" example:"docker"`                       // Service type (docker or compose)
+	ServerID    string  `json:"server_id" validate:"required" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                   // Server ID where service will be deployed
+	ComposeFile string  `json:"compose_file" validate:"required" example:"version: '3.8'..."`                         // Docker compose file content
+}
+
 // CreateServiceCompose godoc
 // @Summary Create a new service
 // @Description Creates a new service with Docker compose configuration within a team and project
@@ -123,15 +132,6 @@ func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Req
 
 	// Return the created service
 	response.RespondWithJSON(w, http.StatusCreated, service)
-}
-
-// createServiceRequest represents a request to create a new service with Docker compose
-type createServiceRequest struct {
-	Name        string  `json:"name" validate:"required,min=3,max=255" example:"web-app"`                             // Service name
-	Description *string `json:"description,omitempty" validate:"omitempty,max=500" example:"Web application service"` // Optional service description
-	Type        string  `json:"type" validate:"required,oneof=docker compose" example:"docker"`                       // Service type (docker or compose)
-	ServerID    string  `json:"server_id" validate:"required" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                   // Server ID where service will be deployed
-	ComposeFile string  `json:"compose_file" validate:"required" example:"version: '3.8'..."`                         // Docker compose file content
 }
 
 // serviceValidate validates the create service request

@@ -37,7 +37,7 @@ type createServerRequest struct {
 // @Accept json
 // @Produce json
 // @Param teamID path string true "Team ID"
-// @Param request body serversvc.CreateServerRequest true "Server creation request"
+// @Param request body createServerRequest true "Server creation request"
 // @Success 201 {object} response.SuccessResponse{data=models.Server} "Server created successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or server connection failed"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"

@@ -37,7 +37,7 @@ type updateServerRequest struct {
 // @Produce json
 // @Param teamID path string true "Team ID"
 // @Param serverID path string true "Server ID"
-// @Param request body serversvc.UpdateServerRequest true "Server update request"
+// @Param request body updateServerRequest true "Server update request"
 // @Success 200 {object} response.SuccessResponse{data=models.Server} "Server updated successfully"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body or team access denied"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"

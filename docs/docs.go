@@ -348,7 +348,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/teamsvc.CreateTeamRequest"
+                            "$ref": "#/definitions/team.createTeamRequest"
                         }
                     }
                 ],
@@ -1769,7 +1769,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/servicesvc.UpdateServiceRequest"
+                            "$ref": "#/definitions/service.updateServiceRequest"
                         }
                     }
                 ],
@@ -1944,7 +1944,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/servicesvc.UpdateServiceComposeRequest"
+                            "$ref": "#/definitions/service.updateServiceComposeRequest"
                         }
                     }
                 ],
@@ -2172,7 +2172,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/serversvc.CreateServerRequest"
+                            "$ref": "#/definitions/server.createServerRequest"
                         }
                     }
                 ],
@@ -2333,7 +2333,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/serversvc.UpdateServerRequest"
+                            "$ref": "#/definitions/server.updateServerRequest"
                         }
                     }
                 ],
@@ -2944,7 +2944,7 @@ const docTemplate = `{
                 }
             }
         },
-        "serversvc.CreateServerRequest": {
+        "server.createServerRequest": {
             "type": "object",
             "required": [
                 "ip",
@@ -2981,7 +2981,7 @@ const docTemplate = `{
                 }
             }
         },
-        "serversvc.UpdateServerRequest": {
+        "server.updateServerRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3104,25 +3104,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.updateServiceStateRequest": {
-            "type": "object",
-            "required": [
-                "state"
-            ],
-            "properties": {
-                "state": {
-                    "description": "Service state action (start, stop, restart)",
-                    "type": "string",
-                    "enum": [
-                        "start",
-                        "stop",
-                        "restart"
-                    ],
-                    "example": "start"
-                }
-            }
-        },
-        "servicesvc.UpdateServiceComposeRequest": {
+        "service.updateServiceComposeRequest": {
             "type": "object",
             "required": [
                 "compose_file"
@@ -3137,7 +3119,7 @@ const docTemplate = `{
                 }
             }
         },
-        "servicesvc.UpdateServiceRequest": {
+        "service.updateServiceRequest": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3171,6 +3153,24 @@ const docTemplate = `{
                 }
             }
         },
+        "service.updateServiceStateRequest": {
+            "type": "object",
+            "required": [
+                "state"
+            ],
+            "properties": {
+                "state": {
+                    "description": "Service state action (start, stop, restart)",
+                    "type": "string",
+                    "enum": [
+                        "start",
+                        "stop",
+                        "restart"
+                    ],
+                    "example": "start"
+                }
+            }
+        },
         "team.UpdateTeamRequest": {
             "type": "object",
             "required": [
@@ -3184,7 +3184,7 @@ const docTemplate = `{
                 }
             }
         },
-        "teamsvc.CreateTeamRequest": {
+        "team.createTeamRequest": {
             "type": "object",
             "required": [
                 "name"
