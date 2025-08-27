@@ -3,21 +3,31 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/handler/server/utils"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/serversvc"
 	"github.com/yorukot/starker/pkg/response"
 )
 
 // +----------------------------------------------+
 // | Update Server                                |
 // +----------------------------------------------+
+
+type updateServerRequest struct {
+	Name         *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	IP           *string `json:"ip,omitempty" validate:"omitempty,ip"`
+	Port         *string `json:"port,omitempty" validate:"omitempty,min=1,max=5"`
+	User         *string `json:"user,omitempty" validate:"omitempty,min=1,max=255"`
+	PrivateKeyID *string `json:"private_key_id,omitempty" validate:"omitempty"`
+}
 
 // UpdateServer godoc
 // @Summary Update a server
@@ -41,14 +51,14 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 	serverID := chi.URLParam(r, "serverID")
 
 	// Parse the request body into the update server request struct
-	var updateServerRequest serversvc.UpdateServerRequest
+	var updateServerRequest updateServerRequest
 	if err := json.NewDecoder(r.Body).Decode(&updateServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the server update request
-	if err := serversvc.ServerUpdateValidate(updateServerRequest); err != nil {
+	if err := validator.New().Struct(updateServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -111,31 +121,18 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 
 	// Create a test server object with updated values
 	testServer := *currentServer
-	if updateServerRequest.Name != nil {
-		testServer.Name = *updateServerRequest.Name
-	}
-	if updateServerRequest.IP != nil {
-		testServer.IP = *updateServerRequest.IP
-	}
-	if updateServerRequest.Port != nil {
-		testServer.Port = *updateServerRequest.Port
-	}
-	if updateServerRequest.User != nil {
-		testServer.User = *updateServerRequest.User
-	}
-	if updateServerRequest.PrivateKeyID != nil {
-		testServer.PrivateKeyID = *updateServerRequest.PrivateKeyID
-	}
+
+	newServer := updateServerFromRequest(testServer, updateServerRequest)
 
 	// Test the server connection before updating it
-	if err = utils.TestServerConnection(r.Context(), testServer, *privateKeyForTest, h.DockerPool); err != nil {
+	if err = utils.TestServerConnection(r.Context(), newServer, *privateKeyForTest, h.DockerPool); err != nil {
 		zap.L().Error("Failed to test server connection", zap.Error(err))
 		response.RespondWithError(w, http.StatusBadRequest, "Failed to connect to server with provided credentials", "SERVER_CONNECTION_FAILED")
 		return
 	}
 
 	// Update the server in the database
-	server, err := repository.UpdateServer(r.Context(), tx, teamID, serverID, updateServerRequest)
+	server, err := repository.UpdateServer(r.Context(), tx, teamID, serverID, newServer)
 	if err != nil {
 		zap.L().Error("Failed to update server", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update server", "SERVER_UPDATE_FAILED")
@@ -153,4 +150,29 @@ func (h *ServerHandler) UpdateServer(w http.ResponseWriter, r *http.Request) {
 
 	// Return success response with the updated server
 	response.RespondWithJSON(w, http.StatusOK, server)
+}
+
+// updateServerFromRequest updates a server model with new values from update request
+func updateServerFromRequest(existingServer models.Server, updateServerRequest updateServerRequest) models.Server {
+	if updateServerRequest.Name != nil {
+		existingServer.Name = *updateServerRequest.Name
+	}
+	if updateServerRequest.Description != nil {
+		existingServer.Description = updateServerRequest.Description
+	}
+	if updateServerRequest.IP != nil {
+		existingServer.IP = *updateServerRequest.IP
+	}
+	if updateServerRequest.Port != nil {
+		existingServer.Port = *updateServerRequest.Port
+	}
+	if updateServerRequest.User != nil {
+		existingServer.User = *updateServerRequest.User
+	}
+	if updateServerRequest.PrivateKeyID != nil {
+		existingServer.PrivateKeyID = *updateServerRequest.PrivateKeyID
+	}
+	existingServer.UpdatedAt = time.Now()
+
+	return existingServer
 }

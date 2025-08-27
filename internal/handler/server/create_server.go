@@ -3,20 +3,32 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
+	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/handler/server/utils"
 	"github.com/yorukot/starker/internal/middleware"
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/internal/service/serversvc"
 	"github.com/yorukot/starker/pkg/response"
 )
 
 // +----------------------------------------------+
 // | Create Server                                |
 // +----------------------------------------------+
+
+type createServerRequest struct {
+	Name         string  `json:"name" validate:"required,min=3,max=255"`
+	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
+	IP           string  `json:"ip" validate:"required,ip"`
+	Port         string  `json:"port" validate:"required,min=1,max=5"`
+	User         string  `json:"user" validate:"required,min=1,max=255"`
+	PrivateKeyID string  `json:"private_key_id" validate:"required"`
+}
 
 // CreateServer godoc
 // @Summary Create a new server
@@ -37,14 +49,14 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	teamID := chi.URLParam(r, "teamID")
 
 	// Get the server from the request body
-	var createServerRequest serversvc.CreateServerRequest
+	var createServerRequest createServerRequest
 	if err := json.NewDecoder(r.Body).Decode(&createServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the server creation request
-	if err := serversvc.ServerValidate(createServerRequest); err != nil {
+	if err := validator.New().Struct(createServerRequest); err != nil {
 		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
 		return
 	}
@@ -82,7 +94,7 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate the server
-	server := serversvc.GenerateServer(createServerRequest, teamID)
+	server := generateServer(createServerRequest, teamID)
 
 	// Test the server connection before creating it
 	if err = utils.TestServerConnection(r.Context(), server, *privateKey, h.DockerPool); err != nil {
@@ -103,4 +115,22 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 
 	// Return the created server
 	response.RespondWithJSON(w, http.StatusCreated, server)
+}
+
+// generateServer generates a server model for the create request
+func generateServer(createServerRequest createServerRequest, teamID string) models.Server {
+	now := time.Now()
+
+	return models.Server{
+		ID:           ksuid.New().String(),
+		TeamID:       teamID,
+		Name:         createServerRequest.Name,
+		Description:  createServerRequest.Description,
+		IP:           createServerRequest.IP,
+		Port:         createServerRequest.Port,
+		User:         createServerRequest.User,
+		PrivateKeyID: createServerRequest.PrivateKeyID,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
 }

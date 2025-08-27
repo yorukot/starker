@@ -6,7 +6,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/yorukot/starker/internal/models"
-	"github.com/yorukot/starker/internal/service/serversvc"
 )
 
 // GetServersByTeamID gets all servers for a team
@@ -120,32 +119,20 @@ func UpdateServerByID(ctx context.Context, db pgx.Tx, serverID, teamID string, s
 }
 
 // UpdateServer updates an existing server
-func UpdateServer(ctx context.Context, db pgx.Tx, teamID, serverID string, updateServerRequest serversvc.UpdateServerRequest) (*models.Server, error) {
-	// First check if server exists
-	existingServer, err := GetServerByID(ctx, db, serverID, teamID)
-	if err != nil {
-		return nil, err
-	}
-	if existingServer == nil {
-		return nil, nil
-	}
-
-	// Update the server with new values using the service function
-	updatedServer := serversvc.UpdateServerFromRequest(*existingServer, updateServerRequest)
-
+func UpdateServer(ctx context.Context, db pgx.Tx, teamID, serverID string, server models.Server) (*models.Server, error) {
 	query := `
 		UPDATE servers
 		SET name = $1, description = $2, ip = $3, port = $4, "user" = $5, private_key_id = $6, updated_at = $7
 		WHERE id = $8 AND team_id = $9
 	`
-	_, err = db.Exec(ctx, query,
-		updatedServer.Name,
-		updatedServer.Description,
-		updatedServer.IP,
-		updatedServer.Port,
-		updatedServer.User,
-		updatedServer.PrivateKeyID,
-		updatedServer.UpdatedAt,
+	_, err := db.Exec(ctx, query,
+		server.Name,
+		server.Description,
+		server.IP,
+		server.Port,
+		server.User,
+		server.PrivateKeyID,
+		server.UpdatedAt,
 		serverID,
 		teamID,
 	)
@@ -153,7 +140,7 @@ func UpdateServer(ctx context.Context, db pgx.Tx, teamID, serverID string, updat
 		return nil, err
 	}
 
-	return &updatedServer, nil
+	return &server, nil
 }
 
 // DeleteServerByID deletes a server by ID and team ID
