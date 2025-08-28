@@ -299,15 +299,17 @@ func StartService(ctx context.Context, serviceID, teamID, projectID string, db p
 			return
 		}
 
-		// Commit the transaction if successful
-		repository.CommitTransaction(tx, ctx)
-
-		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
+		// Don't commit yet - we need to keep the transaction for container state updates
+		// err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
+		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult, tx)
 		if err != nil {
 			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
+
+		// Commit the transaction after successful container starts and state updates
+		repository.CommitTransaction(tx, ctx)
 	}()
 
 	return streamResult, nil
@@ -356,23 +358,16 @@ func StopService(ctx context.Context, serviceID, teamID, projectID string, db pg
 		}
 		defer repository.DeferRollback(tx, ctx)
 
-		// Purge existing Docker resources and clean database records first
-		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
-		if err != nil {
-			streamResult.FinalError = fmt.Errorf("failed to purge existing resources: %w", err)
-			streamResult.ErrorChan <- streamResult.FinalError
-			return
-		}
-
-		// Commit the transaction if successful
-		repository.CommitTransaction(tx, ctx)
-
-		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
+		// Stop containers with proper dependency ordering and update states in database
+		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult, tx)
 		if err != nil {
 			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
+
+		// Commit the transaction after successful container stops and state updates
+		repository.CommitTransaction(tx, ctx)
 
 	}()
 
@@ -450,19 +445,8 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 
 		streamResult.LogChan <- "Compose file validated successfully, proceeding with Docker restart operations"
 
-		// Purge existing Docker resources and clean database records first
-		err = DockerDatabaseToPurge(ctx, composeProject, cfg, tx, streamResult)
-		if err != nil {
-			streamResult.FinalError = fmt.Errorf("failed to purge existing resources: %w", err)
-			streamResult.ErrorChan <- streamResult.FinalError
-			return
-		}
-
-		// Commit the transaction if successful
-		repository.CommitTransaction(tx, ctx)
-
-		// First stop services in reverse dependency order
-		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
+		// First stop services in reverse dependency order with current transaction
+		err = stopComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult, tx)
 		if err != nil {
 			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
@@ -486,16 +470,16 @@ func RestartService(ctx context.Context, serviceID, teamID, projectID string, db
 			return
 		}
 
-		// Commit the transaction if successful
-		repository.CommitTransaction(tx, ctx)
-
-		// Then start them again in proper dependency order
-		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult)
+		// Then start them again in proper dependency order with the same transaction for state updates
+		err = startComposeServicesWithDependencies(ctx, cfg, composeProject, streamResult, tx)
 		if err != nil {
 			streamResult.FinalError = err
 			streamResult.ErrorChan <- err
 			return
 		}
+
+		// Commit the transaction after successful container starts and state updates
+		repository.CommitTransaction(tx, ctx)
 
 	}()
 

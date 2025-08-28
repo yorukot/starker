@@ -6,10 +6,11 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/compose/v2/pkg/compose"
+	"github.com/jackc/pgx/v5"
 )
 
 // startComposeServicesWithDependencies starts all services with proper Docker Compose dependency orchestration
-func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServiceConfig, project *types.Project, streamResult *StreamingResult) error {
+func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServiceConfig, project *types.Project, streamResult *StreamingResult, db pgx.Tx) error {
 	streamResult.LogChan <- fmt.Sprintf("Starting Docker Compose project %s with %d services", project.Name, len(project.Services))
 
 	// Step 1: Create networks first
@@ -58,7 +59,7 @@ func startComposeServicesWithDependencies(ctx context.Context, cfg *DockerServic
 			return fmt.Errorf("service %s not found in project", serviceName)
 		}
 
-		return startSingleServiceFromProject(ctx, cfg.Client, serviceConfig, project, streamResult, cfg.Generator)
+		return startSingleServiceFromProject(ctx, cfg.Client, serviceConfig, project, streamResult, cfg.Generator, db, cfg.ServiceID)
 	}
 
 	// Use Docker Compose v2's InDependencyOrder to start services properly

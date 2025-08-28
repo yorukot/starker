@@ -60,27 +60,51 @@ func DockerComposeToDatabase(ctx context.Context, project *types.Project, cfg *D
 }
 
 func syncContainersToDatabase(ctx context.Context, services types.Services, serviceID string, db pgx.Tx, generator *generator.NamingGenerator, streamResult *StreamingResult) error {
-	// Create new container records for each service in the compose file
+	// Get existing container records for this service
+	existingContainers, err := repository.GetServiceContainers(ctx, db, serviceID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing containers: %w", err)
+	}
+
+	// Create a map of existing containers by name for quick lookup
+	existingContainersByName := make(map[string]*models.ServiceContainer)
+	for i := range existingContainers {
+		existingContainersByName[existingContainers[i].ContainerName] = &existingContainers[i]
+	}
+
+	// Update or create container records for each service in the compose file
 	for _, service := range services {
 		// Generate consistent container name using the naming generator
 		containerName := generator.ContainerName(service.Name)
 
-		// Create the container model
-		container := models.ServiceContainer{
-			ID:            ksuid.New().String(), // Generate unique ID
-			ServiceID:     serviceID,
-			ContainerID:   nil, // Will be populated when actual Docker container is created
-			ContainerName: containerName,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
-		}
+		if existingContainer, exists := existingContainersByName[containerName]; exists {
+			// Update existing container record - preserve ContainerID but reset state for fresh start
+			existingContainer.State = models.ContainerStateStopped // Reset to stopped state for startup
+			existingContainer.UpdatedAt = time.Now()
 
-		// Insert the container record
-		if err := repository.CreateServiceContainer(ctx, db, container); err != nil {
-			return fmt.Errorf("failed to create container record for %s: %w", service.Name, err)
-		}
+			if err := repository.UpdateServiceContainer(ctx, db, *existingContainer); err != nil {
+				return fmt.Errorf("failed to update container record for %s: %w", service.Name, err)
+			}
 
-		streamResult.LogChan <- fmt.Sprintf("Container '%s' -> '%s' synchronized", service.Name, containerName)
+			streamResult.LogChan <- fmt.Sprintf("Container '%s' -> '%s' updated", service.Name, containerName)
+		} else {
+			// Create new container record (for new services in compose file)
+			container := models.ServiceContainer{
+				ID:            ksuid.New().String(),
+				ServiceID:     serviceID,
+				ContainerID:   nil, // Will be populated when actual Docker container is created
+				ContainerName: containerName,
+				State:         models.ContainerStateStopped, // Initial state
+				CreatedAt:     time.Now(),
+				UpdatedAt:     time.Now(),
+			}
+
+			if err := repository.CreateServiceContainer(ctx, db, container); err != nil {
+				return fmt.Errorf("failed to create container record for %s: %w", service.Name, err)
+			}
+
+			streamResult.LogChan <- fmt.Sprintf("Container '%s' -> '%s' created", service.Name, containerName)
+		}
 	}
 
 	streamResult.LogChan <- fmt.Sprintf("Successfully synchronized %d containers", len(services))
@@ -146,5 +170,83 @@ func syncVolumesToDatabase(ctx context.Context, volumes map[string]types.VolumeC
 	}
 
 	streamResult.LogChan <- fmt.Sprintf("Successfully synchronized %d volumes", len(volumes))
+	return nil
+}
+
+// CreateServiceContainersToDatabase creates container records for each service in the compose project during service creation
+// This function is called when a service is first created to establish the initial container records
+func CreateServiceContainersToDatabase(ctx context.Context, db pgx.Tx, serviceID string, project *types.Project, namingGenerator *generator.NamingGenerator) error {
+	// Create container records for each service defined in the compose file
+	for _, service := range project.Services {
+		// Generate consistent container name using the naming generator
+		containerName := namingGenerator.ContainerName(service.Name)
+
+		// Create the container model with initial "created" state
+		container := models.ServiceContainer{
+			ID:            ksuid.New().String(),
+			ServiceID:     serviceID,
+			ContainerID:   nil, // Will be populated when actual Docker container is created
+			ContainerName: containerName,
+			State:         models.ContainerStateStopped, // Initial state
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		}
+
+		// Insert the container record
+		if err := repository.CreateServiceContainer(ctx, db, container); err != nil {
+			return fmt.Errorf("failed to create container record for service '%s': %w", service.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// UpdateContainerStateByName updates container state by container name
+func UpdateContainerStateByName(ctx context.Context, db pgx.Tx, serviceID, containerName string, state models.ContainerState, dockerContainerID *string) error {
+	// Get existing containers for the service
+	containers, err := repository.GetServiceContainers(ctx, db, serviceID)
+	if err != nil {
+		return fmt.Errorf("failed to get containers: %w", err)
+	}
+
+	// Find the container by name
+	for _, container := range containers {
+		if container.ContainerName == containerName {
+			// Update the container state
+			container.State = state
+			container.ContainerID = dockerContainerID
+			container.UpdatedAt = time.Now()
+
+			if err := repository.UpdateServiceContainer(ctx, db, container); err != nil {
+				return fmt.Errorf("failed to update container state: %w", err)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("container with name %s not found", containerName)
+}
+
+// UpdateAllContainerStatesForService updates all container states for a service
+func UpdateAllContainerStatesForService(ctx context.Context, db pgx.Tx, serviceID string, state models.ContainerState) error {
+	// Get existing containers for the service
+	containers, err := repository.GetServiceContainers(ctx, db, serviceID)
+	if err != nil {
+		return fmt.Errorf("failed to get containers: %w", err)
+	}
+
+	// Update all containers to the specified state
+	for _, container := range containers {
+		container.State = state
+		if state == models.ContainerStateStopped || state == models.ContainerStateExited {
+			container.ContainerID = nil // Clear Docker container ID for stopped containers (no longer in Docker engine)
+		}
+		container.UpdatedAt = time.Now()
+
+		if err := repository.UpdateServiceContainer(ctx, db, container); err != nil {
+			return fmt.Errorf("failed to update container %s state: %w", container.ContainerName, err)
+		}
+	}
+
 	return nil
 }

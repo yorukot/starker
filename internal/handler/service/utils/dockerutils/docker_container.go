@@ -13,13 +13,15 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/pkg/generator"
 )
 
 // startSingleServiceFromProject starts a single service from the project configuration
-func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, service *types.ServiceConfig, project *types.Project, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
+func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, service *types.ServiceConfig, project *types.Project, streamResult *StreamingResult, namingGen *generator.NamingGenerator, db pgx.Tx, serviceID string) error {
 	streamResult.LogChan <- fmt.Sprintf("Starting service: %s", service.Name)
 
 	containerName := namingGen.ContainerName(service.Name)
@@ -45,9 +47,14 @@ func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Cli
 		if err := dockerClient.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
 			return fmt.Errorf("failed to start existing container %s: %w", service.Name, err)
 		}
+
+		// Update container state in database to running with the Docker container ID
+		if err := UpdateContainerStateByName(ctx, db, serviceID, containerName, models.ContainerStateRunning, &containerID); err != nil {
+			streamResult.LogChan <- fmt.Sprintf("Warning: failed to update container state for %s: %v", containerName, err)
+		}
 	} else {
 		// Create new container with proper compose configuration
-		_, err = createComposeContainerFromProject(ctx, dockerClient, service, project, containerName, streamResult, namingGen)
+		containerID, err = createComposeContainerFromProject(ctx, dockerClient, service, project, containerName, streamResult, namingGen, db, serviceID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", service.Name, err)
 		}
@@ -59,7 +66,7 @@ func startSingleServiceFromProject(ctx context.Context, dockerClient *client.Cli
 }
 
 // createComposeContainerFromProject creates a container from project service configuration
-func createComposeContainerFromProject(ctx context.Context, dockerClient *client.Client, service *types.ServiceConfig, project *types.Project, containerName string, streamResult *StreamingResult, namingGen *generator.NamingGenerator) (string, error) {
+func createComposeContainerFromProject(ctx context.Context, dockerClient *client.Client, service *types.ServiceConfig, project *types.Project, containerName string, streamResult *StreamingResult, namingGen *generator.NamingGenerator, db pgx.Tx, serviceID string) (string, error) {
 	// Create port bindings
 	exposedPorts := make(nat.PortSet)
 	portBindings := make(nat.PortMap)
@@ -183,12 +190,17 @@ func createComposeContainerFromProject(ctx context.Context, dockerClient *client
 		return "", fmt.Errorf("failed to start container: %w", err)
 	}
 
+	// Update container state in database to running with the Docker container ID
+	if err := UpdateContainerStateByName(ctx, db, serviceID, containerName, models.ContainerStateRunning, &resp.ID); err != nil {
+		streamResult.LogChan <- fmt.Sprintf("Warning: failed to update container state for %s: %v", containerName, err)
+	}
+
 	streamResult.LogChan <- fmt.Sprintf("Created and started container: %s", containerName)
 	return resp.ID, nil
 }
 
 // stopSingleServiceFromProject stops a single service from the project
-func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, serviceName, projectName string, streamResult *StreamingResult, namingGen *generator.NamingGenerator) error {
+func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Client, serviceName, projectName string, streamResult *StreamingResult, namingGen *generator.NamingGenerator, db pgx.Tx, serviceID string) error {
 	streamResult.LogChan <- fmt.Sprintf("Stopping service: %s", serviceName)
 
 	// Find containers for this specific service using generator filters
@@ -231,6 +243,12 @@ func stopSingleServiceFromProject(ctx context.Context, dockerClient *client.Clie
 			continue
 		}
 		streamResult.LogChan <- fmt.Sprintf("Removed container for service: %s", serviceName)
+
+		// Update container state in database to stopped after successful stop and removal
+		containerName := namingGen.ContainerName(serviceName)
+		if err := UpdateContainerStateByName(ctx, db, serviceID, containerName, models.ContainerStateStopped, nil); err != nil {
+			streamResult.LogChan <- fmt.Sprintf("Warning: failed to update container state for %s: %v", containerName, err)
+		}
 	}
 
 	streamResult.LogChan <- fmt.Sprintf("Successfully stopped service: %s", serviceName)

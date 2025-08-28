@@ -3,6 +3,7 @@ package dockerutils
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/docker/api/types/container"
@@ -11,8 +12,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
-	"github.com/yorukot/starker/pkg/generator"
 )
 
 // DockerDatabaseToPurge purges Docker resources and removes database records
@@ -40,13 +41,13 @@ func DockerDatabaseToPurge(ctx context.Context, project *types.Project, cfg *Doc
 
 	// Step 2: Purge containers (stop and remove)
 	streamResult.LogChan <- fmt.Sprintf("Purging %d service containers", len(project.Services))
-	if err := purgeContainersFromDocker(ctx, cfg.Client, project.Services, cfg.ServiceID, db, cfg.Generator, streamResult); err != nil {
+	if err := purgeContainersFromDocker(ctx, cfg.Client, cfg.ServiceID, db, streamResult); err != nil {
 		return fmt.Errorf("failed to purge containers: %w", err)
 	}
 
 	// Step 3: Purge networks (with safety checks)
 	streamResult.LogChan <- fmt.Sprintf("Purging %d networks", len(project.Networks))
-	if err := purgeNetworksFromDocker(ctx, cfg.Client, project.Networks, cfg.ServiceID, db, cfg.Generator, streamResult); err != nil {
+	if err := purgeNetworksFromDocker(ctx, cfg.Client, cfg.ServiceID, db, streamResult); err != nil {
 		return fmt.Errorf("failed to purge networks: %w", err)
 	}
 
@@ -54,7 +55,7 @@ func DockerDatabaseToPurge(ctx context.Context, project *types.Project, cfg *Doc
 	return nil
 }
 
-func purgeContainersFromDocker(ctx context.Context, dockerClient *client.Client, services types.Services, serviceID string, db pgx.Tx, generator *generator.NamingGenerator, streamResult *StreamingResult) error {
+func purgeContainersFromDocker(ctx context.Context, dockerClient *client.Client, serviceID string, db pgx.Tx, streamResult *StreamingResult) error {
 	// Get all containers from database first
 	containers, err := repository.GetServiceContainers(ctx, db, serviceID)
 	if err != nil {
@@ -107,16 +108,25 @@ func purgeContainersFromDocker(ctx context.Context, dockerClient *client.Client,
 		}
 	}
 
-	// Clean up database records after successful Docker operations
-	if err := repository.DeleteServiceContainers(ctx, db, serviceID); err != nil {
-		return fmt.Errorf("failed to delete service containers from database: %w", err)
+	// Update database records to reflect stopped state instead of deleting them
+	for _, dbContainer := range containers {
+		// Update container state to stopped (container still exists in compose but stopped in Docker)
+		dbContainer.State = models.ContainerStateStopped
+		dbContainer.ContainerID = nil // Clear Docker container ID since it no longer exists in Docker engine
+		dbContainer.UpdatedAt = time.Now()
+
+		if err := repository.UpdateServiceContainer(ctx, db, dbContainer); err != nil {
+			streamResult.LogChan <- fmt.Sprintf("Failed to update container state for %s: %v", dbContainer.ContainerName, err)
+			// Continue with other containers even if one fails
+			continue
+		}
 	}
 
-	streamResult.LogChan <- fmt.Sprintf("Successfully purged %d containers and cleaned database records", len(containers))
+	streamResult.LogChan <- fmt.Sprintf("Successfully purged %d containers and updated database states to stopped", len(containers))
 	return nil
 }
 
-func purgeNetworksFromDocker(ctx context.Context, dockerClient *client.Client, networks map[string]types.NetworkConfig, serviceID string, db pgx.Tx, generator *generator.NamingGenerator, streamResult *StreamingResult) error {
+func purgeNetworksFromDocker(ctx context.Context, dockerClient *client.Client, serviceID string, db pgx.Tx, streamResult *StreamingResult) error {
 	// Get all networks from database first
 	dbNetworks, err := repository.GetServiceNetworks(ctx, db, serviceID)
 	if err != nil {
@@ -167,11 +177,19 @@ func purgeNetworksFromDocker(ctx context.Context, dockerClient *client.Client, n
 		}
 	}
 
-	// Clean up database records after successful Docker operations
-	if err := repository.DeleteServiceNetworks(ctx, db, serviceID); err != nil {
-		return fmt.Errorf("failed to delete service networks from database: %w", err)
+	// Update database records to reflect removed state instead of deleting them
+	for _, dbNetwork := range dbNetworks {
+		// Update network record to show it's been removed
+		dbNetwork.NetworkID = nil // Clear Docker network ID since it no longer exists
+		dbNetwork.UpdatedAt = time.Now()
+
+		if err := repository.UpdateServiceNetwork(ctx, db, dbNetwork); err != nil {
+			streamResult.LogChan <- fmt.Sprintf("Failed to update network state for %s: %v", dbNetwork.NetworkName, err)
+			// Continue with other networks even if one fails
+			continue
+		}
 	}
 
-	streamResult.LogChan <- fmt.Sprintf("Successfully processed %d networks and cleaned database records", len(dbNetworks))
+	streamResult.LogChan <- fmt.Sprintf("Successfully processed %d networks and updated database states", len(dbNetworks))
 	return nil
 }

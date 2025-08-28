@@ -6,15 +6,16 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/compose/v2/pkg/compose"
+	"github.com/jackc/pgx/v5"
 )
 
 // stopComposeServicesWithDependencies stops all services with proper Docker Compose reverse dependency ordering
-func stopComposeServicesWithDependencies(ctx context.Context, cfg *DockerServiceConfig, project *types.Project, streamResult *StreamingResult) error {
+func stopComposeServicesWithDependencies(ctx context.Context, cfg *DockerServiceConfig, project *types.Project, streamResult *StreamingResult, db pgx.Tx) error {
 	streamResult.LogChan <- fmt.Sprintf("Stopping Docker Compose project: %s", project.Name)
 
 	// Step 1: Stop services in reverse dependency order using Docker Compose v2 API
 	serviceStopFunc := func(ctx context.Context, serviceName string) error {
-		return stopSingleServiceFromProject(ctx, cfg.Client, serviceName, project.Name, streamResult, cfg.Generator)
+		return stopSingleServiceFromProject(ctx, cfg.Client, serviceName, project.Name, streamResult, cfg.Generator, db, cfg.ServiceID)
 	}
 
 	// Use Docker Compose v2's InReverseDependencyOrder to stop services properly
