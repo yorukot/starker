@@ -54,8 +54,9 @@ type ServiceSourceGit struct {
 type ServiceContainer struct {
 	ID            string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the container record
 	ServiceID     string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
-	ContainerID   string    `json:"container_id" example:"abc123def456"`             // Docker container ID
+	ContainerID   *string   `json:"container_id,omitempty" example:"abc123def456"`   // Docker container ID
 	ContainerName string    `json:"container_name" example:"web-app-container"`      // Docker container name
+	State         string    `json:"state" example:"running"`                         // Container state
 	UpdatedAt     time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was last updated
 	CreatedAt     time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was created
 }
@@ -88,4 +89,24 @@ type ServiceVolume struct {
 	VolumeName string    `json:"volume_name" example:"my-app-data"`               // Docker volume name
 	UpdatedAt  time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the volume was last updated
 	CreatedAt  time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the volume was created
+}
+
+// ContainerEnvironment represents environment variables for containers
+type ContainerEnvironment struct {
+	ID          int64     `json:"id" example:"1"`                                  // Unique identifier for the environment variable
+	ContainerID string    `json:"container_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated container ID
+	Key         string    `json:"key" example:"DATABASE_URL"`                      // Environment variable key
+	Value       string    `json:"value" example:"postgres://..."`                 // Environment variable value
+	CreatedAt   time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was created
+	UpdatedAt   time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was last updated
+}
+
+// ServiceEnvironment represents environment variables for services
+type ServiceEnvironment struct {
+	ID        int64     `json:"id" example:"1"`                                  // Unique identifier for the environment variable
+	ServiceID string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
+	Key       string    `json:"key" example:"NODE_ENV"`                          // Environment variable key
+	Value     string    `json:"value" example:"production"`                      // Environment variable value
+	CreatedAt time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was created
+	UpdatedAt time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was last updated
 }

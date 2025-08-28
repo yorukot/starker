@@ -54,7 +54,7 @@
 		onSubmit: async (values) => {
 			try {
 				const response = await authPost(
-					`${PUBLIC_API_BASE_URL}/teams/${page.params.teamID}/projects/${page.params.projectID}/services`,
+					`${PUBLIC_API_BASE_URL}/teams/${page.params.teamID}/projects/${page.params.projectID}/services/compose`,
 					{
 						...values,
 						compose_file: composeContent

@@ -69,7 +69,7 @@ func syncContainersToDatabase(ctx context.Context, services types.Services, serv
 		container := models.ServiceContainer{
 			ID:            ksuid.New().String(), // Generate unique ID
 			ServiceID:     serviceID,
-			ContainerID:   "", // Will be populated when actual Docker container is created
+			ContainerID:   nil, // Will be populated when actual Docker container is created
 			ContainerName: containerName,
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
