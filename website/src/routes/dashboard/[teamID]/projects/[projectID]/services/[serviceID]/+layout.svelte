@@ -4,8 +4,8 @@
 	import { setContext } from 'svelte';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import ServiceQuickActions from '$lib/components/ServiceQuickActions.svelte';
-	import ServiceLogsSheet from '$lib/components/ServiceLogsSheet.svelte';
+	import ServiceQuickActions from '$lib/components/service-quick-actions.svelte';
+	import ServiceLogsSheet from '$lib/components/service-logs-sheet.svelte';
 	import type { Snippet } from 'svelte';
 	import type { Team } from '$lib/schemas/team';
 	import type { Project } from '$lib/schemas/project';

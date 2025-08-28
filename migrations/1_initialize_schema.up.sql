@@ -171,6 +171,7 @@ CREATE TABLE "public"."service_containers" (
     "service_id" character varying(27) NOT NULL,
     "container_id" text,
     "container_name" text NOT NULL,
+    "state" text NOT NULL,
     "updated_at" timestamp NOT NULL,
     "created_at" timestamp NOT NULL,
     PRIMARY KEY ("id")
@@ -206,6 +207,26 @@ CREATE TABLE "public"."service_volumes" (
     PRIMARY KEY ("id")
 );
 
+CREATE TABLE "public"."container_environments" (
+    "id" bigint NOT NULL,
+    "container_id" character varying(27) NOT NULL,
+    "key" text NOT NULL,
+    "value" text NOT NULL,
+    "created_at" timestamp NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE "public"."service_environments" (
+    "id" bigint NOT NULL,
+    "service_id" character varying(27) NOT NULL,
+    "key" text NOT NULL,
+    "value" text NOT NULL,
+    "created_at" timestamp NOT NULL,
+    "updated_at" timestamp NOT NULL,
+    PRIMARY KEY ("id")
+);
+
 -- Foreign key constraints
 -- Schema: public
 ALTER TABLE "public"."accounts" ADD CONSTRAINT "fk_accounts_user_id_users_id" FOREIGN KEY("user_id") REFERENCES "public"."users"("id");
@@ -230,3 +251,5 @@ ALTER TABLE "public"."service_containers" ADD CONSTRAINT "fk_service_containers_
 ALTER TABLE "public"."service_networks" ADD CONSTRAINT "fk_service_networks_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
 ALTER TABLE "public"."service_images" ADD CONSTRAINT "fk_service_images_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
 ALTER TABLE "public"."service_volumes" ADD CONSTRAINT "fk_service_volumes_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
+ALTER TABLE "public"."container_environments" ADD CONSTRAINT "fk_container_environments_container_id_service_containers_id" FOREIGN KEY("container_id") REFERENCES "public"."service_containers"("id");
+ALTER TABLE "public"."service_environments" ADD CONSTRAINT "fk_service_environments_service_id_services_id" FOREIGN KEY("service_id") REFERENCES "public"."services"("id");
