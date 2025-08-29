@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/starker/internal/handler/service/utils/dockerutils"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
@@ -73,16 +72,13 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 1: Stop the service if it's running
+	// Check if the service still running
 	if service.State == models.ServiceStateRunning || service.State == models.ServiceStateStarting {
-		err := h.stopServiceDockerResources(r.Context(), serviceID, teamID, projectID)
-		if err != nil {
-			zap.L().Error("Failed to stop service Docker resources", zap.Error(err))
-			// Continue with deletion even if Docker cleanup fails
-		}
+		response.RespondWithError(w, http.StatusBadRequest, "You need to stop the service before deleting it", "FAILED_TO_DELETE_SERVICE")
+		return
 	}
 
-	// Step 2: Delete all related database records in proper order
+	// Delete all related service data
 	err = h.deleteAllServiceData(r.Context(), tx, serviceID)
 	if err != nil {
 		zap.L().Error("Failed to delete service data", zap.Error(err))
@@ -94,27 +90,6 @@ func (h *ServiceHandler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	repository.CommitTransaction(tx, r.Context())
 
 	response.RespondWithJSON(w, http.StatusOK, nil)
-}
-
-// stopServiceDockerResources stops the service and cleans up Docker resources
-func (h *ServiceHandler) stopServiceDockerResources(ctx context.Context, serviceID, teamID, projectID string) error {
-	// Use the existing StopService functionality which handles proper cleanup
-	streamResult, err := dockerutils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
-	if err != nil {
-		return err
-	}
-
-	// Wait for the stop operation to complete
-	select {
-	case <-streamResult.DoneChan:
-		// Check if there was an error during the operation
-		if streamResult.FinalError != nil {
-			return streamResult.FinalError
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }
 
 // deleteAllServiceData deletes all service-related data from the database

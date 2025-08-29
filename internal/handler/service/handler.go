@@ -8,7 +8,8 @@ import (
 )
 
 type ServiceHandler struct {
-	DB         *pgxpool.Pool
-	DockerPool *connection.ConnectionPool
-	Tx         *pgx.Tx
+	DB             *pgxpool.Pool
+	ConnectionPool *connection.ConnectionPool
+	DockerPool     *connection.ConnectionPool
+	Tx             *pgx.Tx
 }

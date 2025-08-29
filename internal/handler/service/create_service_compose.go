@@ -10,7 +10,7 @@ import (
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/starker/internal/handler/service/utils/dockerutils"
+	"github.com/yorukot/starker/internal/core/dockersync"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
@@ -147,7 +147,7 @@ func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Req
 	}
 
 	// Create service container records in the database
-	if err := dockerutils.CreateServiceContainersToDatabase(r.Context(), tx, service.ID, composeProject, namingGenerator); err != nil {
+	if err := dockersync.SyncContainersToDB(r.Context(), tx, h.ConnectionPool, *namingGenerator, *composeProject); err != nil {
 		zap.L().Error("Failed to create service containers", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create service containers", "FAILED_TO_CREATE_SERVICE_CONTAINERS")
 		return

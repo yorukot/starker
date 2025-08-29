@@ -52,3 +52,14 @@ export const updateServiceComposeSchema = yup.object({
 });
 
 export type UpdateServiceComposeForm = yup.InferType<typeof updateServiceComposeSchema>;
+
+export const updateServiceBasicInfoSchema = yup.object({
+	name: yup
+		.string()
+		.required('Service name is required')
+		.min(1, 'Service name must be at least 1 character')
+		.max(100, 'Service name must be less than 100 characters'),
+	description: yup.string().max(500, 'Description must be less than 500 characters')
+});
+
+export type UpdateServiceBasicInfoForm = yup.InferType<typeof updateServiceBasicInfoSchema>;

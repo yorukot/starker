@@ -9,16 +9,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"go.uber.org/zap"
 
-	"github.com/yorukot/starker/internal/handler/service/utils/dockerutils"
+	"github.com/yorukot/starker/internal/core/dockerutils"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/pkg/dockeryaml"
+	"github.com/yorukot/starker/pkg/generator"
 	"github.com/yorukot/starker/pkg/response"
 )
 
@@ -108,7 +110,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Execute the service operation
-	result, err := h.executeServiceOperation(r.Context(), newState, serviceID, teamID, projectID)
+	result, err := h.executeServiceOperation(r.Context(), newState, service)
 	if err != nil {
 		zap.L().Error("Failed to execute service command", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to execute service command", "FAILED_TO_EXECUTE_COMMAND")
@@ -116,15 +118,15 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Update service to initial status before streaming
-	service.State = result.InitialStatus
+	service.State = models.ServiceStateStarting
 	if err := repository.UpdateService(r.Context(), *h.Tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
 		return
 	}
 
-	// Don't commit transaction yet - we need to wait for the operation to complete
-	h.streamServiceOutputWithUpdate(w, result, service, r.Context())
+	// Stream the operation with real-time updates
+	h.streamServiceOutputWithUpdate(r.Context(), w, result, service)
 }
 
 func checkStateIsRight(state models.ServiceState, newState string) bool {
@@ -140,108 +142,197 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 	}
 }
 
-// serviceOperationResult contains the result of a service operation
-type serviceOperationResult struct {
-	StreamResult  *dockerutils.StreamingResult
-	InitialStatus models.ServiceState
-	SuccessStatus models.ServiceState
-	FailureStatus models.ServiceState
-}
-
-// executeServiceOperation executes a service operation (start/stop/restart)
-func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation, serviceID, teamID, projectID string) (*serviceOperationResult, error) {
-	var streamResult *dockerutils.StreamingResult
-	var initialStatus, successStatus, failureStatus models.ServiceState
-	var err error
-
+// executeServiceOperation executes the Docker service operation and returns streaming result
+func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation string, service *models.Service) (*dockerutils.StreamingResult, error) {
 	switch operation {
 	case "start":
-		initialStatus = models.ServiceStateStarting
-		successStatus = models.ServiceStateRunning
-		failureStatus = models.ServiceStateStopped
-		streamResult, err = dockerutils.StartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
-	case "stop":
-		initialStatus = models.ServiceStateStopping
-		successStatus = models.ServiceStateStopped
-		failureStatus = models.ServiceStateRunning
-		streamResult, err = dockerutils.StopService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
-	case "restart":
-		initialStatus = models.ServiceStateRestarting
-		successStatus = models.ServiceStateRunning
-		failureStatus = models.ServiceStateStopped
-		streamResult, err = dockerutils.RestartService(ctx, serviceID, teamID, projectID, *h.Tx, h.DB, h.DockerPool)
+		return h.executeStartOperation(ctx, service)
 	default:
-		return nil, fmt.Errorf("invalid operation: %s", operation)
+		return nil, fmt.Errorf("unsupported operation: %s", operation)
 	}
+}
 
+// executeStartOperation handles the Docker compose start operation
+func (h *ServiceHandler) executeStartOperation(ctx context.Context, service *models.Service) (*dockerutils.StreamingResult, error) {
+	// Get the service compose configuration
+	composeConfig, err := repository.GetServiceComposeConfig(ctx, *h.Tx, service.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get service compose config: %w", err)
+	}
+	if composeConfig == nil {
+		return nil, fmt.Errorf("no compose configuration found for service")
 	}
 
-	return &serviceOperationResult{
-		StreamResult:  streamResult,
-		InitialStatus: initialStatus,
-		SuccessStatus: successStatus,
-		FailureStatus: failureStatus,
+	// Get server details for connection
+	server, err := repository.GetServerByID(ctx, *h.Tx, service.ServerID, service.TeamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server: %w", err)
+	}
+	if server == nil {
+		return nil, fmt.Errorf("server not found")
+	}
+
+	// Get private key for SSH connection
+	privateKey, err := repository.GetPrivateKeyByID(ctx, *h.Tx, server.PrivateKeyID, service.TeamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get private key: %w", err)
+	}
+	if privateKey == nil {
+		return nil, fmt.Errorf("private key not found")
+	}
+
+	// Parse the Docker Compose configuration
+	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID)
+	project, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, namingGenerator.ProjectName())
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse compose file: %w", err)
+	}
+
+	// Validate the compose project
+	if err := dockeryaml.Validate(project); err != nil {
+		return nil, fmt.Errorf("invalid compose configuration: %w", err)
+	}
+
+	// Get Docker client from connection pool
+	connectionID := namingGenerator.ConnectionID()
+	// Build SSH connection string
+	sshHost := fmt.Sprintf("%s@%s:%s", server.User, server.IP, server.Port)
+	dockerClient, err := h.ConnectionPool.GetDockerConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Docker connection: %w", err)
+	}
+
+	// Create streaming channels
+	streamChan := dockerutils.NewStreamChan()
+
+	// Create Docker handler
+	dockerHandler := &dockerutils.DockerHandler{
+		Client:          dockerClient,
+		Project:         project,
+		NamingGenerator: namingGenerator,
+		DB:              h.DB,
+		ConnectionPool:  h.ConnectionPool,
+		StreamChan:      streamChan,
+	}
+
+	// Start the Docker compose operation
+	err = dockerHandler.StartDockerCompose(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start Docker compose: %w", err)
+	}
+
+	// Return the streaming result
+	return &dockerutils.StreamingResult{
+		StreamChan: streamChan,
 	}, nil
 }
 
-// escapeJSONString escapes a string for safe inclusion in JSON
-func escapeJSONString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "\"", "\\\"")
-	s = strings.ReplaceAll(s, "\n", "\\n")
-	s = strings.ReplaceAll(s, "\r", "\\r")
-	s = strings.ReplaceAll(s, "\t", "\\t")
-	return s
-}
-
-// StreamServiceOutputWithUpdate streams service operation output via SSE and updates final status
-func (h *ServiceHandler) streamServiceOutputWithUpdate(w http.ResponseWriter, result *serviceOperationResult, service *models.Service, ctx context.Context) {
-	// Set up SSE headers
+// streamServiceOutputWithUpdate handles SSE streaming of Docker operation progress
+func (h *ServiceHandler) streamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, result *dockerutils.StreamingResult, service *models.Service) {
+	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
 
-	// Stream the command output via SSE in real-time
+	// Get flusher for real-time streaming
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		zap.L().Error("Streaming unsupported")
+		response.RespondWithError(w, http.StatusInternalServerError, "Streaming unsupported", "STREAMING_UNSUPPORTED")
+		return
+	}
+
+	// Send initial event
+	data, _ := json.Marshal(map[string]interface{}{
+		"message": "Starting Docker service",
+		"type":    "info",
+	})
+	fmt.Fprintf(w, "data: %s\n\n", data)
+	flusher.Flush()
+
+	// Stream the operation progress
 	for {
 		select {
-		case line, ok := <-result.StreamResult.LogChan:
-			if !ok {
-				continue
-			}
-			fmt.Fprintf(w, "data: {\"type\": \"log\", \"message\": \"%s\"}\n\n", escapeJSONString(line))
-			w.(http.Flusher).Flush()
-		case err, ok := <-result.StreamResult.ErrorChan:
-			if !ok {
-				continue
-			}
-			fmt.Fprintf(w, "data: {\"type\": \"error\", \"message\": \"%s\"}\n\n", escapeJSONString(err.Error()))
-			w.(http.Flusher).Flush()
-		case <-result.StreamResult.DoneChan:
-			// Command finished, determine final status
-			finalError := result.StreamResult.FinalError
-			if finalError != nil {
-				fmt.Fprintf(w, "data: {\"type\": \"error\", \"message\": \"%s\"}\n\n", escapeJSONString(finalError.Error()))
-				service.State = result.FailureStatus
-			} else {
-				service.State = result.SuccessStatus
+		case <-ctx.Done():
+			zap.L().Info("Client disconnected")
+			return
+
+		case logMsg := <-result.StreamChan.LogChan:
+			// Stream log message
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": logMsg.Message,
+				"type":    string(logMsg.Type),
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+
+		case errMsg := <-result.StreamChan.ErrChan:
+			// Stream error message
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": errMsg.Message,
+				"type":    string(errMsg.Type),
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+
+		case finalErr := <-result.StreamChan.FinalError:
+			// Operation failed - rollback transaction
+			zap.L().Error("Docker operation failed", zap.Error(finalErr))
+
+			// Update service state to stopped (rollback)
+			service.State = models.ServiceStateStopped
+			if updateErr := repository.UpdateService(ctx, *h.Tx, *service); updateErr != nil {
+				zap.L().Error("Failed to rollback service state", zap.Error(updateErr))
 			}
 
-			// Update final service status
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": fmt.Sprintf("Operation failed: %v", finalErr),
+				"type":    "error",
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+			return
+
+		case <-result.StreamChan.DoneChan:
+			// Operation completed successfully
+			zap.L().Info("Docker operation completed successfully")
+
+			// Update service state to running
+			service.State = models.ServiceStateRunning
+			service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 			if err := repository.UpdateService(ctx, *h.Tx, *service); err != nil {
-				zap.L().Error("Failed to update final service status", zap.Error(err))
-				fmt.Fprintf(w, "data: {\"type\": \"error\", \"message\": \"Failed to update service status\"}\n\n")
-				w.(http.Flusher).Flush()
+				zap.L().Error("Failed to update service state", zap.Error(err))
+				data, _ := json.Marshal(map[string]interface{}{
+					"message": "Failed to update service state in database",
+					"type":    "error",
+				})
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
 				return
 			}
 
-			// Commit transaction after successful service state update
-			repository.CommitTransaction(*h.Tx, ctx)
+			// Commit the transaction
+			if err := (*h.Tx).Commit(ctx); err != nil {
+				zap.L().Error("Failed to commit transaction", zap.Error(err))
+				data, _ := json.Marshal(map[string]interface{}{
+					"message": "Failed to commit database transaction",
+					"type":    "error",
+				})
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+				return
+			}
 
-			fmt.Fprintf(w, "data: {\"type\": \"status\", \"status\": \"completed\", \"final_state\": \"%s\"}\n\n", service.State)
-			w.(http.Flusher).Flush()
+			// Send success completion event
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": "Service started successfully",
+				"type":    "info",
+				"state":   "running",
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
 			return
 		}
 	}

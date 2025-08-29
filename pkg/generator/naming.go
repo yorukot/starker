@@ -27,6 +27,18 @@ func NewNamingGenerator(serviceID, teamID, serverID string) *NamingGenerator {
 	}
 }
 
+func (ng *NamingGenerator) ServiceID() string {
+	return ng.serviceID
+}
+
+func (ng *NamingGenerator) TeamID() string {
+	return ng.teamID
+}
+
+func (ng *NamingGenerator) ServerID() string {
+	return ng.serverID
+}
+
 func (ng *NamingGenerator) ProjectName() string {
 	sanitizedServiceID := sanitizeProjectName(ng.serviceID)
 	return fmt.Sprintf("%s-%s", StarkerPrefix, sanitizedServiceID)
