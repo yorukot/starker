@@ -49,6 +49,18 @@ func (ng *NamingGenerator) ContainerName(serviceName string) string {
 }
 
 func (ng *NamingGenerator) NetworkName(networkName string) string {
+	// if the networkName is something like: starker-31vheb9lcnpkqpnocoiks1twvtv_default
+	// remove the starker-31vheb9lcnpkqpnocoiks1twvtv_default part and just return the serviceID
+	// Format: {networkName}-{serviceID} to ensure network isolation between services
+
+	// Check if networkName contains the complex pattern with serviceID
+	starkerPrefix := fmt.Sprintf("%s-%s_", StarkerPrefix, strings.ToLower(ng.serviceID))
+	if strings.HasPrefix(networkName, starkerPrefix) {
+		// If it matches the complex pattern, just return the serviceID
+		return fmt.Sprintf("%s-%s", "default", ng.serviceID)
+	}
+
+	// Default case: simple networkName-serviceID format
 	return fmt.Sprintf("%s-%s", networkName, ng.serviceID)
 }
 

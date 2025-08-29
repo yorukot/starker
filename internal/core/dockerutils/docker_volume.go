@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/ksuid"
 
+	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
 )
@@ -20,10 +21,7 @@ func (dh *DockerHandler) StartDockerVolumes(ctx context.Context, tx pgx.Tx) erro
 		// Generate the docker volume name and create the Docker volume
 		volumeID, err := dh.StartDockerVolume(ctx, volume)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to start docker volume %s: %v", volume.Name, err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start docker volume %s: %v", volume.Name, err))
 			return err
 		}
 
@@ -39,19 +37,22 @@ func (dh *DockerHandler) StartDockerVolumes(ctx context.Context, tx pgx.Tx) erro
 
 		err = repository.CreateServiceVolume(ctx, tx, serviceVolume)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to save volume to database: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to save volume to database: %v", err))
 			return fmt.Errorf("failed to save volume %s to database: %w", volume.Name, err)
 		}
 
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: fmt.Sprintf("Volume %s created and saved successfully", volume.Name),
-		}
+		dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Volume %s created and saved successfully", volume.Name))
 	}
 	return nil
+}
+
+// checkVolumeExists checks if a Docker volume exists and returns its name
+func (dh *DockerHandler) checkVolumeExists(ctx context.Context, volumeName string) (string, bool) {
+	volumeResource, err := dh.Client.VolumeInspect(ctx, volumeName)
+	if err != nil {
+		return "", false
+	}
+	return volumeResource.Name, true
 }
 
 // StartDockerVolume creates a Docker volume and returns the volume ID
@@ -59,15 +60,18 @@ func (dh *DockerHandler) StartDockerVolume(ctx context.Context, volumeConfig typ
 	// Generate volume name using naming generator
 	volumeName := dh.NamingGenerator.VolumeName(volumeConfig.Name)
 
+	// Check if volume already exists
+	if existingName, exists := dh.checkVolumeExists(ctx, volumeName); exists {
+		dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Docker volume %s already exists, using existing volume", volumeName))
+		return existingName, nil
+	}
+
 	// Generate project name and labels
 	projectName := dh.NamingGenerator.ProjectName()
 	labels := dh.NamingGenerator.GetVolumeLabels(projectName, volumeConfig.Name)
 
 	// Log volume creation start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Creating Docker volume: %s", volumeName),
-	}
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Creating Docker volume: %s", volumeName))
 
 	// Prepare volume creation options
 	createOptions := dockervolume.CreateOptions{
@@ -80,18 +84,12 @@ func (dh *DockerHandler) StartDockerVolume(ctx context.Context, volumeConfig typ
 	// Create the Docker volume
 	dockerVolume, err := dh.Client.VolumeCreate(ctx, createOptions)
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to create Docker volume %s: %v", volumeName, err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker volume %s: %v", volumeName, err))
 		return "", fmt.Errorf("failed to create Docker volume %s: %w", volumeName, err)
 	}
 
 	// Log successful creation
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully created Docker volume: %s", dockerVolume.Name),
-	}
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully created Docker volume: %s", dockerVolume.Name))
 
 	return dockerVolume.Name, nil
 }

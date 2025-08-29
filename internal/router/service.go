@@ -35,11 +35,13 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 		r.Get("/{serviceID}/compose", serviceHandler.GetServiceCompose)
 		r.Patch("/{serviceID}/compose", serviceHandler.UpdateServiceCompose)
 
-		r.Get("/{serviceID}/env", serviceHandler.GetServiceEnvironments)
-		r.Post("/{serviceID}/env", serviceHandler.CreateServiceEnvironment)
-		r.Post("/{serviceID}/env/batch", serviceHandler.CreateServiceEnvironments)
-		r.Patch("/{serviceID}/env/{envID}", serviceHandler.UpdateServiceEnvironment)
-		r.Patch("/{serviceID}/env/batch", serviceHandler.UpdateServiceEnvironments)
-		r.Delete("/{serviceID}/env/{envID}", serviceHandler.DeleteServiceEnvironment)
+		r.Route("/{serviceID}/env", func(r chi.Router) {
+			r.Get("/", serviceHandler.GetServiceEnvironments)
+			r.Patch("/batch", serviceHandler.UpdateServiceEnvironments)
+		})
+
+		r.Route("/{serviceID}/logs/{container}", func(r chi.Router) {
+			// r.Get("/", serviceHandler.GetServiceLogs)
+		})
 	})
 }

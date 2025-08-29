@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/ksuid"
 
+	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
 )
@@ -42,10 +43,7 @@ func (dh *DockerHandler) PullDockerImages(ctx context.Context, tx pgx.Tx) error 
 		// Pull the Docker image
 		imageID, err := dh.PullDockerImage(ctx, imageName)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to pull docker image %s: %v", imageName, err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to pull docker image %s: %v", imageName, err))
 			return err
 		}
 
@@ -61,17 +59,11 @@ func (dh *DockerHandler) PullDockerImages(ctx context.Context, tx pgx.Tx) error 
 
 		err = repository.CreateServiceImage(ctx, tx, serviceImage)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to save image to database: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to save image to database: %v", err))
 			return fmt.Errorf("failed to save image %s to database: %w", imageName, err)
 		}
 
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: fmt.Sprintf("Image %s pulled and saved successfully", imageName),
-		}
+		dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Image %s pulled and saved successfully", imageName))
 	}
 	return nil
 }
@@ -79,10 +71,7 @@ func (dh *DockerHandler) PullDockerImages(ctx context.Context, tx pgx.Tx) error 
 // PullDockerImage pulls a specific Docker image with streaming progress
 func (dh *DockerHandler) PullDockerImage(ctx context.Context, imageName string) (imageID string, err error) {
 	// Log image pull start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Pulling Docker image: %s", imageName),
-	}
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Pulling Docker image: %s", imageName))
 
 	// Prepare image pull options
 	pullOptions := image.PullOptions{
@@ -93,10 +82,7 @@ func (dh *DockerHandler) PullDockerImage(ctx context.Context, imageName string) 
 	// Pull the Docker image
 	reader, err := dh.Client.ImagePull(ctx, imageName, pullOptions)
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to start pulling Docker image %s: %v", imageName, err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start pulling Docker image %s: %v", imageName, err))
 		return "", fmt.Errorf("failed to start pulling Docker image %s: %w", imageName, err)
 	}
 	defer reader.Close()
@@ -104,10 +90,7 @@ func (dh *DockerHandler) PullDockerImage(ctx context.Context, imageName string) 
 	// Stream the pull progress in real-time
 	err = dh.streamImagePullProgress(reader, imageName)
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed during image pull streaming: %v", err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed during image pull streaming: %v", err))
 		return "", fmt.Errorf("failed during image pull streaming: %w", err)
 	}
 
@@ -133,10 +116,7 @@ func (dh *DockerHandler) PullDockerImage(ctx context.Context, imageName string) 
 
 	// If we can't find by RepoTags, just return a generic success message
 	// This can happen with digests or other image references
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully pulled Docker image: %s", imageName),
-	}
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully pulled Docker image: %s", imageName))
 	return "pulled", nil
 }
 
@@ -167,26 +147,19 @@ func (dh *DockerHandler) streamImagePullProgress(reader io.ReadCloser, imageName
 			continue
 		}
 
-		// Determine log type based on status
-		logType := LogTypeInfo
+		// Determine log message based on status and send to appropriate channel
 		if strings.Contains(strings.ToLower(progress.Status), "error") {
-			logType = LogTypeError
+			dh.StreamChan.ErrChan <- core.LogError(message)
 		} else if strings.Contains(progress.Status, "Downloading") ||
 			strings.Contains(progress.Status, "Extracting") ||
 			strings.Contains(progress.Status, "Pulling") {
-			logType = LogStep
-		}
-
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    logType,
-			Message: message,
+			dh.StreamChan.LogChan <- core.LogStep(message)
+		} else {
+			dh.StreamChan.LogChan <- core.LogInfo(message)
 		}
 	}
 
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully pulled Docker image: %s", imageName),
-	}
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully pulled Docker image: %s", imageName))
 
 	return nil
 }

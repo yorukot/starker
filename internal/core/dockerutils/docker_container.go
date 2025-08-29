@@ -3,14 +3,17 @@ package dockerutils
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
 )
@@ -19,52 +22,37 @@ func (dh *DockerHandler) StartDockerContainers(ctx context.Context, tx pgx.Tx) e
 	// Resolve service dependencies and get ordered startup sequence
 	startupOrder, err := dh.resolveDependencyOrder()
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to resolve service dependencies: %v", err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to resolve service dependencies: %v", err))
 		return fmt.Errorf("failed to resolve service dependencies: %w", err)
 	}
 
 	// Log the resolved startup order
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Starting containers in dependency order: %v", startupOrder),
-	}
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Starting containers in dependency order: %v", startupOrder))
 
 	// Start containers in dependency-resolved order
 	for _, serviceName := range startupOrder {
 		service := dh.Project.Services[serviceName]
 
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: fmt.Sprintf("Starting service: %s", serviceName),
-		}
+		dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Starting service: %s", serviceName))
 
 		// Generate the docker container name and create the Docker container
 		containerID, err := dh.StartDockerContainer(ctx, serviceName, service)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to start docker container %s: %v", serviceName, err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start docker container %s: %v", serviceName, err))
 			return fmt.Errorf("failed to start docker container %s (dependency chain broken): %w", serviceName, err)
 		}
 
+		// Generate container name for database update
+		containerName := dh.NamingGenerator.ContainerName(serviceName)
+
 		// Update container state in database
-		err = dh.UpdateContainerState(ctx, tx, containerID, models.ContainerStateRunning)
+		err = dh.UpdateContainerState(ctx, tx, containerID, containerName, models.ContainerStateRunning)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to update container state in database: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to update container state in database: %v", err))
 			return fmt.Errorf("failed to update container %s state in database: %w", serviceName, err)
 		}
 
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: fmt.Sprintf("Container %s created and saved successfully", serviceName),
-		}
+		dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Container %s created and saved successfully", serviceName))
 	}
 	return nil
 }
@@ -74,15 +62,45 @@ func (dh *DockerHandler) StartDockerContainer(ctx context.Context, serviceName s
 	// Generate container name using naming generator
 	containerName := dh.NamingGenerator.ContainerName(serviceName)
 
+	// Check if a container with this name already exists
+	existingContainer, err := dh.checkExistingContainer(ctx, containerName)
+	if err != nil {
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to check for existing container %s: %v", containerName, err))
+		return "", fmt.Errorf("failed to check for existing container %s: %w", containerName, err)
+	}
+
+	// If container exists, handle it appropriately
+	if existingContainer != nil {
+		dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Found existing container %s in state: %s", containerName, existingContainer.State))
+
+		// Check if the existing container is from our service (has our labels)
+		serviceIDLabel, hasServiceLabel := existingContainer.Labels["starker.service.id"]
+		isOurContainer := hasServiceLabel && serviceIDLabel == dh.NamingGenerator.ServiceID()
+
+		if !isOurContainer {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Container %s exists but doesn't belong to our service (service.id: %s vs expected: %s)",
+				containerName, serviceIDLabel, dh.NamingGenerator.ServiceID()))
+			return "", fmt.Errorf("container %s exists but belongs to different service", containerName)
+		}
+
+		// If it's running and belongs to us, we might want to return its ID instead of creating a new one
+		if existingContainer.State == "running" {
+			dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Container %s is already running, using existing container", containerName))
+			return existingContainer.ID, nil
+		}
+
+		// If it's stopped, remove it so we can create a fresh one
+		if err := dh.removeExistingContainer(ctx, existingContainer); err != nil {
+			return "", fmt.Errorf("failed to remove existing container: %w", err)
+		}
+	}
+
 	// Generate project name and labels
 	projectName := dh.NamingGenerator.ProjectName()
 	labels := dh.NamingGenerator.GetServiceLabels(projectName, serviceName)
 
 	// Log container creation start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Creating Docker container: %s", containerName),
-	}
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Creating Docker container: %s", containerName))
 
 	// Prepare port bindings
 	portBindings := make(nat.PortMap)
@@ -168,39 +186,47 @@ func (dh *DockerHandler) StartDockerContainer(ctx context.Context, serviceName s
 	// Create the Docker container
 	resp, err := dh.Client.ContainerCreate(ctx, containerConfig, hostConfig, networkConfig, nil, containerName)
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to create Docker container %s: %v", containerName, err),
+		// If we get a name conflict error despite our checks, try one more time after cleanup
+		if strings.Contains(err.Error(), "already in use") || strings.Contains(err.Error(), "Conflict") {
+			dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Name conflict detected, performing additional cleanup for %s", containerName))
+
+			// Try to find and remove the conflicting container again
+			if conflictingContainer, checkErr := dh.checkExistingContainer(ctx, containerName); checkErr == nil && conflictingContainer != nil {
+				dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Found conflicting container %s, attempting removal", conflictingContainer.ID))
+
+				if removeErr := dh.removeExistingContainer(ctx, conflictingContainer); removeErr != nil {
+					dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to remove conflicting container %s: %v", containerName, removeErr))
+				} else {
+					// Retry container creation after cleanup
+					resp, err = dh.Client.ContainerCreate(ctx, containerConfig, hostConfig, networkConfig, nil, containerName)
+				}
+			}
 		}
-		return "", fmt.Errorf("failed to create Docker container %s: %w", containerName, err)
+
+		// If creation still fails, return the error
+		if err != nil {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker container %s: %v", containerName, err))
+			return "", fmt.Errorf("failed to create Docker container %s: %w", containerName, err)
+		}
 	}
 
 	// Start the container
 	err = dh.Client.ContainerStart(ctx, resp.ID, container.StartOptions{})
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to start Docker container %s: %v", containerName, err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start Docker container %s: %v", containerName, err))
 		return "", fmt.Errorf("failed to start Docker container %s: %w", containerName, err)
 	}
 
 	// Log successful creation and start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully created and started Docker container: %s", resp.ID),
-	}
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully created and started Docker container: %s", resp.ID))
 
 	return resp.ID, nil
 }
 
-// StopDockerContainer stops a Docker container and updates its state in the database
-func (dh *DockerHandler) StopDockerContainer(ctx context.Context, tx pgx.Tx, containerID, containerName string) error {
+// StopDockerContainer stops a Docker container with configurable removal option
+func (dh *DockerHandler) StopDockerContainer(ctx context.Context, tx pgx.Tx, containerID, containerName string, removeAfterStop bool) error {
 	// Log container stop start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Stopping Docker container: %s", containerName),
-	}
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Stopping Docker container: %s", containerName))
 
 	// Stop the Docker container
 	timeout := 30
@@ -208,27 +234,40 @@ func (dh *DockerHandler) StopDockerContainer(ctx context.Context, tx pgx.Tx, con
 		Timeout: &timeout,
 	})
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to stop Docker container %s: %v", containerName, err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop Docker container %s: %v", containerName, err))
 		return fmt.Errorf("failed to stop Docker container %s: %w", containerName, err)
 	}
 
-	// Update container state in database
-	err = dh.UpdateContainerState(ctx, tx, containerID, models.ContainerStateStopped)
-	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to update container state in database: %v", err),
-		}
-		return fmt.Errorf("failed to update container state in database: %w", err)
-	}
-
 	// Log successful stop
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully stopped Docker container: %s", containerName),
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully stopped Docker container: %s", containerName))
+
+	// Remove the container if requested (default behavior)
+	if removeAfterStop {
+		dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Removing Docker container: %s", containerName))
+
+		err = dh.Client.ContainerRemove(ctx, containerID, container.RemoveOptions{
+			Force: true,
+		})
+		if err != nil {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to remove Docker container %s: %v", containerName, err))
+			return fmt.Errorf("failed to remove Docker container %s: %w", containerName, err)
+		}
+
+		dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully removed Docker container: %s", containerName))
+
+		// Update container state to indicate it's removed
+		err = dh.UpdateContainerState(ctx, tx, containerID, containerName, models.ContainerStateStopped)
+		if err != nil {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to update container state in database: %v", err))
+			return fmt.Errorf("failed to update container state in database: %w", err)
+		}
+	} else {
+		// Update container state in database to stopped (but not removed)
+		err = dh.UpdateContainerState(ctx, tx, containerID, containerName, models.ContainerStateStopped)
+		if err != nil {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to update container state in database: %v", err))
+			return fmt.Errorf("failed to update container state in database: %w", err)
+		}
 	}
 
 	return nil
@@ -237,75 +276,142 @@ func (dh *DockerHandler) StopDockerContainer(ctx context.Context, tx pgx.Tx, con
 // RestartDockerContainer restarts a Docker container and updates its state in the database
 func (dh *DockerHandler) RestartDockerContainer(ctx context.Context, tx pgx.Tx, containerID, containerName string) error {
 	// Log container restart start
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogStep,
-		Message: fmt.Sprintf("Restarting Docker container: %s", containerName),
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Restarting Docker container: %s", containerName))
+
+	// First, verify the container still exists
+	existingContainer, err := dh.checkExistingContainer(ctx, containerName)
+	if err != nil {
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to check container %s before restart: %v", containerName, err))
+		return fmt.Errorf("failed to check container before restart: %w", err)
 	}
+
+	// If container doesn't exist, we can't restart it
+	if existingContainer == nil {
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Container %s not found, cannot restart", containerName))
+		return fmt.Errorf("container %s not found, cannot restart", containerName)
+	}
+
+	// Use the actual container ID from Docker (in case it changed)
+	actualContainerID := existingContainer.ID
 
 	// Restart the Docker container
 	timeout := 30
-	err := dh.Client.ContainerRestart(ctx, containerID, container.StopOptions{
+	err = dh.Client.ContainerRestart(ctx, actualContainerID, container.StopOptions{
 		Timeout: &timeout,
 	})
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to restart Docker container %s: %v", containerName, err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to restart Docker container %s: %v", containerName, err))
 		return fmt.Errorf("failed to restart Docker container %s: %w", containerName, err)
 	}
 
-	// Update container state in database
-	err = dh.UpdateContainerState(ctx, tx, containerID, models.ContainerStateRunning)
+	// Update container state in database with the actual container ID
+	err = dh.UpdateContainerState(ctx, tx, actualContainerID, containerName, models.ContainerStateRunning)
 	if err != nil {
-		dh.StreamChan.ErrChan <- LogMessage{
-			Type:    LogTypeError,
-			Message: fmt.Sprintf("Failed to update container state in database: %v", err),
-		}
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to update container state in database: %v", err))
 		return fmt.Errorf("failed to update container state in database: %w", err)
 	}
 
 	// Log successful restart
-	dh.StreamChan.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: fmt.Sprintf("Successfully restarted Docker container: %s", containerName),
-	}
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully restarted Docker container: %s", containerName))
 
 	return nil
 }
 
-// UpdateContainerState updates the state of a container in the database by service name
-func (dh *DockerHandler) UpdateContainerState(ctx context.Context, tx pgx.Tx, containerID string, state models.ContainerState) error {
-	// Get all service containers for this service
-	serviceContainers, err := repository.GetServiceContainers(ctx, tx, dh.NamingGenerator.ServiceID())
+// UpdateContainerState updates the state of a specific container in the database by container name
+func (dh *DockerHandler) UpdateContainerState(ctx context.Context, tx pgx.Tx, containerID, containerName string, state models.ContainerState) error {
+	// Get the specific service container by name
+	serviceContainer, err := repository.GetServiceContainerByName(ctx, tx, dh.NamingGenerator.ServiceID(), containerName)
 	if err != nil {
-		return fmt.Errorf("failed to get service containers from database: %w", err)
+		return fmt.Errorf("failed to get service container by name from database: %w", err)
 	}
 
-	// Update all containers for this service (usually just one)
-	updated := false
-	for _, serviceContainer := range serviceContainers {
-		// Update the container with the new ID and state
-		serviceContainer.ContainerID = &containerID
-		serviceContainer.State = state
-		serviceContainer.UpdatedAt = time.Now()
+	// Update the container with the new ID and state
+	serviceContainer.ContainerID = &containerID
+	serviceContainer.State = state
+	serviceContainer.UpdatedAt = time.Now()
 
-		err = repository.UpdateServiceContainer(ctx, tx, serviceContainer)
+	err = repository.UpdateServiceContainer(ctx, tx, *serviceContainer)
+	if err != nil {
+		return fmt.Errorf("failed to update container state in database: %w", err)
+	}
+
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Container %s state updated to %s in database", containerName, state))
+
+	return nil
+}
+
+// ContainerInfo holds information about an existing container
+type ContainerInfo struct {
+	ID     string
+	Name   string
+	State  string
+	Status string
+	Labels map[string]string
+}
+
+// checkExistingContainer checks if a container with the given name already exists
+func (dh *DockerHandler) checkExistingContainer(ctx context.Context, containerName string) (*ContainerInfo, error) {
+	// Create filter to find container by name
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", containerName)
+
+	// List containers (including stopped ones)
+	containers, err := dh.Client.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	// Check if any container matches exactly (Docker API returns partial matches)
+	for _, container := range containers {
+		for _, name := range container.Names {
+			// Container names start with '/' in Docker API
+			cleanName := strings.TrimPrefix(name, "/")
+			if cleanName == containerName {
+				return &ContainerInfo{
+					ID:     container.ID,
+					Name:   cleanName,
+					State:  container.State,
+					Status: container.Status,
+					Labels: container.Labels,
+				}, nil
+			}
+		}
+	}
+
+	return nil, nil
+}
+
+// removeExistingContainer removes a container if it exists
+func (dh *DockerHandler) removeExistingContainer(ctx context.Context, containerInfo *ContainerInfo) error {
+	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Removing existing container: %s (state: %s)", containerInfo.Name, containerInfo.State))
+
+	// Stop the container if it's running
+	if containerInfo.State == "running" {
+		dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Stopping running container: %s", containerInfo.Name))
+
+		timeout := 30
+		err := dh.Client.ContainerStop(ctx, containerInfo.ID, container.StopOptions{
+			Timeout: &timeout,
+		})
 		if err != nil {
-			return fmt.Errorf("failed to update container state in database: %w", err)
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop existing container %s: %v", containerInfo.Name, err))
+			return fmt.Errorf("failed to stop existing container %s: %w", containerInfo.Name, err)
 		}
-
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: fmt.Sprintf("Container state updated to %s in database", state),
-		}
-
-		updated = true
 	}
 
-	if !updated {
-		return fmt.Errorf("no containers found for service %s in database", dh.NamingGenerator.ServiceID())
+	// Remove the container
+	err := dh.Client.ContainerRemove(ctx, containerInfo.ID, container.RemoveOptions{
+		Force: true,
+	})
+	if err != nil {
+		dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to remove existing container %s: %v", containerInfo.Name, err))
+		return fmt.Errorf("failed to remove existing container %s: %w", containerInfo.Name, err)
 	}
+
+	dh.StreamChan.LogChan <- core.LogInfo(fmt.Sprintf("Successfully removed existing container: %s", containerInfo.Name))
 
 	return nil
 }
@@ -379,7 +485,7 @@ func buildDependencyGraph(services types.Services) map[string][]string {
 }
 
 // validateDependencies ensures all dependencies reference existing services
-func validateDependencies(graph map[string][]string, services types.Services) error {
+func validateDependencies(_ map[string][]string, services types.Services) error {
 	for serviceName, service := range services {
 		for dependency := range service.DependsOn {
 			if _, exists := services[dependency]; !exists {

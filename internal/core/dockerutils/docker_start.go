@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/core/dockersync"
 	"github.com/yorukot/starker/internal/repository"
 )
@@ -29,101 +30,65 @@ func (dh *DockerHandler) StartDockerCompose(ctx context.Context) error {
 		}()
 
 		// Log start of Docker orchestration
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Starting Docker orchestration",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Starting Docker orchestration")
 
 		// Use SyncContainersToDB to sync the container to db first
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Syncing containers to database",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Syncing containers to database")
 
 		err = dockersync.SyncContainersToDB(ctx, tx, dh.ConnectionPool, *dh.NamingGenerator, *dh.Project)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to sync containers to database: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to sync containers to database: %v", err))
 			dh.StreamChan.FinalError <- fmt.Errorf("failed to sync containers to database: %w", err)
 			return
 		}
 
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: "Successfully synced containers to database",
-		}
+		dh.StreamChan.LogChan <- core.LogInfo("Successfully synced containers to database")
 
 		// Pull the Docker images
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Starting image pull process",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Starting image pull process")
 
 		// +-------------------------------------------+
 		// |Start Docker Pull                          |
 		// +-------------------------------------------+
 		err = dh.PullDockerImages(ctx, tx)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to pull Docker images: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to pull Docker images: %v", err))
 			dh.StreamChan.FinalError <- fmt.Errorf("failed to pull Docker images: %w", err)
 			return
 		}
 
 		// Create Docker networks
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Creating Docker networks",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Creating Docker networks")
 
 		err = dh.StartDockerNetworks(ctx, tx)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to create Docker networks: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker networks: %v", err))
 			dh.StreamChan.FinalError <- fmt.Errorf("failed to create Docker networks: %w", err)
 			return
 		}
 
 		// Create Docker volumes
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Creating Docker volumes",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Creating Docker volumes")
 
 		// +-------------------------------------------+
 		// |Start Create Volume                        |
 		// +-------------------------------------------+
 		err = dh.StartDockerVolumes(ctx, tx)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to create Docker volumes: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker volumes: %v", err))
 			dh.StreamChan.FinalError <- fmt.Errorf("failed to create Docker volumes: %w", err)
 			return
 		}
 
 		// Create and start Docker containers
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogStep,
-			Message: "Creating and starting Docker containers",
-		}
+		dh.StreamChan.LogChan <- core.LogStep("Creating and starting Docker containers")
 
 		// +-------------------------------------------+
 		// |Start Docker Containers                    |
 		// +-------------------------------------------+
 		err = dh.StartDockerContainers(ctx, tx)
 		if err != nil {
-			dh.StreamChan.ErrChan <- LogMessage{
-				Type:    LogTypeError,
-				Message: fmt.Sprintf("Failed to start Docker containers: %v", err),
-			}
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start Docker containers: %v", err))
 			dh.StreamChan.FinalError <- fmt.Errorf("failed to start Docker containers: %w", err)
 			return
 		}
@@ -136,10 +101,7 @@ func (dh *DockerHandler) StartDockerCompose(ctx context.Context) error {
 		}
 
 		// Docker orchestration completed successfully
-		dh.StreamChan.LogChan <- LogMessage{
-			Type:    LogTypeInfo,
-			Message: "Docker orchestration completed successfully",
-		}
+		dh.StreamChan.LogChan <- core.LogInfo("Docker orchestration completed successfully")
 	}()
 
 	return nil
