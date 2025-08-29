@@ -10,6 +10,7 @@ import (
 	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/pkg/dockeryaml"
 )
 
 // StopDockerCompose stops the docker compose orchestration in a goroutine with streaming output
@@ -95,7 +96,7 @@ func (dh *DockerHandler) StopDockerContainers(ctx context.Context, tx pgx.Tx, se
 	}
 
 	// Get dependency order for proper stopping sequence (reverse order)
-	startupOrder, err := dh.resolveDependencyOrder()
+	startupOrder, err := dockeryaml.ResolveDependencyOrder(dh.Project.Services)
 	if err != nil {
 		// If we can't resolve dependencies, just stop containers as found
 		dh.StreamChan.LogChan <- core.LogStep("Unable to resolve dependency order, stopping containers in database order")

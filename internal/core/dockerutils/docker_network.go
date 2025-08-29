@@ -76,24 +76,6 @@ func (dh *DockerHandler) StartDockerNetwork(ctx context.Context, networkConfig t
 	// Log network creation start
 	dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Creating Docker network: %s", networkName))
 
-	// Convert IPAM configuration if present
-	var ipam *network.IPAM
-	if networkConfig.Ipam.Driver != "" || len(networkConfig.Ipam.Config) > 0 {
-		ipamConfig := make([]network.IPAMConfig, len(networkConfig.Ipam.Config))
-		for i, pool := range networkConfig.Ipam.Config {
-			ipamConfig[i] = network.IPAMConfig{
-				Subnet:     pool.Subnet,
-				IPRange:    pool.IPRange,
-				Gateway:    pool.Gateway,
-				AuxAddress: pool.AuxiliaryAddresses,
-			}
-		}
-		ipam = &network.IPAM{
-			Driver: networkConfig.Ipam.Driver,
-			Config: ipamConfig,
-		}
-	}
-
 	// Prepare network creation options
 	createOptions := network.CreateOptions{
 		Labels:     labels,
@@ -103,7 +85,6 @@ func (dh *DockerHandler) StartDockerNetwork(ctx context.Context, networkConfig t
 		Attachable: networkConfig.Attachable,
 		EnableIPv4: networkConfig.EnableIPv4,
 		EnableIPv6: networkConfig.EnableIPv6,
-		IPAM:       ipam,
 	}
 
 	// Create the Docker network

@@ -60,6 +60,9 @@ func (dh *DockerHandler) StartDockerCompose(ctx context.Context) error {
 		// Create Docker networks
 		dh.StreamChan.LogChan <- core.LogStep("Creating Docker networks")
 
+		// +-------------------------------------------+
+		// |Start Docker Networks                      |
+		// +-------------------------------------------+
 		err = dh.StartDockerNetworks(ctx, tx)
 		if err != nil {
 			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker networks: %v", err))

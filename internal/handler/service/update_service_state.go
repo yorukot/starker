@@ -164,24 +164,6 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation 
 	}
 }
 
-// executeStartOperation handles the Docker compose start operation
-func (h *ServiceHandler) executeStartOperation(ctx context.Context, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start the Docker compose operation
-	err = dockerHandler.StartDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start Docker compose: %w", err)
-	}
-
-	// Return the streaming result
-	return streamChan, nil
-}
-
 // setupDockerHandler handles the common setup logic for Docker operations
 func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models.Service) (*dockerutils.DockerHandler, *core.StreamChan, error) {
 	// Get the service compose configuration
@@ -246,6 +228,24 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models
 	}
 
 	return dockerHandler, &streamChan, nil
+}
+
+// executeStartOperation handles the Docker compose start operation
+func (h *ServiceHandler) executeStartOperation(ctx context.Context, service *models.Service) (*core.StreamChan, error) {
+	// Setup Docker handler and streaming
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, service)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start the Docker compose operation
+	err = dockerHandler.StartDockerCompose(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start Docker compose: %w", err)
+	}
+
+	// Return the streaming result
+	return streamChan, nil
 }
 
 // executeStopOperation handles the Docker compose stop operation

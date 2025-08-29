@@ -17,6 +17,7 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 	serviceHandler := service.ServiceHandler{
 		DB:             app.DB,
 		ConnectionPool: dockerPool,
+		DockerPool:     dockerPool,
 	}
 
 	r.Route("/teams/{teamID}/projects/{projectID}/services", func(r chi.Router) {
