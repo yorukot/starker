@@ -15,8 +15,9 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 	dockerPool := connection.NewConnectionPool(20*time.Minute, 1*time.Hour)
 
 	serviceHandler := service.ServiceHandler{
-		DB:         app.DB,
-		DockerPool: dockerPool,
+		DB:             app.DB,
+		ConnectionPool: dockerPool,
+		DockerPool:     dockerPool,
 	}
 
 	r.Route("/teams/{teamID}/projects/{projectID}/services", func(r chi.Router) {
@@ -26,7 +27,7 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 		r.Get("/{serviceID}", serviceHandler.GetService)
 
 		r.Post("/compose", serviceHandler.CreateServiceCompose)
-		r.Post("/git", serviceHandler.CreateServiceGit)
+		// r.Post("/git", serviceHandler.CreateServiceGit)
 
 		r.Patch("/{serviceID}/", serviceHandler.UpdateService)
 		r.Delete("/{serviceID}/", serviceHandler.DeleteService)
@@ -34,5 +35,14 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 
 		r.Get("/{serviceID}/compose", serviceHandler.GetServiceCompose)
 		r.Patch("/{serviceID}/compose", serviceHandler.UpdateServiceCompose)
+
+		r.Route("/{serviceID}/env", func(r chi.Router) {
+			r.Get("/", serviceHandler.GetServiceEnvironments)
+			r.Patch("/batch", serviceHandler.UpdateServiceEnvironments)
+		})
+
+		r.Route("/{serviceID}/logs/{container}", func(r chi.Router) {
+			// r.Get("/", serviceHandler.GetServiceLogs)
+		})
 	})
 }

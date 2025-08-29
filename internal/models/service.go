@@ -12,6 +12,15 @@ const (
 	ServiceStateRestarting ServiceState = "restarting"
 )
 
+type ContainerState string
+
+const (
+	ContainerStateRunning ContainerState = "running"
+	ContainerStateStopped ContainerState = "stopped"
+	ContainerStateRemoved ContainerState = "removed"
+	ContainerStateExited  ContainerState = "exited"
+)
+
 // Service represents a service definition with Docker containers
 type Service struct {
 	ID             string       `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`                      // Unique identifier for the service
@@ -52,13 +61,13 @@ type ServiceSourceGit struct {
 
 // ServiceContainer represents Docker containers associated with a service
 type ServiceContainer struct {
-	ID            string    `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the container record
-	ServiceID     string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
-	ContainerID   *string   `json:"container_id,omitempty" example:"abc123def456"`   // Docker container ID
-	ContainerName string    `json:"container_name" example:"web-app-container"`      // Docker container name
-	State         string    `json:"state" example:"running"`                         // Container state
-	UpdatedAt     time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was last updated
-	CreatedAt     time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was created
+	ID            string         `json:"id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`         // Unique identifier for the container record
+	ServiceID     string         `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
+	ContainerID   *string        `json:"container_id,omitempty" example:"abc123def456"`   // Docker container ID
+	ContainerName string         `json:"container_name" example:"web-app-container"`      // Docker container name
+	State         ContainerState `json:"state" example:"running"`                         // Container state
+	UpdatedAt     time.Time      `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container was last updated
+	CreatedAt     time.Time      `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the container were created
 }
 
 // ServiceImage represents Docker images associated with a service
@@ -93,12 +102,12 @@ type ServiceVolume struct {
 
 // ContainerEnvironment represents environment variables for containers
 type ContainerEnvironment struct {
-	ID          int64     `json:"id" example:"1"`                                  // Unique identifier for the environment variable
+	ID          int64     `json:"id" example:"1"`                                    // Unique identifier for the environment variable
 	ContainerID string    `json:"container_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated container ID
-	Key         string    `json:"key" example:"DATABASE_URL"`                      // Environment variable key
-	Value       string    `json:"value" example:"postgres://..."`                 // Environment variable value
-	CreatedAt   time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was created
-	UpdatedAt   time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`       // Timestamp when the environment variable was last updated
+	Key         string    `json:"key" example:"DATABASE_URL"`                        // Environment variable key
+	Value       string    `json:"value" example:"postgres://..."`                    // Environment variable value
+	CreatedAt   time.Time `json:"created_at" example:"2023-01-01T12:00:00Z"`         // Timestamp when the environment variable was created
+	UpdatedAt   time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`         // Timestamp when the environment variable was last updated
 }
 
 // ServiceEnvironment represents environment variables for services

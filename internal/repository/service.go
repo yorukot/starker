@@ -211,7 +211,7 @@ func DeleteServiceComposeConfig(ctx context.Context, db pgx.Tx, serviceID string
 // GetServiceContainers gets all containers for a service
 func GetServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) ([]models.ServiceContainer, error) {
 	query := `
-		SELECT id, service_id, container_id, container_name, created_at, updated_at
+		SELECT id, service_id, container_id, container_name, state, created_at, updated_at
 		FROM service_containers
 		WHERE service_id = $1
 		ORDER BY created_at DESC
@@ -230,6 +230,7 @@ func GetServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) ([]m
 			&container.ServiceID,
 			&container.ContainerID,
 			&container.ContainerName,
+			&container.State,
 			&container.CreatedAt,
 			&container.UpdatedAt,
 		)
@@ -242,17 +243,45 @@ func GetServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) ([]m
 	return containers, rows.Err()
 }
 
+// GetServiceContainerByName gets a specific container by service ID and container name
+func GetServiceContainerByName(ctx context.Context, db pgx.Tx, serviceID, containerName string) (*models.ServiceContainer, error) {
+	query := `
+		SELECT id, service_id, container_id, container_name, state, created_at, updated_at
+		FROM service_containers
+		WHERE service_id = $1 AND container_name = $2
+	`
+	var container models.ServiceContainer
+	err := db.QueryRow(ctx, query, serviceID, containerName).Scan(
+		&container.ID,
+		&container.ServiceID,
+		&container.ContainerID,
+		&container.ContainerName,
+		&container.State,
+		&container.CreatedAt,
+		&container.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("container not found")
+		}
+		return nil, err
+	}
+
+	return &container, nil
+}
+
 // CreateServiceContainer creates a new service container
 func CreateServiceContainer(ctx context.Context, db pgx.Tx, container models.ServiceContainer) error {
 	query := `
-		INSERT INTO service_containers (id, service_id, container_id, container_name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO service_containers (id, service_id, container_id, container_name, state, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 	_, err := db.Exec(ctx, query,
 		container.ID,
 		container.ServiceID,
 		container.ContainerID,
 		container.ContainerName,
+		container.State,
 		container.CreatedAt,
 		container.UpdatedAt,
 	)
@@ -263,6 +292,23 @@ func CreateServiceContainer(ctx context.Context, db pgx.Tx, container models.Ser
 func DeleteServiceContainers(ctx context.Context, db pgx.Tx, serviceID string) error {
 	query := `DELETE FROM service_containers WHERE service_id = $1`
 	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// UpdateServiceContainer updates an existing service container
+func UpdateServiceContainer(ctx context.Context, db pgx.Tx, container models.ServiceContainer) error {
+	query := `
+		UPDATE service_containers 
+		SET container_id = $1, container_name = $2, state = $3, updated_at = $4
+		WHERE id = $5
+	`
+	_, err := db.Exec(ctx, query,
+		container.ContainerID,
+		container.ContainerName,
+		container.State,
+		container.UpdatedAt,
+		container.ID,
+	)
 	return err
 }
 
@@ -387,6 +433,22 @@ func CreateServiceNetwork(ctx context.Context, db pgx.Tx, network models.Service
 func DeleteServiceNetworks(ctx context.Context, db pgx.Tx, serviceID string) error {
 	query := `DELETE FROM service_networks WHERE service_id = $1`
 	_, err := db.Exec(ctx, query, serviceID)
+	return err
+}
+
+// UpdateServiceNetwork updates an existing service network
+func UpdateServiceNetwork(ctx context.Context, db pgx.Tx, network models.ServiceNetwork) error {
+	query := `
+		UPDATE service_networks 
+		SET network_id = $1, network_name = $2, updated_at = $3
+		WHERE id = $4
+	`
+	_, err := db.Exec(ctx, query,
+		network.NetworkID,
+		network.NetworkName,
+		network.UpdatedAt,
+		network.ID,
+	)
 	return err
 }
 

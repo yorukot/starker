@@ -10,9 +10,12 @@ import (
 	"github.com/segmentio/ksuid"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/starker/internal/core/dockersync"
 	"github.com/yorukot/starker/internal/middleware"
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/pkg/dockeryaml"
+	"github.com/yorukot/starker/pkg/generator"
 	"github.com/yorukot/starker/pkg/response"
 )
 
@@ -124,6 +127,29 @@ func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Req
 	if err = repository.CreateServiceComposeConfig(r.Context(), tx, composeConfig); err != nil {
 		zap.L().Error("Failed to create compose config", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create compose config", "FAILED_TO_CREATE_COMPOSE_CONFIG")
+		return
+	}
+
+	// Generate the composeProject from the compose file
+	namingGenerator := generator.NewNamingGenerator(service.ID, teamID, server.ID)
+	composeProject, err := dockeryaml.ParseComposeContent(createServiceRequest.ComposeFile, namingGenerator.ProjectName())
+	if err != nil {
+		zap.L().Error("Failed to parse compose file", zap.Error(err))
+		response.RespondWithError(w, http.StatusBadRequest, "Invalid compose file", "INVALID_COMPOSE_FILE")
+		return
+	}
+
+	// Validate the compose file
+	if err := dockeryaml.Validate(composeProject); err != nil {
+		zap.L().Error("Compose file validation failed", zap.Error(err))
+		response.RespondWithError(w, http.StatusBadRequest, "Compose file validation failed", "COMPOSE_FILE_VALIDATION_FAILED")
+		return
+	}
+
+	// Create service container records in the database
+	if err := dockersync.SyncContainersToDB(r.Context(), tx, h.ConnectionPool, *namingGenerator, *composeProject); err != nil {
+		zap.L().Error("Failed to create service containers", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to create service containers", "FAILED_TO_CREATE_SERVICE_CONTAINERS")
 		return
 	}
 

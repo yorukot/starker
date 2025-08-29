@@ -30,7 +30,7 @@
 	let logMessages: Array<{
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status';
+		type: 'log' | 'error' | 'info' | 'status' | 'step';
 		message: string;
 	}> = $state([]);
 
@@ -97,7 +97,7 @@
 	}
 
 	// Add log message with timestamp and unique ID
-	function addLogMessage(type: 'log' | 'error' | 'info' | 'status', message: string) {
+	function addLogMessage(type: 'log' | 'error' | 'info' | 'status' | 'step', message: string) {
 		logMessages = [
 			...logMessages,
 			{
@@ -155,19 +155,23 @@
 								case 'error':
 									addLogMessage('error', data.message);
 									break;
-								case 'status':
-									if (data.status === 'completed') {
+								case 'step':
+									addLogMessage('log', data.message);
+									break;
+								case 'info':
+									// Check if this is a completion message (has state property)
+									if (data.state) {
 										if (service) {
-											service.state = data.final_state;
+											service.state = data.state;
 										}
 										addLogMessage(
 											'status',
-											`Operation completed. Service state: ${data.final_state}`
+											`Operation completed. Service state: ${data.state}`
 										);
 										quickActionsRef?.resetStates();
 										return;
 									} else {
-										addLogMessage('status', data.message || `Status: ${data.status}`);
+										addLogMessage('info', data.message);
 									}
 									break;
 								default:
@@ -195,19 +199,23 @@
 							case 'error':
 								addLogMessage('error', data.message);
 								break;
-							case 'status':
-								if (data.status === 'completed') {
+							case 'step':
+								addLogMessage('log', data.message);
+								break;
+							case 'info':
+								// Check if this is a completion message (has state property)
+								if (data.state) {
 									if (service) {
-										service.state = data.final_state;
+										service.state = data.state;
 									}
 									addLogMessage(
 										'status',
-										`Operation completed. Service state: ${data.final_state}`
+										`Operation completed. Service state: ${data.state}`
 									);
 									quickActionsRef?.resetStates();
 									return;
 								} else {
-									addLogMessage('status', data.message || `Status: ${data.status}`);
+									addLogMessage('info', data.message);
 								}
 								break;
 							default:

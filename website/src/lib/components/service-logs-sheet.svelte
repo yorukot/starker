@@ -5,7 +5,7 @@
 	interface LogMessage {
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status';
+		type: 'log' | 'error' | 'info' | 'status' | 'step';
 		message: string;
 	}
 
@@ -29,6 +29,8 @@
 				return 'text-secondary-foreground bg-secondary/10 border-l-secondary';
 			case 'status':
 				return 'text-foreground bg-primary/10 border-l-primary';
+			case 'step':
+				return 'text-blue-700 bg-blue-50 border-l-blue-500 dark:text-blue-300 dark:bg-blue-950/50 dark:border-l-blue-400';
 			default:
 				return 'text-muted-foreground bg-muted/50 border-l-border';
 		}
