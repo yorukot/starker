@@ -1,3 +1,5 @@
+// I HAVE NO IDEA HOW DOES THIS WORKS BUT IT WORKS @yorukot
+
 package dockeryaml
 
 import (

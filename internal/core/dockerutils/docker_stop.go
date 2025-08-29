@@ -44,21 +44,17 @@ func (dh *DockerHandler) StopDockerCompose(ctx context.Context) error {
 			return
 		}
 
-		if len(serviceContainers) == 0 {
-			dh.StreamChan.LogChan <- core.LogInfo("No containers found to stop")
-		} else {
-			// Stop containers in reverse dependency order (dependents first, dependencies last)
-			dh.StreamChan.LogChan <- core.LogStep("Stopping Docker containers")
+		// Stop containers in reverse dependency order (dependents first, dependencies last)
+		dh.StreamChan.LogChan <- core.LogStep("Stopping Docker containers")
 
-			// +-------------------------------------------+
-			// |Stop Docker Containers                    |
-			// +-------------------------------------------+
-			err = dh.StopDockerContainers(ctx, tx, serviceContainers)
-			if err != nil {
-				dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop Docker containers: %v", err))
-				dh.StreamChan.FinalError <- fmt.Errorf("failed to stop Docker containers: %w", err)
-				return
-			}
+		// +-------------------------------------------+
+		// |Stop Docker Containers                    |
+		// +-------------------------------------------+
+		err = dh.StopDockerContainers(ctx, tx, serviceContainers)
+		if err != nil {
+			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop Docker containers: %v", err))
+			dh.StreamChan.FinalError <- fmt.Errorf("failed to stop Docker containers: %w", err)
+			return
 		}
 
 		// Remove Docker networks
@@ -91,26 +87,15 @@ func (dh *DockerHandler) StopDockerCompose(ctx context.Context) error {
 // StopDockerContainers stops and removes all Docker containers for the service in reverse dependency order
 func (dh *DockerHandler) StopDockerContainers(ctx context.Context, tx pgx.Tx, serviceContainers []models.ServiceContainer) error {
 	if len(serviceContainers) == 0 {
-		dh.StreamChan.LogChan <- core.LogInfo("No containers found to stop")
+		dh.StreamChan.LogInfo("No containers found to stop")
 		return nil
 	}
 
 	// Get dependency order for proper stopping sequence (reverse order)
 	startupOrder, err := dockeryaml.ResolveDependencyOrder(dh.Project.Services)
 	if err != nil {
-		// If we can't resolve dependencies, just stop containers as found
-		dh.StreamChan.LogChan <- core.LogStep("Unable to resolve dependency order, stopping containers in database order")
-
-		for _, serviceContainer := range serviceContainers {
-			if serviceContainer.ContainerID != nil && serviceContainer.State != models.ContainerStateStopped && serviceContainer.State != models.ContainerStateRemoved {
-				err := dh.StopDockerContainer(ctx, tx, *serviceContainer.ContainerID, serviceContainer.ContainerName, true)
-				if err != nil {
-					dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop and remove container %s: %v", serviceContainer.ContainerName, err))
-					// Continue with other containers even if one fails
-					continue
-				}
-			}
-		}
+		zap.L().Error("Unable to resolve dependency order, stopping containers in database order", zap.Error(err))
+		dh.StreamChan.LogStep("Unable to resolve dependency order, stopping containers in database order")
 		return nil
 	}
 
@@ -135,26 +120,25 @@ func (dh *DockerHandler) StopDockerContainers(ctx context.Context, tx pgx.Tx, se
 		}
 
 		if targetContainer == nil {
-			dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("No container found for service %s, skipping", serviceName))
+			dh.StreamChan.LogStep(fmt.Sprintf("No container found for service %s, skipping", serviceName))
 			continue
 		}
 
 		if targetContainer.ContainerID == nil {
-			dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Container %s has no Docker ID, skipping", targetContainer.ContainerName))
+			dh.StreamChan.LogStep(fmt.Sprintf("Container %s has no Docker ID, skipping", targetContainer.ContainerName))
 			continue
 		}
 
 		if targetContainer.State == models.ContainerStateStopped || targetContainer.State == models.ContainerStateRemoved {
-			dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Container %s is already stopped, skipping", targetContainer.ContainerName))
+			dh.StreamChan.LogStep(fmt.Sprintf("Container %s is already stopped, skipping", targetContainer.ContainerName))
 			continue
 		}
 
-		dh.StreamChan.LogChan <- core.LogStep(fmt.Sprintf("Stopping and removing service: %s", serviceName))
+		dh.StreamChan.LogStep(fmt.Sprintf("Stopping and removing service: %s", serviceName))
 
 		err := dh.StopDockerContainer(ctx, tx, *targetContainer.ContainerID, targetContainer.ContainerName, true)
 		if err != nil {
 			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to stop and remove container %s: %v", targetContainer.ContainerName, err))
-			// Continue with other containers even if one fails
 			continue
 		}
 

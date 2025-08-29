@@ -15,28 +15,10 @@ func (dh *DockerHandler) RestartDockerCompose(ctx context.Context) error {
 	// Start Docker restart orchestration in a goroutine for streaming
 	go func() {
 		// Log start of Docker restart orchestration
-		dh.StreamChan.LogChan <- core.LogStep("Starting Docker restart orchestration")
-
-		// Create a channel to monitor stop completion
-		stopCompleted := make(chan bool, 1)
-		stopError := make(chan error, 1)
-
-		// Monitor the stop operation
-		go func() {
-			for {
-				select {
-				case <-dh.StreamChan.DoneChan:
-					stopCompleted <- true
-					return
-				case err := <-dh.StreamChan.FinalError:
-					stopError <- err
-					return
-				}
-			}
-		}()
+		dh.StreamChan.LogStep("Starting Docker restart orchestration")
 
 		// Phase 1: Stop everything
-		dh.StreamChan.LogChan <- core.LogStep("Phase 1: Stopping and removing existing resources")
+		dh.StreamChan.LogStep("Stopping and removing existing resources")
 
 		err := dh.StopDockerCompose(ctx)
 		if err != nil {
@@ -45,18 +27,8 @@ func (dh *DockerHandler) RestartDockerCompose(ctx context.Context) error {
 			return
 		}
 
-		// Wait for stop to complete
-		select {
-		case <-stopCompleted:
-			dh.StreamChan.LogChan <- core.LogInfo("Stop phase completed successfully")
-		case err := <-stopError:
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed during stop phase: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed during stop phase: %w", err)
-			return
-		}
-
 		// Phase 2: Start everything fresh
-		dh.StreamChan.LogChan <- core.LogStep("Phase 2: Starting fresh orchestration")
+		dh.StreamChan.LogStep("Starting fresh orchestration")
 
 		err = dh.StartDockerCompose(ctx)
 		if err != nil {
