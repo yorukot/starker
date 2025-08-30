@@ -5,6 +5,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import LucideLoader2 from '~icons/lucide/loader-2';
 	import LucideSave from '~icons/lucide/save';
+	import FileCodeIcon from '~icons/lucide/file-code';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { createForm } from 'felte';
@@ -79,7 +80,7 @@
 	});
 </script>
 
-<div class="mt-6 flex flex-col gap-6">
+<div class="flex h-full flex-col gap-6 p-6">
 	{#if error}
 		<Alert.Root variant="destructive">
 			<Alert.Description>
@@ -87,18 +88,26 @@
 			</Alert.Description>
 		</Alert.Root>
 	{:else}
+		<!-- Header -->
+		<div class="flex items-center gap-3">
+			<div class="rounded-lg border border-primary/20 bg-primary/10 p-3">
+				<FileCodeIcon class="h-6 w-6 text-primary" />
+			</div>
+			<div>
+				<h1 class="text-2xl font-semibold text-foreground">Docker Compose</h1>
+				<p class="text-sm text-muted-foreground">
+					Edit your multi-container application configuration using Docker Compose YAML
+				</p>
+			</div>
+		</div>
 		<!-- Form -->
 		<form use:form class="space-y-6">
 			<Card.Root>
-				<Card.Header>
-					<Card.Title>Docker Compose Configuration</Card.Title>
-					<Card.Description>
-						Edit your multi-container application configuration using Docker Compose YAML
-					</Card.Description>
-				</Card.Header>
 				<Card.Content class="space-y-4">
-					<div class="space-y-2">
+					<div class="flex items-center justify-between">
 						<Label>Compose File Content *</Label>
+					</div>
+					<div class="space-y-2">
 						<div class={$errors.compose_file ? 'border-destructive' : ''}>
 							<CodeEditor
 								bind:value={composeContent}

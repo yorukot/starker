@@ -20,7 +20,12 @@
 	let dialogOpen = $state(false);
 	let serverError = $state('');
 
-	const { form: deleteForm, errors: deleteErrors, isSubmitting: isDeleting, reset } = createForm<DeleteTeamForm>({
+	const {
+		form: deleteForm,
+		errors: deleteErrors,
+		isSubmitting: isDeleting,
+		reset
+	} = createForm<DeleteTeamForm>({
 		extend: validator({
 			schema: deleteTeamSchema,
 			castValues: false

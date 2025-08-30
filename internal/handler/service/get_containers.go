@@ -46,7 +46,6 @@ func (h *ServiceHandler) GetContainers(w http.ResponseWriter, r *http.Request) {
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team
@@ -62,7 +61,7 @@ func (h *ServiceHandler) GetContainers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify service exists and belongs to the team/project
-	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
+	service, err := repository.GetServiceByID(r.Context(), tx, serviceID, teamID, projectID)
 	if err != nil {
 		zap.L().Error("Failed to find service", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to find service", "FAILED_TO_FIND_SERVICE")
@@ -74,7 +73,7 @@ func (h *ServiceHandler) GetContainers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get service containers
-	containers, err := repository.GetServiceContainers(r.Context(), *h.Tx, serviceID)
+	containers, err := repository.GetServiceContainers(r.Context(), tx, serviceID)
 	if err != nil {
 		zap.L().Error("Failed to get service containers", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get service containers", "FAILED_TO_GET_SERVICE_CONTAINERS")

@@ -76,6 +76,13 @@
 		}
 	});
 
+	// Computed trigger content for select
+	const selectedKeyName = $derived(
+		$formData.private_key_id
+			? (privateKeys.find((k) => k.id === $formData.private_key_id)?.name ?? 'Select an SSH key')
+			: 'Select an SSH key'
+	);
+
 	function goBack() {
 		goto(`/dashboard/${page.params.teamID}/servers`);
 	}
@@ -196,21 +203,21 @@
 				<Label for="private_key_id">SSH Key *</Label>
 				<Select.Root type="single" bind:value={$formData.private_key_id}>
 					<Select.Trigger class="w-full {$errors.private_key_id ? 'border-destructive' : ''}">
-						{$formData.private_key_id
-							? privateKeys.find((k) => k.id === $formData.private_key_id)?.name
-							: 'Select an SSH key'}
+						{selectedKeyName}
 					</Select.Trigger>
 					<Select.Content>
-						{#each privateKeys as key (key.id)}
-							<Select.Item value={key.id} label={key.name}>
-								<div class="flex flex-col">
-									<div class="font-medium">{key.name}</div>
-									{#if key.description}
-										<div class="text-xs text-muted-foreground">{key.description}</div>
-									{/if}
-								</div>
-							</Select.Item>
-						{/each}
+						<Select.Group>
+							{#each privateKeys as key (key.id)}
+								<Select.Item value={key.id} label={key.name}>
+									<div class="flex flex-col">
+										<div class="font-medium">{key.name}</div>
+										{#if key.description}
+											<div class="text-xs text-muted-foreground">{key.description}</div>
+										{/if}
+									</div>
+								</Select.Item>
+							{/each}
+						</Select.Group>
 					</Select.Content>
 				</Select.Root>
 				<input type="hidden" name="private_key_id" value={$formData.private_key_id} />

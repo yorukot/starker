@@ -44,7 +44,6 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team
@@ -60,7 +59,7 @@ func (h *ServiceHandler) GetServices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get services
-	services, err := repository.GetServices(r.Context(), *h.Tx, teamID, projectID)
+	services, err := repository.GetServices(r.Context(), tx, teamID, projectID)
 	if err != nil {
 		zap.L().Error("Failed to get services", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get services", "FAILED_TO_GET_SERVICES")

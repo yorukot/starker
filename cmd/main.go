@@ -6,9 +6,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/joho/godotenv/autoload"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"go.uber.org/zap"
 
+	_ "github.com/yorukot/starker/docs"
 	"github.com/yorukot/starker/internal/config"
 	"github.com/yorukot/starker/internal/database"
 	"github.com/yorukot/starker/internal/handler"
@@ -16,11 +20,6 @@ import (
 	"github.com/yorukot/starker/internal/router"
 	"github.com/yorukot/starker/pkg/logger"
 	"github.com/yorukot/starker/pkg/response"
-
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/joho/godotenv/autoload"
-	_ "github.com/yorukot/starker/docs"
 )
 
 // @title starker Go API Template
@@ -70,8 +69,8 @@ func main() {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://" + config.Env().FrontendDomain, "https://" + config.Env().FrontendDomain},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Cache-Control", "DNT", "User-Agent", "Referer", "Sec-CH-UA", "Sec-CH-UA-Mobile", "Sec-CH-UA-Platform", "Sec-Fetch-Dest", "Sec-Fetch-Mode", "Sec-Fetch-Site"},
+		ExposedHeaders:   []string{"Link", "Cache-Control", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))

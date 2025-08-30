@@ -2,6 +2,7 @@
 	import { EditorView, basicSetup } from 'codemirror';
 	import { EditorState } from '@codemirror/state';
 	import { yaml } from '@codemirror/lang-yaml';
+	import { toml } from '@codemirror/legacy-modes/mode/toml';
 	import { StreamLanguage } from '@codemirror/language';
 	import { properties } from '@codemirror/legacy-modes/mode/properties';
 	import { oneDark } from '@codemirror/theme-one-dark';
@@ -12,7 +13,7 @@
 		placeholder?: string;
 		readonly?: boolean;
 		class?: string;
-		language?: 'yaml' | 'env';
+		language?: 'yaml' | 'env' | 'toml' | any;
 	}
 
 	let {
@@ -27,8 +28,15 @@
 	let editorView: EditorView;
 
 	onMount(() => {
-		const langExtension = language === 'env' ? StreamLanguage.define(properties) : yaml();
-		
+		let langExtension;
+		if (language === 'yaml') {
+			langExtension = yaml();
+		} else if (language === 'toml') {
+			langExtension = StreamLanguage.define(toml);
+		} else {
+      langExtension = StreamLanguage.define(properties);
+		}
+
 		const startState = EditorState.create({
 			doc: value,
 			extensions: [

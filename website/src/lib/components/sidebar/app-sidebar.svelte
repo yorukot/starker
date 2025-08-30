@@ -34,31 +34,31 @@
 				title: 'Projects',
 				url: `/dashboard/${teamID}/projects`,
 				icon: LucideFolderOpen,
-				isActive: page.url.pathname.includes(`projects`)
+				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/projects`)
 			},
 			{
 				title: 'Servers',
 				url: `/dashboard/${teamID}/servers`,
 				icon: LucideServer,
-				isActive: page.url.pathname.includes(`servers`)
+				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/servers`)
 			},
 			{
 				title: 'Keys',
 				url: `/dashboard/${teamID}/keys`,
 				icon: LucideKeyRound,
-				isActive: page.url.pathname.includes(`keys`)
+				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/keys`)
 			},
 			{
 				title: 'Settings',
 				url: `/dashboard/${teamID}/settings`,
 				icon: LucideSettings,
-				isActive: page.url.pathname.includes(`settings`)
+				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/settings`)
 			},
 			{
 				title: 'Teams',
 				url: `/dashboard/${teamID}/teams`,
 				icon: LucideUsers,
-				isActive: page.url.pathname.includes(`teams`)
+				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/teams`)
 			}
 		]
 	});

@@ -18,7 +18,12 @@
 
 	let serverError = $state('');
 
-	const { form: updateForm, errors: updateErrors, isSubmitting: isUpdating, setFields } = createForm<TeamSettingsForm>({
+	const {
+		form: updateForm,
+		errors: updateErrors,
+		isSubmitting: isUpdating,
+		setFields
+	} = createForm<TeamSettingsForm>({
 		extend: validator({ schema: teamSettingsSchema }),
 		initialValues: {
 			name: team.name

@@ -26,7 +26,7 @@ type updateServiceEnvironmentItem struct {
 }
 
 type updateServiceEnvironmentsRequest struct {
-	Environments []updateServiceEnvironmentItem `json:"environments" validate:"required,min=1,dive"`
+	Environments []updateServiceEnvironmentItem `json:"environments" validate:"required,dive"`
 }
 
 // UpdateServiceEnvironments godoc
@@ -150,7 +150,7 @@ func (h *ServiceHandler) UpdateServiceEnvironments(w http.ResponseWriter, r *htt
 		if _, exists := existingEnvMap[key]; !exists {
 			if requestItem.Value != nil {
 				newEnv := models.ServiceEnvironment{
-					ID: ksuid.New().String(),
+					ID:        ksuid.New().String(),
 					ServiceID: serviceID,
 					Key:       key,
 					Value:     *requestItem.Value,

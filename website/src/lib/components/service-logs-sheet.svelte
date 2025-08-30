@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Sheet from '$lib/components/ui/sheet';
 	import TerminalIcon from '~icons/lucide/terminal';
+	import LogsViewer from './logs-viewer.svelte';
 
 	interface LogMessage {
 		id: string;
@@ -16,34 +17,6 @@
 	}
 
 	let { open = $bindable(), messages, onOpenChange }: Props = $props();
-	let logContainer: HTMLDivElement;
-
-	// Get CSS classes for different log message types using shadcn design tokens
-	function getLogMessageClass(type: string) {
-		switch (type) {
-			case 'log':
-				return 'text-foreground bg-foreground/10 border-l-foreground/50';
-			case 'error':
-				return 'text-foreground/80 bg-destructive/10 border-l-destructive';
-			case 'info':
-				return 'text-secondary-foreground bg-secondary/10 border-l-secondary';
-			case 'status':
-				return 'text-foreground bg-primary/10 border-l-primary';
-			case 'step':
-				return 'text-blue-700 bg-blue-50 border-l-blue-500 dark:text-blue-300 dark:bg-blue-950/50 dark:border-l-blue-400';
-			default:
-				return 'text-muted-foreground bg-muted/50 border-l-border';
-		}
-	}
-
-	// Auto-scroll to bottom when new messages arrive
-	$effect(() => {
-		if (messages.length > 0 && logContainer) {
-			setTimeout(() => {
-				logContainer.scrollTop = logContainer.scrollHeight;
-			}, 10);
-		}
-	});
 
 	function handleOpenChange(newOpen: boolean) {
 		open = newOpen;
@@ -65,38 +38,11 @@
 		</Sheet.Header>
 
 		<div class="mt-4 flex-1 overflow-hidden">
-			<div
-				bind:this={logContainer}
-				class="h-[calc(100vh-200px)] space-y-1 overflow-y-auto rounded-lg border bg-background p-3"
-			>
-				{#each messages as log (log.id)}
-					<div
-						class="rounded-r border-l-4 py-2 pl-3 transition-colors {getLogMessageClass(log.type)}"
-					>
-						<div class="flex items-start gap-3 text-sm min-w-0">
-							<span class="mt-0.5 min-w-[70px] font-mono text-xs text-muted-foreground">
-								{log.timestamp}
-							</span>
-							<span class="mt-0.5 min-w-[60px] text-xs font-medium tracking-wide uppercase">
-								{log.type}
-							</span>
-							<span class="flex-1 font-mono leading-5 break-words whitespace-pre-wrap word-break overflow-wrap-anywhere">
-								{log.message}
-							</span>
-						</div>
-					</div>
-				{/each}
-
-				{#if messages.length === 0}
-					<div class="flex h-full items-center justify-center text-muted-foreground">
-						<div class="space-y-2 text-center">
-							<TerminalIcon class="mx-auto h-12 w-12 opacity-50" />
-							<p class="font-medium">No logs yet</p>
-							<p class="text-sm text-muted-foreground">Service operation logs will appear here</p>
-						</div>
-					</div>
-				{/if}
-			</div>
+			<LogsViewer
+				{messages}
+				description="Service operation logs will appear here"
+				class="h-[calc(100vh-200px)]"
+			/>
 		</div>
 	</Sheet.Content>
 </Sheet.Root>

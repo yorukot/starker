@@ -27,8 +27,8 @@ func (dh *DockerHandler) StartDockerVolumes(ctx context.Context, tx pgx.Tx) erro
 
 		// Create the volume record in database
 		serviceVolume := models.ServiceVolume{
-			ID:         ksuid.New().String(),
-			ServiceID:  dh.NamingGenerator.ServiceID(),
+			ID:        ksuid.New().String(),
+			ServiceID: dh.NamingGenerator.ServiceID(),
 			// FIXME:Note this only have volume name and the id will never be have see https://docs.docker.com/engine/storage/volumes
 			VolumeID:   &volumeID,
 			VolumeName: dh.NamingGenerator.VolumeName(volume.Name),

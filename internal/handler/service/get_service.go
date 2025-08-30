@@ -46,7 +46,6 @@ func (h *ServiceHandler) GetService(w http.ResponseWriter, r *http.Request) {
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team
@@ -62,7 +61,7 @@ func (h *ServiceHandler) GetService(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get service by ID
-	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
+	service, err := repository.GetServiceByID(r.Context(), tx, serviceID, teamID, projectID)
 	if err != nil {
 		zap.L().Error("Failed to find service", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to find service", "FAILED_TO_FIND_SERVICE")

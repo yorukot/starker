@@ -46,7 +46,6 @@ func (h *ServiceHandler) GetServiceCompose(w http.ResponseWriter, r *http.Reques
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team

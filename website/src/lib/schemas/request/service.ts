@@ -32,10 +32,7 @@ export const createGitServiceSchema = yup.object({
 		.string()
 		.required('Repository URL is required')
 		.url('Repository URL must be a valid URL'),
-	branch: yup
-		.string()
-		.required('Branch is required')
-		.min(1, 'Branch name cannot be empty'),
+	branch: yup.string().required('Branch is required').min(1, 'Branch name cannot be empty'),
 	docker_compose_file_path: yup
 		.string()
 		.max(255, 'Docker Compose file path must be less than 255 characters'),
@@ -65,26 +62,36 @@ export const updateServiceBasicInfoSchema = yup.object({
 export type UpdateServiceBasicInfoForm = yup.InferType<typeof updateServiceBasicInfoSchema>;
 
 export const updateServiceEnvironmentSchema = yup.object({
-	environments: yup.array().of(
-		yup.object({
-			id: yup.number().optional(),
-			key: yup
-				.string()
-				.required('Environment variable key is required')
-				.min(1, 'Key cannot be empty')
-				.max(255, 'Key must be less than 255 characters')
-				.matches(/^[A-Z0-9_]+$/, 'Key must contain only uppercase letters, numbers, and underscores'),
-			value: yup
-				.string()
-				.required('Environment variable value is required')
-				.max(2048, 'Value must be less than 2048 characters')
-		})
-	).test('unique-keys', 'Duplicate environment variable keys are not allowed', function(environments) {
-		if (!environments) return true;
-		const keys = environments.map((env: any) => env.key);
-		const uniqueKeys = new Set(keys);
-		return keys.length === uniqueKeys.size;
-	})
+	environments: yup
+		.array()
+		.of(
+			yup.object({
+				id: yup.number().optional(),
+				key: yup
+					.string()
+					.required('Environment variable key is required')
+					.min(1, 'Key cannot be empty')
+					.max(255, 'Key must be less than 255 characters')
+					.matches(
+						/^[A-Z0-9_]+$/,
+						'Key must contain only uppercase letters, numbers, and underscores'
+					),
+				value: yup
+					.string()
+					.required('Environment variable value is required')
+					.max(2048, 'Value must be less than 2048 characters')
+			})
+		)
+		.test(
+			'unique-keys',
+			'Duplicate environment variable keys are not allowed',
+			function (environments) {
+				if (!environments) return true;
+				const keys = environments.map((env: any) => env.key);
+				const uniqueKeys = new Set(keys);
+				return keys.length === uniqueKeys.size;
+			}
+		)
 });
 
 export type UpdateServiceEnvironmentForm = yup.InferType<typeof updateServiceEnvironmentSchema>;

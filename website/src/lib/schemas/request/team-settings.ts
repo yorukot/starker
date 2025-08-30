@@ -15,7 +15,7 @@ export const deleteTeamSchema = yup.object({
 	confirmText: yup
 		.string()
 		.required('Please type the team name to confirm')
-		.test('match-team-name', 'Team name does not match', function(value) {
+		.test('match-team-name', 'Team name does not match', function (value) {
 			const teamName = this.options.context?.teamName;
 			return value === teamName;
 		})

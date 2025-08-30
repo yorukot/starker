@@ -25,8 +25,8 @@
 
 <div class="flex flex-col gap-6">
 	<div class="flex flex-col gap-2">
-		<h1 class="text-foreground text-2xl font-semibold">Team Settings</h1>
-		<p class="text-muted-foreground text-sm">
+		<h1 class="text-2xl font-semibold text-foreground">Team Settings</h1>
+		<p class="text-sm text-muted-foreground">
 			Manage your team's configuration and access settings
 		</p>
 	</div>
@@ -47,11 +47,11 @@
 			</Card.Header>
 			<Card.Content>
 				<div
-					class="border-destructive/20 bg-destructive/5 flex items-center justify-between rounded-lg border p-4"
+					class="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 p-4"
 				>
 					<div class="space-y-1">
-						<h4 class="text-destructive font-medium">Delete Team</h4>
-						<p class="text-muted-foreground text-sm">
+						<h4 class="font-medium text-destructive">Delete Team</h4>
+						<p class="text-sm text-muted-foreground">
 							Permanently delete this team and all associated data. This action cannot be undone.
 						</p>
 					</div>

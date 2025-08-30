@@ -143,6 +143,13 @@
 		}
 	});
 
+	// Computed trigger content for select
+	const selectedServerName = $derived(
+		$formData.server_id
+			? (servers.find((s) => s.id === $formData.server_id)?.name ?? 'Select a server')
+			: 'Select a server'
+	);
+
 	function goBack() {
 		goto(`/dashboard/${page.params.teamID}/projects/${page.params.projectID}/services/new`);
 	}
@@ -299,21 +306,21 @@
 						{:else}
 							<Select.Root type="single" bind:value={$formData.server_id}>
 								<Select.Trigger class="w-full {$errors.server_id ? 'border-destructive' : ''}">
-									{$formData.server_id
-										? servers.find((s) => s.id === $formData.server_id)?.name
-										: 'Select a server'}
+									{selectedServerName}
 								</Select.Trigger>
 								<Select.Content>
-									{#each servers as server (server.id)}
-										<Select.Item value={server.id} label={server.name}>
-											<div class="flex flex-col">
-												<div class="font-medium">{server.name}</div>
-												{#if server.description}
-													<div class="text-xs text-muted-foreground">{server.description}</div>
-												{/if}
-											</div>
-										</Select.Item>
-									{/each}
+									<Select.Group>
+										{#each servers as server (server.id)}
+											<Select.Item value={server.id} label={server.name}>
+												<div class="flex flex-col">
+													<div class="font-medium">{server.name}</div>
+													{#if server.description}
+														<div class="text-xs text-muted-foreground">{server.description}</div>
+													{/if}
+												</div>
+											</Select.Item>
+										{/each}
+									</Select.Group>
 								</Select.Content>
 							</Select.Root>
 							{#if $errors.server_id}

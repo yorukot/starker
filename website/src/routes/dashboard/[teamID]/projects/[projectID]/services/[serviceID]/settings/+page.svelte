@@ -11,6 +11,7 @@
 	import LucideSave from '~icons/lucide/save';
 	import LucideTrash2 from '~icons/lucide/trash-2';
 	import LucideAlertTriangle from '~icons/lucide/alert-triangle';
+	import SettingsIcon from '~icons/lucide/settings';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { createForm } from 'felte';
@@ -34,11 +35,16 @@
 	let isDeleting = $state(false);
 
 	// Basic Information Form
-	const { form: basicInfoForm, errors: basicInfoErrors, isSubmitting: isUpdating } = createForm<UpdateServiceBasicInfoForm>({
+	const {
+		form: basicInfoForm,
+		errors: basicInfoErrors,
+		isSubmitting: isUpdating,
+		setData
+	} = createForm<UpdateServiceBasicInfoForm>({
 		extend: validator({ schema: updateServiceBasicInfoSchema }),
 		initialValues: {
-			name: service?.name || '',
-			description: service?.description || ''
+			name: '',
+			description: ''
 		},
 		onSubmit: async (values) => {
 			try {
@@ -103,19 +109,14 @@
 		}
 	}
 
-	// Reset form when service data changes
+	// Update form data when compose content changes
 	$effect(() => {
-		if (service) {
-			// Update form initial values when service data loads/changes
-			basicInfoForm.setInitialValues({
-				name: service.name,
-				description: service.description || ''
-			});
-		}
+		setData('name', service?.name ?? '');
+		setData('description', service?.description ?? '');
 	});
 </script>
 
-<div class="mt-6 flex flex-col gap-6">
+<div class="flex h-full flex-col gap-6 p-6">
 	{#if error}
 		<Alert.Root variant="destructive">
 			<Alert.Description>
@@ -123,15 +124,21 @@
 			</Alert.Description>
 		</Alert.Root>
 	{:else if service}
+		<!-- Header -->
+		<div class="flex items-center gap-3">
+			<div class="rounded-lg border border-primary/20 bg-primary/10 p-3">
+				<SettingsIcon class="h-6 w-6 text-primary" />
+			</div>
+			<div>
+				<h1 class="text-2xl font-semibold text-foreground">Service Settings</h1>
+				<p class="text-sm text-muted-foreground">
+					Update your service's basic information and manage service configuration
+				</p>
+			</div>
+		</div>
 		<!-- Basic Information Section -->
 		<form use:basicInfoForm class="space-y-6">
 			<Card.Root>
-				<Card.Header>
-					<Card.Title>Basic Information</Card.Title>
-					<Card.Description>
-						Update your service's basic information and metadata
-					</Card.Description>
-				</Card.Header>
 				<Card.Content class="space-y-4">
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<!-- Service Name -->
@@ -157,7 +164,9 @@
 									{service.type}
 								</Badge>
 							</div>
-							<p class="text-xs text-muted-foreground">Service type cannot be changed after creation</p>
+							<p class="text-xs text-muted-foreground">
+								Service type cannot be changed after creation
+							</p>
 						</div>
 					</div>
 
@@ -168,7 +177,6 @@
 							id="description"
 							name="description"
 							placeholder="Enter service description (optional)"
-							rows="3"
 							class={$basicInfoErrors.description ? 'border-destructive' : ''}
 						/>
 						{#if $basicInfoErrors.description}
@@ -212,22 +220,16 @@
 					<LucideAlertTriangle class="h-5 w-5 text-destructive" />
 					<Card.Title class="text-destructive">Danger Zone</Card.Title>
 				</div>
-				<Card.Description>
-					Irreversible and destructive actions for this service
-				</Card.Description>
+				<Card.Description>Irreversible and destructive actions for this service</Card.Description>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 					<h4 class="mb-2 font-medium text-destructive">Delete Service</h4>
 					<p class="mb-3 text-sm text-muted-foreground">
-						Once you delete a service, there is no going back. This will permanently delete the service,
-						stop all containers, and remove all associated data.
+						Once you delete a service, there is no going back. This will permanently delete the
+						service, stop all containers, and remove all associated data.
 					</p>
-					<Button 
-						variant="destructive" 
-						onclick={() => showDeleteDialog = true}
-						class="gap-2"
-					>
+					<Button variant="destructive" onclick={() => (showDeleteDialog = true)} class="gap-2">
 						<LucideTrash2 class="h-4 w-4" />
 						Delete Service
 					</Button>
@@ -264,7 +266,7 @@
 		</div>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action 
+			<AlertDialog.Action
 				onclick={deleteService}
 				disabled={isDeleting || deleteConfirmName !== service?.name}
 				class="gap-2"

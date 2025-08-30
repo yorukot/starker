@@ -1,12 +1,13 @@
 package utils
 
 import (
-	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,7 +26,6 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
 
 	// Get flusher for real-time streaming
 	flusher, ok := w.(http.Flusher)
@@ -161,78 +161,143 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 	}
 }
 
-// StreamContainerLogs handles SSE streaming of Docker container logs
+// StreamContainerLogs handles real-time SSE streaming of Docker container logs
 func StreamContainerLogs(ctx context.Context, w http.ResponseWriter, logsReader io.ReadCloser, containerName string) {
-	// Set SSE headers
+	flusher := setupSSEHeaders(w)
+	if flusher == nil {
+		return
+	}
+
+	sendEvent := createEventSender(flusher, w)
+	sendEvent(core.LogInfo(fmt.Sprintf("Starting log stream for container: %s", containerName)))
+
+	lineNumber := 0
+	header := make([]byte, 8)
+
+	for {
+		if ctx.Err() != nil {
+			zap.L().Info("Client disconnected from log stream")
+			return
+		}
+
+		// Read Docker header
+		n, err := io.ReadFull(logsReader, header)
+		if err != nil {
+			handleReadError(err, n, lineNumber, containerName, sendEvent)
+			return
+		}
+
+		// Parse header and read payload
+		streamType := header[0]
+		payloadSize := binary.BigEndian.Uint32(header[4:8])
+
+		if payloadSize == 0 {
+			continue
+		}
+
+		payload, err := readPayload(logsReader, payloadSize)
+		if err != nil {
+			zap.L().Error("Failed to read Docker log payload", zap.Error(err))
+			sendEvent(core.LogError(fmt.Sprintf("Error reading log payload: %v", err)))
+			return
+		}
+
+		lineNumber = processLogPayload(payload, streamType, containerName, lineNumber, sendEvent)
+	}
+}
+
+// setupSSEHeaders configures SSE headers and returns flusher
+func setupSSEHeaders(w http.ResponseWriter) http.Flusher {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
 
-	// Get flusher for real-time streaming
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		zap.L().Error("Streaming unsupported")
 		response.RespondWithError(w, http.StatusInternalServerError, "Streaming unsupported", "STREAMING_UNSUPPORTED")
-		return
+		return nil
 	}
+	return flusher
+}
 
-	// Helper function to send SSE events
-	sendEvent := func(logMsg core.LogMessage) {
+// createEventSender returns a function to send SSE events
+func createEventSender(flusher http.Flusher, w http.ResponseWriter) func(core.LogMessage) {
+	return func(logMsg core.LogMessage) {
 		data, _ := json.Marshal(logMsg)
 		fmt.Fprintf(w, "data: %s\n\n", data)
 		flusher.Flush()
 	}
+}
 
-	// Send initial event
-	sendEvent(core.LogInfo(fmt.Sprintf("Starting log stream for container: %s", containerName)))
-
-	// Stream logs line by line
-	scanner := bufio.NewScanner(logsReader)
-	lineNumber := 0
-	for scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			// Client disconnected
-			zap.L().Info("Client disconnected from log stream")
-			return
-		default:
-			line := scanner.Text()
-			lineNumber++
-
-			// Send log line as SSE event with container metadata
-			logData := map[string]any{
-				"line":        line,
-				"line_number": lineNumber,
-				"container":   containerName,
-			}
-			logMsg := core.LogMessage{
-				Type:    core.LogTypeInfo,
-				Message: line,
-				Data:    logData,
-			}
-			sendEvent(logMsg)
+// handleReadError handles errors when reading Docker log headers
+func handleReadError(err error, n int, lineNumber int, containerName string, sendEvent func(core.LogMessage)) {
+	if err == io.EOF || (err == io.ErrUnexpectedEOF && n == 0) {
+		completionData := map[string]any{
+			"line_count": lineNumber,
+			"completed":  true,
+			"container":  containerName,
 		}
-	}
-
-	// Check for scanning errors
-	if err := scanner.Err(); err != nil && err != io.EOF {
-		zap.L().Error("Error reading container logs", zap.Error(err))
-		sendEvent(core.LogError(fmt.Sprintf("Error reading logs: %v", err)))
+		completionMsg := core.LogMessage{
+			Type:    core.LogTypeInfo,
+			Message: fmt.Sprintf("Log stream completed. Total lines: %d", lineNumber),
+			Data:    completionData,
+		}
+		sendEvent(completionMsg)
 		return
 	}
 
-	// Send completion event
-	completionData := map[string]any{
-		"line_count": lineNumber,
-		"completed":  true,
-		"container":  containerName,
+	zap.L().Error("Failed to read Docker log header", zap.Error(err))
+	sendEvent(core.LogError(fmt.Sprintf("Error reading log header: %v", err)))
+}
+
+// readPayload reads the Docker log payload of specified size
+func readPayload(reader io.Reader, size uint32) ([]byte, error) {
+	payload := make([]byte, size)
+	_, err := io.ReadFull(reader, payload)
+	return payload, err
+}
+
+// processLogPayload processes payload and sends individual log lines
+func processLogPayload(payload []byte, streamType byte, containerName string, startLineNumber int, sendEvent func(core.LogMessage)) int {
+	logText := string(payload)
+	lines := strings.Split(logText, "\n")
+	lineNumber := startLineNumber
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		lineNumber++
+		streamName, logType := getStreamInfo(streamType)
+
+		logData := map[string]any{
+			"line":        line,
+			"line_number": lineNumber,
+			"container":   containerName,
+			"stream":      streamName,
+		}
+		logMsg := core.LogMessage{
+			Type:    logType,
+			Message: line,
+			Data:    logData,
+		}
+		sendEvent(logMsg)
 	}
-	completionMsg := core.LogMessage{
-		Type:    core.LogTypeInfo,
-		Message: fmt.Sprintf("Log stream completed. Total lines: %d", lineNumber),
-		Data:    completionData,
+
+	return lineNumber
+}
+
+// getStreamInfo returns stream name and log type based on Docker stream type
+func getStreamInfo(streamType byte) (string, core.LogType) {
+	switch streamType {
+	case 1: // stdout
+		return "stdout", core.LogTypeInfo
+	case 2: // stderr
+		return "stderr", core.LogTypeError
+	default: // unknown stream type, treat as stdout
+		return "stdout", core.LogTypeInfo
 	}
-	sendEvent(completionMsg)
 }

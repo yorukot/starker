@@ -44,6 +44,7 @@
 		{ id: 'overview', label: 'Overview', path: 'overview' },
 		{ id: 'compose', label: 'Compose', path: 'compose' },
 		{ id: 'environment', label: 'Environment', path: 'environment' },
+		{ id: 'logs', label: 'Logs', path: 'logs' },
 		{ id: 'domains', label: 'Domains', path: 'domains' },
 		{ id: 'settings', label: 'Settings', path: 'settings' }
 	];
@@ -165,10 +166,7 @@
 										if (service) {
 											service.state = data.state;
 										}
-										addLogMessage(
-											'status',
-											`Operation completed. Service state: ${data.state}`
-										);
+										addLogMessage('status', `Operation completed. Service state: ${data.state}`);
 										quickActionsRef?.resetStates();
 										return;
 									} else {
@@ -209,10 +207,7 @@
 									if (service) {
 										service.state = data.state;
 									}
-									addLogMessage(
-										'status',
-										`Operation completed. Service state: ${data.state}`
-									);
+									addLogMessage('status', `Operation completed. Service state: ${data.state}`);
 									quickActionsRef?.resetStates();
 									return;
 								} else {
@@ -277,8 +272,10 @@
 	</div>
 
 	<!-- Navigation Tabs with Actions -->
-	<div class="scrollbar-hide overflow-x-auto border-b border-border">
-		<div class="flex items-center justify-between px-6">
+	<div class="">
+		<div
+			class="scrollbar-hide flex items-center overflow-x-auto border-b border-border px-6"
+		>
 			<Tabs.Root value={activeTab()} onValueChange={handleTabChange}>
 				<Tabs.List>
 					{#each tabs as tab (tab.id)}
@@ -288,19 +285,6 @@
 					{/each}
 				</Tabs.List>
 			</Tabs.Root>
-
-			<!-- Quick Actions -->
-			{#if service}
-				<ServiceQuickActions
-					bind:this={quickActionsRef}
-					bind:service
-					{teamID}
-					{projectID}
-					{serviceID}
-					onOperationStart={handleSSEResponse}
-					onShowLogs={() => (showLogSheet = true)}
-				/>
-			{/if}
 		</div>
 	</div>
 

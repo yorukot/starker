@@ -31,6 +31,18 @@ definitions:
     - email
     - password
     type: object
+  models.ContainerState:
+    enum:
+    - running
+    - stopped
+    - removed
+    - exited
+    type: string
+    x-enum-varnames:
+    - ContainerStateRunning
+    - ContainerStateStopped
+    - ContainerStateRemoved
+    - ContainerStateExited
   models.PrivateKey:
     properties:
       created_at:
@@ -211,6 +223,38 @@ definitions:
         example: "2023-01-01T12:00:00Z"
         type: string
     type: object
+  models.ServiceContainer:
+    properties:
+      container_id:
+        description: Docker container ID
+        example: abc123def456
+        type: string
+      container_name:
+        description: Docker container name
+        example: web-app-container
+        type: string
+      created_at:
+        description: Timestamp when the container were created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      id:
+        description: Unique identifier for the container record
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      service_id:
+        description: Associated service ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      state:
+        allOf:
+        - $ref: '#/definitions/models.ContainerState'
+        description: Container state
+        example: running
+      updated_at:
+        description: Timestamp when the container was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+    type: object
   models.ServiceEnvironment:
     properties:
       created_at:
@@ -219,8 +263,8 @@ definitions:
         type: string
       id:
         description: Unique identifier for the environment variable
-        example: 1
-        type: integer
+        example: "1"
+        type: string
       key:
         description: Environment variable key
         example: NODE_ENV
@@ -1670,6 +1714,131 @@ paths:
       summary: Update service Docker Compose configuration
       tags:
       - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all containers associated with a specific service within
+        a project and team
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of service containers
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ServiceContainer'
+                  type: array
+              type: object
+        "400":
+          description: Team access denied or service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all containers for a service
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{containerID}/logs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves Docker container logs for a specific service container
+        with real-time streaming via Server-Sent Events
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      - description: Container ID (from service_containers table)
+        in: path
+        name: containerID
+        required: true
+        type: string
+      - default: false
+        description: Follow log output (stream continuously)
+        in: query
+        name: follow
+        type: boolean
+      - default: '"100"'
+        description: Number of lines to show from end of logs
+        in: query
+        name: tail
+        type: string
+      - default: false
+        description: Include timestamps in log output
+        in: query
+        name: timestamps
+        type: boolean
+      - description: Show logs since timestamp (RFC3339 format)
+        example: '"2023-01-01T00:00:00Z"'
+        in: query
+        name: since
+        type: string
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream of container logs
+          schema:
+            type: string
+        "400":
+          description: Team access denied, service/container not found, or invalid
+            parameters
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get container logs with SSE streaming
+      tags:
+      - service
   /teams/{teamID}/projects/{projectID}/services/{serviceID}/env:
     get:
       consumes:
@@ -1727,7 +1896,6 @@ paths:
       summary: Get all environment variables for a service
       tags:
       - service
-  /teams/{teamID}/projects/{projectID}/services/{serviceID}/env/batch:
     patch:
       consumes:
       - application/json

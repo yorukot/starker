@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
+	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/internal/core/dockerutils"
 	"github.com/yorukot/starker/internal/handler/service/utils"
 	"github.com/yorukot/starker/internal/middleware"
@@ -38,7 +39,7 @@ import (
 // @Failure 400 {object} response.ErrorResponse "Team access denied, service/container not found, or invalid parameters"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
-// @Router /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{containerID}/logs [get]
+// @Router /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{contUNAUTHORIZEDainerID}/logs [get]
 // @Security BearerAuth
 func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request) {
 	// Get URL parameters
@@ -52,7 +53,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 
 	// Parse query parameters for log options
 	logOptions := dockerutils.LogOptions{
-		Follow:     r.URL.Query().Get("follow") == "true",
+		Follow:     r.URL.Query().Get("follow") != "false", // Default to true for real-time streaming
 		Tail:       r.URL.Query().Get("tail"),
 		Timestamps: r.URL.Query().Get("timestamps") == "true",
 	}
@@ -79,7 +80,6 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team
@@ -95,7 +95,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 	}
 
 	// Verify service exists and belongs to the team/project
-	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
+	service, err := repository.GetServiceByID(r.Context(), tx, serviceID, teamID, projectID)
 	if err != nil {
 		zap.L().Error("Failed to find service", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to find service", "FAILED_TO_FIND_SERVICE")
@@ -107,7 +107,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get the specific container by ID
-	container, err := repository.GetServiceContainerByID(r.Context(), *h.Tx, containerID, serviceID)
+	container, err := repository.GetServiceContainerByID(r.Context(), tx, containerID, serviceID)
 	if err != nil {
 		zap.L().Error("Failed to find container", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to find container", "FAILED_TO_FIND_CONTAINER")
@@ -125,7 +125,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get server details for connection
-	server, err := repository.GetServerByID(r.Context(), *h.Tx, service.ServerID, service.TeamID)
+	server, err := repository.GetServerByID(r.Context(), tx, service.ServerID, service.TeamID)
 	if err != nil {
 		zap.L().Error("Failed to get server", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get server", "FAILED_TO_GET_SERVER")
@@ -137,7 +137,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 	}
 
 	// Get private key for SSH connection
-	privateKey, err := repository.GetPrivateKeyByID(r.Context(), *h.Tx, server.PrivateKeyID, service.TeamID)
+	privateKey, err := repository.GetPrivateKeyByID(r.Context(), tx, server.PrivateKeyID, service.TeamID)
 	if err != nil {
 		zap.L().Error("Failed to get private key", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get private key", "FAILED_TO_GET_PRIVATE_KEY")
@@ -159,9 +159,10 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Create Docker handler with minimal setup for log operations
+	// Create Docker handler with proper StreamChan initialization for log operations
 	dockerHandler := &dockerutils.DockerHandler{
-		Client: dockerClient,
+		Client:     dockerClient,
+		StreamChan: core.NewStreamChan(),
 	}
 
 	// Commit transaction since we're moving to streaming
@@ -174,8 +175,8 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get container logs", "FAILED_TO_GET_CONTAINER_LOGS")
 		return
 	}
-	defer logsReader.Close()
 
+	defer logsReader.Close()
 	// Stream container logs using utility function
 	utils.StreamContainerLogs(r.Context(), w, logsReader, container.ContainerName)
 }

@@ -1917,6 +1917,194 @@ const docTemplate = `{
                 }
             }
         },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/containers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves all containers associated with a specific service within a project and team",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get all containers for a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of service containers",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.ServiceContainer"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Team access denied or service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{containerID}/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves Docker container logs for a specific service container with real-time streaming via Server-Sent Events",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get container logs with SSE streaming",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Container ID (from service_containers table)",
+                        "name": "containerID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Follow log output (stream continuously)",
+                        "name": "follow",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "\"100\"",
+                        "description": "Number of lines to show from end of logs",
+                        "name": "tail",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Include timestamps in log output",
+                        "name": "timestamps",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"2023-01-01T00:00:00Z\"",
+                        "description": "Show logs since timestamp (RFC3339 format)",
+                        "name": "since",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream of container logs",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Team access denied, service/container not found, or invalid parameters",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/teams/{teamID}/projects/{projectID}/services/{serviceID}/env": {
             "get": {
                 "security": [
@@ -2005,9 +2193,7 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/env/batch": {
+            },
             "patch": {
                 "security": [
                     {
@@ -2669,6 +2855,21 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ContainerState": {
+            "type": "string",
+            "enum": [
+                "running",
+                "stopped",
+                "removed",
+                "exited"
+            ],
+            "x-enum-varnames": [
+                "ContainerStateRunning",
+                "ContainerStateStopped",
+                "ContainerStateRemoved",
+                "ContainerStateExited"
+            ]
+        },
         "models.PrivateKey": {
             "type": "object",
             "properties": {
@@ -2903,6 +3104,50 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ServiceContainer": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "description": "Docker container ID",
+                    "type": "string",
+                    "example": "abc123def456"
+                },
+                "container_name": {
+                    "description": "Docker container name",
+                    "type": "string",
+                    "example": "web-app-container"
+                },
+                "created_at": {
+                    "description": "Timestamp when the container were created",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "id": {
+                    "description": "Unique identifier for the container record",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "service_id": {
+                    "description": "Associated service ID",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "state": {
+                    "description": "Container state",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ContainerState"
+                        }
+                    ],
+                    "example": "running"
+                },
+                "updated_at": {
+                    "description": "Timestamp when the container was last updated",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                }
+            }
+        },
         "models.ServiceEnvironment": {
             "type": "object",
             "properties": {
@@ -2913,8 +3158,8 @@ const docTemplate = `{
                 },
                 "id": {
                     "description": "Unique identifier for the environment variable",
-                    "type": "integer",
-                    "example": 1
+                    "type": "string",
+                    "example": "1"
                 },
                 "key": {
                     "description": "Environment variable key",

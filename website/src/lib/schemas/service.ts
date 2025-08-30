@@ -42,3 +42,14 @@ export interface ServiceComposeConfig {
 	created_at: string;
 	updated_at: string;
 }
+
+// Service Container type (matches backend ServiceContainer model)
+export interface ServiceContainer {
+	id: string;
+	service_id: string;
+	container_id?: string; // Docker container ID (set when container is running)
+	container_name: string;
+	state: string; // running, stopped, removed, exited
+	created_at: string;
+	updated_at: string;
+}

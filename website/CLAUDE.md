@@ -134,11 +134,13 @@ Uses shadcn-svelte component library with:
 ### Svelte Code Conventions
 
 #### File Structure
+
 - **Script Organization:** Use module script block (`<script lang="ts" module>`) for exports and shared logic, instance script block (`<script lang="ts">`) for component logic
 - **TypeScript:** All components use TypeScript with strict typing
 - **Script Block Order:** Module script first, then instance script, then markup
 
 #### Import Conventions
+
 - **UI Components:** Import from `$lib/components/ui/[component]/index.js`
 - **Icons:** Use `~icons/` prefix (e.g., `~icons/lucide/folder-plus`, `~icons/lucide/chevrons-up-down`)
 - **Type Imports:** Use `type` keyword for type-only imports
@@ -146,6 +148,7 @@ Uses shadcn-svelte component library with:
 - **API Utilities:** Import from `$lib/api/` for authentication and client functions
 
 #### Component Patterns
+
 - **Props:** Use `$props()` destructuring with TypeScript interfaces
 - **State Management:** Use `$state()` for reactive state, `$derived()` for computed values
 - **Refs:** Use `ref = $bindable(null)` for element references
@@ -153,6 +156,7 @@ Uses shadcn-svelte component library with:
 - **Conditional Rendering:** Use `#if` blocks with proper error state handling
 
 #### Form Handling
+
 - **Validation:** Use Felte with Yup validator integration via `@felte/validator-yup`
 - **Form Creation:** `createForm<FormType>({ extend: validator({ schema }), onSubmit, onSuccess, onError })`
 - **Error Display:** Use destructive styling with `border-destructive` class for invalid fields
@@ -160,6 +164,7 @@ Uses shadcn-svelte component library with:
 - **Submission State:** Use `$isSubmitting` for loading states and button disabling
 
 #### Styling Guidelines
+
 - **Class Utility:** Always use `cn()` function for conditional styling and class merging
 - **Component Variants:** Use `tailwind-variants` for complex component styling systems
 - **Error States:** Apply `border-destructive` class for form validation errors
@@ -167,26 +172,44 @@ Uses shadcn-svelte component library with:
 - **Consistent Spacing:** Follow established gap and padding patterns from existing components
 
 #### Type Safety
+
 - **Component Props:** Use `WithElementRef` type for components that need element references
 - **Type Exports:** Export component prop types from module script blocks
 - **Interface Definitions:** Define clear TypeScript interfaces for all component props
 - **Generic Types:** Use generics for reusable component patterns (e.g., form types)
 
 #### State and Reactivity
+
 - **Reactive State:** Use `$state()` for component-level reactive variables
 - **Computed Values:** Use `$derived()` for values computed from other reactive state
 - **Props Binding:** Use `$bindable()` for two-way binding on props
 - **Stores Integration:** Import and use stores with proper reactivity patterns
 
 #### Naming Conventions
+
 - **Component Files:** Use kebab-case for file names (e.g., `team-switcher.svelte`)
 - **Props:** Use camelCase for prop names
 - **State Variables:** Use camelCase for state variables
 - **CSS Classes:** Follow TailwindCSS naming conventions
 - **Event Handlers:** Use descriptive names with action prefixes (e.g., `switchTeam`, `handleSubmit`)
 
-# important-instruction-reminders
+# Important Instruction Reminders
+
+## General Rules
+
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## Coding Assistant Guidelines
+
+You are my coding assistant. Follow these rules strictly:
+
+I am using Svelte 5 together with shadcn-svelte.
+
+For any knowledge related to Svelte, you must always check the official documentation first before giving me an answer.
+
+If you encounter any problem or uncertainty, you must ask me questions instead of making assumptions or solving it on your own.
+
+Always try to look at other pages or examples to see if there are similar implementations. If you find them, follow the same style and approach as those implementations.

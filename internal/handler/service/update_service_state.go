@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/core"
@@ -77,7 +78,6 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
 		return
 	}
-	h.Tx = &tx
 	defer repository.DeferRollback(tx, r.Context())
 
 	// Verify user has access to the team and service exists in the project
@@ -93,7 +93,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Check if service exists
-	service, err := repository.GetServiceByID(r.Context(), *h.Tx, serviceID, teamID, projectID)
+	service, err := repository.GetServiceByID(r.Context(), tx, serviceID, teamID, projectID)
 	if err != nil {
 		zap.L().Error("Failed to find service", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to find service", "FAILED_TO_FIND_SERVICE")
@@ -111,7 +111,7 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Execute the service operation
-	result, err := h.executeServiceOperation(r.Context(), newState, service)
+	result, err := h.executeServiceOperation(r.Context(), tx, newState, service)
 	if err != nil {
 		zap.L().Error("Failed to execute service command", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to execute service command", "FAILED_TO_EXECUTE_COMMAND")
@@ -127,14 +127,14 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 	case "restart":
 		service.State = models.ServiceStateRestarting
 	}
-	if err := repository.UpdateService(r.Context(), *h.Tx, *service); err != nil {
+	if err := repository.UpdateService(r.Context(), tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
 		return
 	}
 
 	// Stream the operation with real-time updates
-	utils.StreamServiceOutputWithUpdate(r.Context(), w, result, service, h.Tx, newState)
+	utils.StreamServiceOutputWithUpdate(r.Context(), w, result, service, &tx, newState)
 }
 
 func checkStateIsRight(state models.ServiceState, newState string) bool {
@@ -151,23 +151,23 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 }
 
 // executeServiceOperation executes the Docker service operation and returns streaming result
-func (h *ServiceHandler) executeServiceOperation(ctx context.Context, operation string, service *models.Service) (*core.StreamChan, error) {
+func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx, operation string, service *models.Service) (*core.StreamChan, error) {
 	switch operation {
 	case "start":
-		return h.executeStartOperation(ctx, service)
+		return h.executeStartOperation(ctx, tx, service)
 	case "stop":
-		return h.executeStopOperation(ctx, service)
+		return h.executeStopOperation(ctx, tx, service)
 	case "restart":
-		return h.executeRestartOperation(ctx, service)
+		return h.executeRestartOperation(ctx, tx, service)
 	default:
 		return nil, fmt.Errorf("unsupported operation: %s", operation)
 	}
 }
 
 // setupDockerHandler handles the common setup logic for Docker operations
-func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models.Service) (*dockerutils.DockerHandler, *core.StreamChan, error) {
+func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, service *models.Service) (*dockerutils.DockerHandler, *core.StreamChan, error) {
 	// Get the service compose configuration
-	composeConfig, err := repository.GetServiceComposeConfig(ctx, *h.Tx, service.ID)
+	composeConfig, err := repository.GetServiceComposeConfig(ctx, tx, service.ID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get service compose config: %w", err)
 	}
@@ -176,7 +176,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models
 	}
 
 	// Get server details for connection
-	server, err := repository.GetServerByID(ctx, *h.Tx, service.ServerID, service.TeamID)
+	server, err := repository.GetServerByID(ctx, tx, service.ServerID, service.TeamID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get server: %w", err)
 	}
@@ -185,7 +185,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models
 	}
 
 	// Get private key for SSH connection
-	privateKey, err := repository.GetPrivateKeyByID(ctx, *h.Tx, server.PrivateKeyID, service.TeamID)
+	privateKey, err := repository.GetPrivateKeyByID(ctx, tx, server.PrivateKeyID, service.TeamID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get private key: %w", err)
 	}
@@ -231,9 +231,9 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, service *models
 }
 
 // executeStartOperation handles the Docker compose start operation
-func (h *ServiceHandler) executeStartOperation(ctx context.Context, service *models.Service) (*core.StreamChan, error) {
+func (h *ServiceHandler) executeStartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
 	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, service)
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +249,9 @@ func (h *ServiceHandler) executeStartOperation(ctx context.Context, service *mod
 }
 
 // executeStopOperation handles the Docker compose stop operation
-func (h *ServiceHandler) executeStopOperation(ctx context.Context, service *models.Service) (*core.StreamChan, error) {
+func (h *ServiceHandler) executeStopOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
 	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, service)
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
 	if err != nil {
 		return nil, err
 	}
@@ -267,9 +267,9 @@ func (h *ServiceHandler) executeStopOperation(ctx context.Context, service *mode
 }
 
 // executeRestartOperation handles the Docker compose restart operation
-func (h *ServiceHandler) executeRestartOperation(ctx context.Context, service *models.Service) (*core.StreamChan, error) {
+func (h *ServiceHandler) executeRestartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
 	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, service)
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
 	if err != nil {
 		return nil, err
 	}

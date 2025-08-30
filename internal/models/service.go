@@ -102,7 +102,7 @@ type ServiceVolume struct {
 
 // ContainerEnvironment represents environment variables for containers
 type ContainerEnvironment struct {
-	ID          string     `json:"id" example:"1"`                                    // Unique identifier for the environment variable
+	ID          string    `json:"id" example:"1"`                                    // Unique identifier for the environment variable
 	ContainerID string    `json:"container_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated container ID
 	Key         string    `json:"key" example:"DATABASE_URL"`                        // Environment variable key
 	Value       string    `json:"value" example:"postgres://..."`                    // Environment variable value
@@ -112,7 +112,7 @@ type ContainerEnvironment struct {
 
 // ServiceEnvironment represents environment variables for services
 type ServiceEnvironment struct {
-	ID        string     `json:"id" example:"1"`                                  // Unique identifier for the environment variable
+	ID        string    `json:"id" example:"1"`                                  // Unique identifier for the environment variable
 	ServiceID string    `json:"service_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"` // Associated service ID
 	Key       string    `json:"key" example:"NODE_ENV"`                          // Environment variable key
 	Value     string    `json:"value" example:"production"`                      // Environment variable value
