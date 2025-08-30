@@ -2,6 +2,8 @@
 	import { EditorView, basicSetup } from 'codemirror';
 	import { EditorState } from '@codemirror/state';
 	import { yaml } from '@codemirror/lang-yaml';
+	import { StreamLanguage } from '@codemirror/language';
+	import { properties } from '@codemirror/legacy-modes/mode/properties';
 	import { oneDark } from '@codemirror/theme-one-dark';
 	import { onMount } from 'svelte';
 
@@ -10,24 +12,28 @@
 		placeholder?: string;
 		readonly?: boolean;
 		class?: string;
+		language?: 'yaml' | 'env';
 	}
 
 	let {
 		value = $bindable(),
 		placeholder = '',
 		readonly = false,
-		class: className = ''
+		class: className = '',
+		language = 'yaml'
 	}: Props = $props();
 
 	let editorElement: HTMLDivElement;
 	let editorView: EditorView;
 
 	onMount(() => {
+		const langExtension = language === 'env' ? StreamLanguage.define(properties) : yaml();
+		
 		const startState = EditorState.create({
 			doc: value,
 			extensions: [
 				basicSetup,
-				yaml(),
+				langExtension,
 				oneDark,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {

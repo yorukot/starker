@@ -131,6 +131,60 @@ Uses shadcn-svelte component library with:
 - Sidebar-specific theming variables for consistent navigation styling
 - Animation utilities via `tw-animate-css` plugin
 
+### Svelte Code Conventions
+
+#### File Structure
+- **Script Organization:** Use module script block (`<script lang="ts" module>`) for exports and shared logic, instance script block (`<script lang="ts">`) for component logic
+- **TypeScript:** All components use TypeScript with strict typing
+- **Script Block Order:** Module script first, then instance script, then markup
+
+#### Import Conventions
+- **UI Components:** Import from `$lib/components/ui/[component]/index.js`
+- **Icons:** Use `~icons/` prefix (e.g., `~icons/lucide/folder-plus`, `~icons/lucide/chevrons-up-down`)
+- **Type Imports:** Use `type` keyword for type-only imports
+- **Schemas:** Import validation schemas from `$lib/schemas/`
+- **API Utilities:** Import from `$lib/api/` for authentication and client functions
+
+#### Component Patterns
+- **Props:** Use `$props()` destructuring with TypeScript interfaces
+- **State Management:** Use `$state()` for reactive state, `$derived()` for computed values
+- **Refs:** Use `ref = $bindable(null)` for element references
+- **Children:** Render with `{@render children?.()}` pattern
+- **Conditional Rendering:** Use `#if` blocks with proper error state handling
+
+#### Form Handling
+- **Validation:** Use Felte with Yup validator integration via `@felte/validator-yup`
+- **Form Creation:** `createForm<FormType>({ extend: validator({ schema }), onSubmit, onSuccess, onError })`
+- **Error Display:** Use destructive styling with `border-destructive` class for invalid fields
+- **Server Errors:** Handle with local `serverError` state and consistent error UI patterns
+- **Submission State:** Use `$isSubmitting` for loading states and button disabling
+
+#### Styling Guidelines
+- **Class Utility:** Always use `cn()` function for conditional styling and class merging
+- **Component Variants:** Use `tailwind-variants` for complex component styling systems
+- **Error States:** Apply `border-destructive` class for form validation errors
+- **Conditional Classes:** Use ternary operators within `cn()` for dynamic styling
+- **Consistent Spacing:** Follow established gap and padding patterns from existing components
+
+#### Type Safety
+- **Component Props:** Use `WithElementRef` type for components that need element references
+- **Type Exports:** Export component prop types from module script blocks
+- **Interface Definitions:** Define clear TypeScript interfaces for all component props
+- **Generic Types:** Use generics for reusable component patterns (e.g., form types)
+
+#### State and Reactivity
+- **Reactive State:** Use `$state()` for component-level reactive variables
+- **Computed Values:** Use `$derived()` for values computed from other reactive state
+- **Props Binding:** Use `$bindable()` for two-way binding on props
+- **Stores Integration:** Import and use stores with proper reactivity patterns
+
+#### Naming Conventions
+- **Component Files:** Use kebab-case for file names (e.g., `team-switcher.svelte`)
+- **Props:** Use camelCase for prop names
+- **State Variables:** Use camelCase for state variables
+- **CSS Classes:** Follow TailwindCSS naming conventions
+- **Event Handlers:** Use descriptive names with action prefixes (e.g., `switchTeam`, `handleSubmit`)
+
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.

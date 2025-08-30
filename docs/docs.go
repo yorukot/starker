@@ -1503,77 +1503,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/teams/{teamID}/projects/{projectID}/services/git": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Creates a new service by cloning a Git repository and extracting Docker Compose configuration",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "service"
-                ],
-                "summary": "Create a service from a Git repository",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Team ID",
-                        "name": "teamID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Project ID",
-                        "name": "projectID",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Git service creation request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.CreateServiceGitRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Server-Sent Events stream with git workflow progress",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body, team access denied, or project not found",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "User not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/teams/{teamID}/projects/{projectID}/services/{serviceID}": {
             "get": {
                 "security": [
@@ -1975,6 +1904,195 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/env": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieves all environment variables for a specific service within a team and project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Get all environment variables for a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Environment variables retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.ServiceEnvironment"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/env/batch": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates multiple existing environment variables for a specific service within a team and project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "service"
+                ],
+                "summary": "Update multiple environment variables for a service",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Service ID",
+                        "name": "serviceID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Batch environment variables update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.updateServiceEnvironmentsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Environment variables updated successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.ServiceEnvironment"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or team access denied",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "User not authenticated",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Service or environment variable not found",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -2785,6 +2903,41 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ServiceEnvironment": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Timestamp when the environment variable was created",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "id": {
+                    "description": "Unique identifier for the environment variable",
+                    "type": "integer",
+                    "example": 1
+                },
+                "key": {
+                    "description": "Environment variable key",
+                    "type": "string",
+                    "example": "NODE_ENV"
+                },
+                "service_id": {
+                    "description": "Associated service ID",
+                    "type": "string",
+                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+                },
+                "updated_at": {
+                    "description": "Timestamp when the environment variable was last updated",
+                    "type": "string",
+                    "example": "2023-01-01T12:00:00Z"
+                },
+                "value": {
+                    "description": "Environment variable value",
+                    "type": "string",
+                    "example": "production"
+                }
+            }
+        },
         "models.ServiceState": {
             "type": "string",
             "enum": [
@@ -3011,56 +3164,6 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CreateServiceGitRequest": {
-            "type": "object",
-            "required": [
-                "branch",
-                "name",
-                "repo_url",
-                "server_id"
-            ],
-            "properties": {
-                "auto_deploy": {
-                    "description": "Enable auto-deployment on Git changes",
-                    "type": "boolean",
-                    "example": true
-                },
-                "branch": {
-                    "description": "Git branch to deploy",
-                    "type": "string",
-                    "example": "main"
-                },
-                "description": {
-                    "description": "Optional service description",
-                    "type": "string",
-                    "maxLength": 500,
-                    "example": "Application from Git"
-                },
-                "docker_compose_file_path": {
-                    "description": "Path to docker-compose file in repo",
-                    "type": "string",
-                    "maxLength": 255,
-                    "example": "docker-compose.yml"
-                },
-                "name": {
-                    "description": "Service name",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 3,
-                    "example": "my-app"
-                },
-                "repo_url": {
-                    "description": "Git repository URL",
-                    "type": "string",
-                    "example": "https://github.com/user/repo.git"
-                },
-                "server_id": {
-                    "description": "Server ID where service will be deployed",
-                    "type": "string",
-                    "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-                }
-            }
-        },
         "service.createServiceRequest": {
             "type": "object",
             "required": [
@@ -3116,6 +3219,34 @@ const docTemplate = `{
                 "compose_file_path": {
                     "type": "string",
                     "maxLength": 500
+                }
+            }
+        },
+        "service.updateServiceEnvironmentItem": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.updateServiceEnvironmentsRequest": {
+            "type": "object",
+            "required": [
+                "environments"
+            ],
+            "properties": {
+                "environments": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/service.updateServiceEnvironmentItem"
+                    }
                 }
             }
         },

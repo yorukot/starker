@@ -23,13 +23,12 @@ export interface Service {
 	updated_at: string;
 }
 
-// Service Environment Variable type
-export interface ServiceEnvironmentVariable {
-	id: string;
+// Service Environment Variable type (matches backend ServiceEnvironment model)
+export interface ServiceEnvironment {
+	id: number;
 	service_id: string;
 	key: string;
 	value: string;
-	is_secret: boolean;
 	created_at: string;
 	updated_at: string;
 }

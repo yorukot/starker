@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -62,6 +64,16 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			data, _ := json.Marshal(map[string]interface{}{
 				"message": errMsg.Message,
 				"type":    string(errMsg.Type),
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+
+		case progressMsg := <-streamChan.ProgressChan:
+			// Stream progress message
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": progressMsg.Message,
+				"type":    string(progressMsg.Type),
+				"data":    progressMsg.Data,
 			})
 			fmt.Fprintf(w, "data: %s\n\n", data)
 			flusher.Flush()
@@ -147,4 +159,80 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			return
 		}
 	}
+}
+
+// StreamContainerLogs handles SSE streaming of Docker container logs
+func StreamContainerLogs(ctx context.Context, w http.ResponseWriter, logsReader io.ReadCloser, containerName string) {
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+
+	// Get flusher for real-time streaming
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		zap.L().Error("Streaming unsupported")
+		response.RespondWithError(w, http.StatusInternalServerError, "Streaming unsupported", "STREAMING_UNSUPPORTED")
+		return
+	}
+
+	// Helper function to send SSE events
+	sendEvent := func(logMsg core.LogMessage) {
+		data, _ := json.Marshal(logMsg)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
+
+	// Send initial event
+	sendEvent(core.LogInfo(fmt.Sprintf("Starting log stream for container: %s", containerName)))
+
+	// Stream logs line by line
+	scanner := bufio.NewScanner(logsReader)
+	lineNumber := 0
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			// Client disconnected
+			zap.L().Info("Client disconnected from log stream")
+			return
+		default:
+			line := scanner.Text()
+			lineNumber++
+
+			// Send log line as SSE event with container metadata
+			logData := map[string]any{
+				"line":        line,
+				"line_number": lineNumber,
+				"container":   containerName,
+			}
+			logMsg := core.LogMessage{
+				Type:    core.LogTypeInfo,
+				Message: line,
+				Data:    logData,
+			}
+			sendEvent(logMsg)
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil && err != io.EOF {
+		zap.L().Error("Error reading container logs", zap.Error(err))
+		sendEvent(core.LogError(fmt.Sprintf("Error reading logs: %v", err)))
+		return
+	}
+
+	// Send completion event
+	completionData := map[string]any{
+		"line_count": lineNumber,
+		"completed":  true,
+		"container":  containerName,
+	}
+	completionMsg := core.LogMessage{
+		Type:    core.LogTypeInfo,
+		Message: fmt.Sprintf("Log stream completed. Total lines: %d", lineNumber),
+		Data:    completionData,
+	}
+	sendEvent(completionMsg)
 }

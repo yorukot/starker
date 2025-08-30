@@ -76,17 +76,17 @@ func GetServiceEnvironment(ctx context.Context, db pgx.Tx, id int64, serviceID s
 // CreateServiceEnvironment creates a new environment variable
 func CreateServiceEnvironment(ctx context.Context, db pgx.Tx, env models.ServiceEnvironment) error {
 	query := `
-		INSERT INTO service_environments (service_id, key, value, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
+		INSERT INTO service_environments (id, service_id, key, value, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	err := db.QueryRow(ctx, query,
+	_, err := db.Exec(ctx, query,
+		env.ID,
 		env.ServiceID,
 		env.Key,
 		env.Value,
 		env.CreatedAt,
 		env.UpdatedAt,
-	).Scan(&env.ID)
+	)
 	return err
 }
 
@@ -97,12 +97,13 @@ func CreateServiceEnvironments(ctx context.Context, db pgx.Tx, environments []mo
 	}
 
 	query := `
-		INSERT INTO service_environments (service_id, key, value, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO service_environments (id, service_id, key, value, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	for _, env := range environments {
 		_, err := db.Exec(ctx, query,
+			env.ID,
 			env.ServiceID,
 			env.Key,
 			env.Value,
@@ -175,7 +176,7 @@ func UpdateServiceEnvironments(ctx context.Context, db pgx.Tx, environments []mo
 }
 
 // DeleteServiceEnvironment deletes a single environment variable
-func DeleteServiceEnvironment(ctx context.Context, db pgx.Tx, id int64, serviceID string) error {
+func DeleteServiceEnvironment(ctx context.Context, db pgx.Tx, id string, serviceID string) error {
 	query := `DELETE FROM service_environments WHERE id = $1 AND service_id = $2`
 	result, err := db.Exec(ctx, query, id, serviceID)
 	if err != nil {

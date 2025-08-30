@@ -211,6 +211,33 @@ definitions:
         example: "2023-01-01T12:00:00Z"
         type: string
     type: object
+  models.ServiceEnvironment:
+    properties:
+      created_at:
+        description: Timestamp when the environment variable was created
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      id:
+        description: Unique identifier for the environment variable
+        example: 1
+        type: integer
+      key:
+        description: Environment variable key
+        example: NODE_ENV
+        type: string
+      service_id:
+        description: Associated service ID
+        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+        type: string
+      updated_at:
+        description: Timestamp when the environment variable was last updated
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      value:
+        description: Environment variable value
+        example: production
+        type: string
+    type: object
   models.ServiceState:
     enum:
     - running
@@ -375,46 +402,6 @@ definitions:
         minLength: 1
         type: string
     type: object
-  service.CreateServiceGitRequest:
-    properties:
-      auto_deploy:
-        description: Enable auto-deployment on Git changes
-        example: true
-        type: boolean
-      branch:
-        description: Git branch to deploy
-        example: main
-        type: string
-      description:
-        description: Optional service description
-        example: Application from Git
-        maxLength: 500
-        type: string
-      docker_compose_file_path:
-        description: Path to docker-compose file in repo
-        example: docker-compose.yml
-        maxLength: 255
-        type: string
-      name:
-        description: Service name
-        example: my-app
-        maxLength: 255
-        minLength: 3
-        type: string
-      repo_url:
-        description: Git repository URL
-        example: https://github.com/user/repo.git
-        type: string
-      server_id:
-        description: Server ID where service will be deployed
-        example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
-        type: string
-    required:
-    - branch
-    - name
-    - repo_url
-    - server_id
-    type: object
   service.createServiceRequest:
     properties:
       compose_file:
@@ -458,6 +445,25 @@ definitions:
         type: string
     required:
     - compose_file
+    type: object
+  service.updateServiceEnvironmentItem:
+    properties:
+      key:
+        maxLength: 255
+        minLength: 1
+        type: string
+      value:
+        type: string
+    type: object
+  service.updateServiceEnvironmentsRequest:
+    properties:
+      environments:
+        items:
+          $ref: '#/definitions/service.updateServiceEnvironmentItem'
+        minItems: 1
+        type: array
+    required:
+    - environments
     type: object
   service.updateServiceRequest:
     properties:
@@ -1664,6 +1670,126 @@ paths:
       summary: Update service Docker Compose configuration
       tags:
       - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/env:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves all environment variables for a specific service within
+        a team and project
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Environment variables retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ServiceEnvironment'
+                  type: array
+              type: object
+        "400":
+          description: Invalid request or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Service not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all environment variables for a service
+      tags:
+      - service
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/env/batch:
+    patch:
+      consumes:
+      - application/json
+      description: Updates multiple existing environment variables for a specific
+        service within a team and project
+      parameters:
+      - description: Team ID
+        in: path
+        name: teamID
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Service ID
+        in: path
+        name: serviceID
+        required: true
+        type: string
+      - description: Batch environment variables update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.updateServiceEnvironmentsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Environment variables updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/models.ServiceEnvironment'
+                  type: array
+              type: object
+        "400":
+          description: Invalid request body or team access denied
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Service or environment variable not found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update multiple environment variables for a service
+      tags:
+      - service
   /teams/{teamID}/projects/{projectID}/services/{serviceID}/state:
     patch:
       consumes:
@@ -1770,53 +1896,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a new service
-      tags:
-      - service
-  /teams/{teamID}/projects/{projectID}/services/git:
-    post:
-      consumes:
-      - application/json
-      description: Creates a new service by cloning a Git repository and extracting
-        Docker Compose configuration
-      parameters:
-      - description: Team ID
-        in: path
-        name: teamID
-        required: true
-        type: string
-      - description: Project ID
-        in: path
-        name: projectID
-        required: true
-        type: string
-      - description: Git service creation request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/service.CreateServiceGitRequest'
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: Server-Sent Events stream with git workflow progress
-          schema:
-            type: string
-        "400":
-          description: Invalid request body, team access denied, or project not found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: User not authenticated
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Create a service from a Git repository
       tags:
       - service
   /teams/{teamID}/servers:

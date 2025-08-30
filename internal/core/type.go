@@ -86,9 +86,10 @@ func LogStep(message string) LogMessage {
 
 func NewStreamChan() StreamChan {
 	return StreamChan{
-		LogChan:    make(chan LogMessage, 100),
-		ErrChan:    make(chan LogMessage, 100),
-		FinalError: make(chan error, 1),
-		DoneChan:   make(chan bool, 1),
+		LogChan:      make(chan LogMessage, 100),
+		ErrChan:      make(chan LogMessage, 100),
+		ProgressChan: make(chan LogMessage, 100),
+		FinalError:   make(chan error, 1),
+		DoneChan:     make(chan bool, 1),
 	}
 }

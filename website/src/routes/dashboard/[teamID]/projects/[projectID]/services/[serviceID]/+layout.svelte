@@ -43,6 +43,7 @@
 	const tabs = [
 		{ id: 'overview', label: 'Overview', path: 'overview' },
 		{ id: 'compose', label: 'Compose', path: 'compose' },
+		{ id: 'environment', label: 'Environment', path: 'environment' },
 		{ id: 'domains', label: 'Domains', path: 'domains' },
 		{ id: 'settings', label: 'Settings', path: 'settings' }
 	];

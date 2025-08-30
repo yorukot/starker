@@ -270,6 +270,33 @@ func GetServiceContainerByName(ctx context.Context, db pgx.Tx, serviceID, contai
 	return &container, nil
 }
 
+// GetServiceContainerByID gets a specific container by service container ID
+func GetServiceContainerByID(ctx context.Context, db pgx.Tx, containerID, serviceID string) (*models.ServiceContainer, error) {
+	query := `
+		SELECT id, service_id, container_id, container_name, state, created_at, updated_at
+		FROM service_containers
+		WHERE id = $1 AND service_id = $2
+	`
+	var container models.ServiceContainer
+	err := db.QueryRow(ctx, query, containerID, serviceID).Scan(
+		&container.ID,
+		&container.ServiceID,
+		&container.ContainerID,
+		&container.ContainerName,
+		&container.State,
+		&container.CreatedAt,
+		&container.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("container not found")
+		}
+		return nil, err
+	}
+
+	return &container, nil
+}
+
 // CreateServiceContainer creates a new service container
 func CreateServiceContainer(ctx context.Context, db pgx.Tx, container models.ServiceContainer) error {
 	query := `

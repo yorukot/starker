@@ -176,7 +176,7 @@
 								<Select.Trigger class="w-full {$errors.server_id ? 'border-destructive' : ''}">
 									{$formData.server_id
 										? servers.find((k) => k.id === $formData.server_id)?.name
-										: 'Select an SSH key'}
+										: 'Select an Server'}
 								</Select.Trigger>
 								<Select.Content>
 									{#each servers as server (server.id)}
