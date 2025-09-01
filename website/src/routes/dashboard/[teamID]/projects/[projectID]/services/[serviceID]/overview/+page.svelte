@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { getContext } from 'svelte';
+	import { invalidate } from '$app/navigation';
 	import InfoIcon from '~icons/lucide/info';
+	import ContainerIcon from '~icons/lucide/container';
 	import ServiceQuickActions from '$lib/components/service-quick-actions.svelte';
 	import ServiceLogsSheet from '$lib/components/service-logs-sheet.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import type { Service } from '$lib/schemas/service';
+	import type { Service, ServiceContainer } from '$lib/schemas/service';
 	import { ServiceState } from '$lib/schemas/service';
+	import type { PageData } from './$types';
+
+	// Props from page loader
+	let { data }: { data: PageData } = $props();
 
 	// Get layout data from context
 	const getLayoutData = getContext<() => { service: Service | null }>('layoutData');
@@ -17,6 +23,10 @@
 	const teamID = $derived(page.params.teamID!);
 	const projectID = $derived(page.params.projectID!);
 	const serviceID = $derived(page.params.serviceID!);
+
+	// Containers data from page loader
+	const containers = $derived(data.containers || []);
+	const containersError = $derived(data.error || null);
 
 	// Quick Actions state
 	let quickActionsRef = $state<ServiceQuickActions>();
@@ -98,6 +108,8 @@
 										}
 										addLogMessage('status', `Operation completed. Service state: ${data.state}`);
 										quickActionsRef?.resetStates();
+										// Reload container data when operation completes
+										invalidate(`project:${projectID}`);
 										return;
 									} else {
 										addLogMessage('info', data.message);
@@ -141,6 +153,23 @@
 				return 'bg-secondary/50 border-secondary/30';
 		}
 	}
+
+	// Container status border variants
+	function getContainerBorderClass(status?: string) {
+		if (!status) return 'border-l-secondary';
+
+		switch (status) {
+			case 'running':
+				return 'border-l-green-500';
+			case 'stopped':
+			case 'exited':
+			case 'removed':
+				return 'border-l-red-500';
+			default:
+				return 'border-l-secondary';
+		}
+	}
+
 </script>
 
 <div class="flex h-full flex-col gap-6 p-6">
@@ -160,9 +189,9 @@
 	{#if service}
 		<!-- Service Status Card -->
 		<Card.Root>
-			<Card.Content class="pt-6">
+			<Card.Header class="pb-3">
 				<div class="flex items-center justify-between">
-					<div class="space-y-2">
+					<div class="space-y-1">
 						<h3 class="text-lg font-medium">Service Status</h3>
 						<div class="flex items-center gap-3">
 							<span class="text-sm text-muted-foreground">Current State:</span>
@@ -174,18 +203,7 @@
 								{service?.state || 'Unknown'}
 							</span>
 						</div>
-						<div class="space-y-1">
-							<p class="text-sm text-muted-foreground">
-								<span class="font-medium">Name:</span> {service.name}
-							</p>
-							{#if service.description}
-								<p class="text-sm text-muted-foreground">
-									<span class="font-medium">Description:</span> {service.description}
-								</p>
-							{/if}
-						</div>
 					</div>
-
 					<!-- Quick Actions -->
 					<div class="flex-shrink-0">
 						<ServiceQuickActions
@@ -199,6 +217,70 @@
 						/>
 					</div>
 				</div>
+			</Card.Header>
+			{#if service.description}
+				<Card.Content class="pt-0">
+					<p class="text-sm text-muted-foreground">
+						<span class="font-medium">Description:</span> {service.description}
+					</p>
+				</Card.Content>
+			{/if}
+		</Card.Root>
+
+		<!-- Service Containers -->
+		<Card.Root>
+			<Card.Header>
+				<div class="flex items-center gap-2">
+					<ContainerIcon class="h-5 w-5 text-primary" />
+					<h3 class="text-lg font-medium">Containers</h3>
+				</div>
+			</Card.Header>
+			<Card.Content>
+				{#if containersError}
+					<div class="text-center py-8">
+						<p class="text-destructive text-sm">{containersError}</p>
+					</div>
+				{:else if containers.length > 0}
+					<div class="space-y-3">
+						{#each containers as container (container.id)}
+							<div class="flex items-center gap-3 rounded-lg border border-border/50 border-l-4 bg-card/30 p-4 transition-colors hover:bg-card/60 {getContainerBorderClass(container.state)}">
+								<ContainerIcon class="h-5 w-5 text-muted-foreground flex-shrink-0" />
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center gap-2 mb-1">
+										<h4 class="font-medium text-sm truncate">{container.container_name}</h4>
+										<span class="text-xs text-muted-foreground capitalize">
+											{container.state}
+										</span>
+									</div>
+									<div class="flex items-center gap-4 text-xs text-muted-foreground">
+										{#if container.container_id}
+											<span>
+												<span class="font-medium">ID:</span> 
+												<span class="font-mono">{container.container_id.slice(0, 12)}...</span>
+											</span>
+										{/if}
+										<span>
+											<span class="font-medium">Created:</span> 
+											{new Date(container.created_at).toLocaleDateString()}
+										</span>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-center py-8">
+						<div class="rounded-full border border-muted bg-muted/30 p-4 mx-auto w-fit mb-4">
+							<ContainerIcon class="h-8 w-8 text-muted-foreground/50" />
+						</div>
+						<div class="space-y-1">
+							<p class="font-medium text-sm">No containers found</p>
+							<p class="text-xs text-muted-foreground">
+								Containers will appear here when the service is running
+							</p>
+						</div>
+					</div>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 

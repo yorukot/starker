@@ -95,3 +95,15 @@ export function createAuthenticatedFetch() {
 		return authFetch(fullUrl, options);
 	};
 }
+
+/**
+ * Fetch service containers for a specific service
+ */
+export async function fetchServiceContainers(
+	teamID: string,
+	projectID: string,
+	serviceID: string
+): Promise<Response> {
+	const url = `${PUBLIC_API_BASE_URL}/teams/${teamID}/projects/${projectID}/services/${serviceID}/containers`;
+	return authGet(url);
+}
