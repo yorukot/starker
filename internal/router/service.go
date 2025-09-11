@@ -1,8 +1,6 @@
 package router
 
 import (
-	"time"
-
 	"github.com/go-chi/chi/v5"
 
 	"github.com/yorukot/starker/internal/handler"
@@ -12,7 +10,7 @@ import (
 )
 
 func ServiceRouter(r chi.Router, app *handler.App) {
-	dockerPool := connection.NewConnectionPool(20*time.Minute, 1*time.Hour)
+	dockerPool := connection.NewConnectionPool()
 
 	serviceHandler := service.ServiceHandler{
 		DB:             app.DB,

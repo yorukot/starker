@@ -25,7 +25,7 @@ type createServerRequest struct {
 	Name         string  `json:"name" validate:"required,min=3,max=255"`
 	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
 	IP           string  `json:"ip" validate:"required,ip"`
-	Port         string  `json:"port" validate:"required,min=1,max=5"`
+	Port         int     `json:"port" validate:"required,hostname_port"`
 	User         string  `json:"user" validate:"required,min=1,max=255"`
 	PrivateKeyID string  `json:"private_key_id" validate:"required"`
 }
@@ -126,7 +126,7 @@ func generateServer(createServerRequest createServerRequest, teamID string) mode
 		TeamID:       teamID,
 		Name:         createServerRequest.Name,
 		Description:  createServerRequest.Description,
-		IP:           createServerRequest.IP,
+		Host:         createServerRequest.IP,
 		Port:         createServerRequest.Port,
 		User:         createServerRequest.User,
 		PrivateKeyID: createServerRequest.PrivateKeyID,

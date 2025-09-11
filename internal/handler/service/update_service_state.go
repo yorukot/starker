@@ -209,7 +209,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	connectionID := namingGenerator.ConnectionID()
 	// Build SSH connection string
 	sshHost := fmt.Sprintf("%s@%s:%s", server.User, server.IP, server.Port)
-	dockerClient, err := h.ConnectionPool.GetDockerConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
+	sshClient, err := h.ConnectionPool.GetSSHConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Docker connection: %w", err)
 	}
@@ -219,7 +219,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 
 	// Create Docker handler
 	dockerHandler := &dockerutils.DockerHandler{
-		Client:          dockerClient,
+		Client:          sshClient,
 		Project:         project,
 		NamingGenerator: namingGenerator,
 		DB:              h.DB,

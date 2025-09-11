@@ -23,8 +23,8 @@ import (
 type updateServerRequest struct {
 	Name         *string `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
 	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	IP           *string `json:"ip,omitempty" validate:"omitempty,ip"`
-	Port         *string `json:"port,omitempty" validate:"omitempty,min=1,max=5"`
+	Host         *string `json:"host,omitempty" validate:"omitempty,host"`
+	Port         *int    `json:"port,omitempty" validate:"omitempty,min=1,max=5"`
 	User         *string `json:"user,omitempty" validate:"omitempty,min=1,max=255"`
 	PrivateKeyID *string `json:"private_key_id,omitempty" validate:"omitempty"`
 }
@@ -160,8 +160,8 @@ func updateServerFromRequest(existingServer models.Server, updateServerRequest u
 	if updateServerRequest.Description != nil {
 		existingServer.Description = updateServerRequest.Description
 	}
-	if updateServerRequest.IP != nil {
-		existingServer.IP = *updateServerRequest.IP
+	if updateServerRequest.Host != nil {
+		existingServer.Host = *updateServerRequest.Host
 	}
 	if updateServerRequest.Port != nil {
 		existingServer.Port = *updateServerRequest.Port

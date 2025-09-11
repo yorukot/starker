@@ -70,7 +70,7 @@ CREATE TABLE "public"."servers" (
     "team_id" character varying(27) NOT NULL,
     "name" text NOT NULL,
     "description" text,
-    "ip" text NOT NULL,
+    "host" text NOT NULL,
     "port" text NOT NULL,
     "user" text NOT NULL,
     "private_key_id" character varying(27) NOT NULL,

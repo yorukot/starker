@@ -2,8 +2,8 @@ package dockerutils
 
 import (
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/docker/docker/client"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/yorukot/starker/internal/core"
 	"github.com/yorukot/starker/pkg/connection"
@@ -11,7 +11,7 @@ import (
 )
 
 type DockerHandler struct {
-	Client          *client.Client
+	Client       *ssh.Client
 	Project         *types.Project
 	NamingGenerator *generator.NamingGenerator
 	DB              *pgxpool.Pool
