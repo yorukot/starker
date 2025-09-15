@@ -43,7 +43,8 @@ func ServiceRouter(r chi.Router, app *handler.App) {
 
 		r.Route("/{serviceID}/containers", func(r chi.Router) {
 			r.Get("/", serviceHandler.GetContainers)
-			r.Get("/{containerID}/logs", serviceHandler.GetContainerLogs)
+			// TODO: Uncomment after finishing the implementation
+			// r.Get("/{containerID}/logs", serviceHandler.GetContainerLogs)
 		})
 	})
 }

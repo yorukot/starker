@@ -71,7 +71,7 @@ CREATE TABLE "public"."servers" (
     "name" text NOT NULL,
     "description" text,
     "host" text NOT NULL,
-    "port" text NOT NULL,
+    "port" integer NOT NULL,
     "user" text NOT NULL,
     "private_key_id" character varying(27) NOT NULL,
     "updated_at" timestamp NOT NULL,

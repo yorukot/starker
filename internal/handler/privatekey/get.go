@@ -131,11 +131,6 @@ func (h *PrivateKeyHandler) GetPrivateKey(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if privateKey == nil {
-		response.RespondWithError(w, http.StatusNotFound, "Private key not found", "PRIVATE_KEY_NOT_FOUND")
-		return
-	}
-
 	// Commit the transaction
 	repository.CommitTransaction(tx, r.Context())
 

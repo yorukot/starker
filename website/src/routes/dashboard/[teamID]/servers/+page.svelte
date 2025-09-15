@@ -56,7 +56,7 @@
 								<div class="space-y-1 text-sm text-muted-foreground">
 									<div class="flex items-center gap-2">
 										<LucideGlobe class="h-3 w-3" />
-										<span>{server.ip}:{server.port}</span>
+										<span>{server.host}:{server.port}</span>
 									</div>
 									<div class="flex items-center gap-2">
 										<LucideUser class="h-3 w-3" />

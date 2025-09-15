@@ -6,6 +6,9 @@ build:
 run: build
 	./tmp/$(BINARY_NAME)
 
+web:
+	cd website && pnpm run dev
+
 dev:
 	air --build.cmd "go build -o tmp/$(BINARY_NAME) cmd/main.go" --build.bin "./tmp/$(BINARY_NAME)"
 

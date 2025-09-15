@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -24,8 +25,8 @@ import (
 type createServerRequest struct {
 	Name         string  `json:"name" validate:"required,min=3,max=255"`
 	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	IP           string  `json:"ip" validate:"required,ip"`
-	Port         int     `json:"port" validate:"required,hostname_port"`
+	Host        string  `json:"host" validate:"required,hostname_rfc1123|ip"`
+	Port         int     `validate:"required,numeric,min=1,max=65535"`
 	User         string  `json:"user" validate:"required,min=1,max=255"`
 	PrivateKeyID string  `json:"private_key_id" validate:"required"`
 }
@@ -51,13 +52,13 @@ func (h *ServerHandler) CreateServer(w http.ResponseWriter, r *http.Request) {
 	// Get the server from the request body
 	var createServerRequest createServerRequest
 	if err := json.NewDecoder(r.Body).Decode(&createServerRequest); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
+		response.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err), "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the server creation request
 	if err := validator.New().Struct(createServerRequest); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
+		response.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err), "INVALID_REQUEST_BODY")
 		return
 	}
 
@@ -126,7 +127,7 @@ func generateServer(createServerRequest createServerRequest, teamID string) mode
 		TeamID:       teamID,
 		Name:         createServerRequest.Name,
 		Description:  createServerRequest.Description,
-		Host:         createServerRequest.IP,
+		Host:         createServerRequest.Host,
 		Port:         createServerRequest.Port,
 		User:         createServerRequest.User,
 		PrivateKeyID: createServerRequest.PrivateKeyID,

@@ -208,8 +208,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	// Get Docker client from connection pool
 	connectionID := namingGenerator.ConnectionID()
 	// Build SSH connection string
-	sshHost := fmt.Sprintf("%s@%s:%s", server.User, server.IP, server.Port)
-	sshClient, err := h.ConnectionPool.GetSSHConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
+	sshClient, err := h.ConnectionPool.GetSSHConnection(connectionID, server.Host, server.Port, server.User, []byte(privateKey.PrivateKey))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Docker connection: %w", err)
 	}
@@ -238,13 +237,12 @@ func (h *ServiceHandler) executeStartOperation(ctx context.Context, tx pgx.Tx, s
 		return nil, err
 	}
 
-	// Start the Docker compose operation
-	err = dockerHandler.StartDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start Docker compose: %w", err)
-	}
+	// Start the Docker compose operation asynchronously in a goroutine
+	go func() {
+		dockerHandler.StartDockerCompose(ctx)
+	}()
 
-	// Return the streaming result
+	// Return the streaming result immediately
 	return streamChan, nil
 }
 

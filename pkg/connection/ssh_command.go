@@ -8,20 +8,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/yorukot/starker/internal/core"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/yorukot/starker/internal/core"
 )
 
-// CommandExecutor handles SSH command execution with real-time streaming
-type CommandExecutor struct {}
-
-// NewCommandExecutor creates a new CommandExecutor
-func NewCommandExecutor() *CommandExecutor {
-	return &CommandExecutor{}
-}
-
 // ExecuteCommand executes a single SSH command with real-time output streaming
-func (e *CommandExecutor) ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.StreamChan) error {
+func ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.StreamChan) error {
 
 	// Create SSH session
 	session, err := sshClient.NewSession()
@@ -63,13 +56,13 @@ func (e *CommandExecutor) ExecuteCommand(sshClient *ssh.Client, command string, 
 	// Stream stdout in real-time
 	go func() {
 		defer wg.Done()
-		e.streamOutput(stdout, streamChan, false)
+		streamOutput(stdout, streamChan, false)
 	}()
 
 	// Stream stderr in real-time
 	go func() {
 		defer wg.Done()
-		e.streamOutput(stderr, streamChan, true)
+		streamOutput(stderr, streamChan, true)
 	}()
 
 	// Wait for command to complete
@@ -90,14 +83,14 @@ func (e *CommandExecutor) ExecuteCommand(sshClient *ssh.Client, command string, 
 }
 
 // ExecuteMultipleCommands executes multiple SSH commands sequentially with real-time output streaming
-func (e *CommandExecutor) ExecuteMultipleCommands(sshClient *ssh.Client, commands []string, streamChan core.StreamChan) error {
+func ExecuteMultipleCommands(sshClient *ssh.Client, commands []string, streamChan core.StreamChan) error {
 	streamChan.LogStep(fmt.Sprintf("Executing %d commands sequentially", len(commands)))
 
 	for i, command := range commands {
 		streamChan.LogStep(fmt.Sprintf("Command %d/%d: %s", i+1, len(commands), command))
 
 		// Execute each command using the same connection
-		if err := e.ExecuteCommand(sshClient, command, streamChan); err != nil {
+		if err := ExecuteCommand(sshClient, command, streamChan); err != nil {
 			streamChan.LogError(fmt.Sprintf("Failed at command %d/%d: %v", i+1, len(commands), err))
 			return err
 		}
@@ -108,7 +101,7 @@ func (e *CommandExecutor) ExecuteMultipleCommands(sshClient *ssh.Client, command
 }
 
 // ExecuteSimpleCommand executes a single SSH command and returns the output synchronously
-func (e *CommandExecutor) ExecuteSimpleCommand(sshClient *ssh.Client, command string) (stdout, stderr string, err error) {
+func ExecuteSimpleCommand(sshClient *ssh.Client, command string) (stdout, stderr string, err error) {
 	// Create SSH session
 	session, err := sshClient.NewSession()
 	if err != nil {
@@ -129,7 +122,7 @@ func (e *CommandExecutor) ExecuteSimpleCommand(sshClient *ssh.Client, command st
 }
 
 // streamOutput reads from an io.Reader and streams the output line by line
-func (e *CommandExecutor) streamOutput(reader io.Reader, streamChan core.StreamChan, isError bool) {
+func streamOutput(reader io.Reader, streamChan core.StreamChan, isError bool) {
 	scanner := bufio.NewScanner(reader)
 
 	for scanner.Scan() {

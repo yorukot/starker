@@ -11,7 +11,7 @@ import (
 )
 
 type DockerHandler struct {
-	Client       *ssh.Client
+	Client          *ssh.Client
 	Project         *types.Project
 	NamingGenerator *generator.NamingGenerator
 	DB              *pgxpool.Pool

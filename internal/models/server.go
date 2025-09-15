@@ -9,7 +9,7 @@ type Server struct {
 	Name         string    `json:"name" example:"Production Server"`                       // Server name
 	Description  *string   `json:"description,omitempty" example:"Main production server"` // Server description
 	Host         string    `json:"host" example:"192.168.1.100"`                           // Server host
-	Port         int    `json:"port" example:"22"`                                      // SSH port
+	Port         int       `json:"port" example:"22"`                                      // SSH port
 	User         string    `json:"user" example:"ubuntu"`                                  // SSH username
 	PrivateKeyID string    `json:"private_key_id" example:"01ARZ3NDEKTSV4RRFFQ69G5FAV"`    // Associated private key ID
 	UpdatedAt    time.Time `json:"updated_at" example:"2023-01-01T12:00:00Z"`              // Timestamp when the server was last updated

@@ -3,9 +3,8 @@ package dockerutils
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
 // WriteDockerCompose inject some label and necessary info into docker-compose.yml
@@ -100,7 +99,7 @@ func (h *DockerHandler) injectDockerCompose() (string, error) {
 	}
 
 	// Convert the modified project back to YAML
-	yamlBytes, err := yaml.Marshal(&modifiedProject)
+	yamlBytes, err := modifiedProject.MarshalYAML()
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal compose to YAML: %w", err)
 	}
@@ -121,43 +120,24 @@ func (h *DockerHandler) writeToFile(composeContent string) error {
 	serviceDataPath := h.NamingGenerator.GenerateServiceDataPath()
 	composeFilePath := filepath.Join(serviceDataPath, "compose.yml")
 
-	// Create SSH session
-	session, err := h.Client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create SSH session: %w", err)
-	}
-	defer session.Close()
-
 	// Create the service directory if it doesn't exist
 	mkdirCmd := fmt.Sprintf("mkdir -p %s", serviceDataPath)
-	if err := session.Run(mkdirCmd); err != nil {
+	_, _, err := connection.ExecuteSimpleCommand(h.Client, mkdirCmd)
+	if err != nil {
 		return fmt.Errorf("failed to create service directory: %w", err)
 	}
 
-	// Create a new session for writing the file
-	session2, err := h.Client.NewSession()
+	// Write the compose file content using a here-doc approach
+	writeCmd := fmt.Sprintf("cat > %s << 'EOF'\n%s\nEOF", composeFilePath, composeContent)
+	_, _, err = connection.ExecuteSimpleCommand(h.Client, writeCmd)
 	if err != nil {
-		return fmt.Errorf("failed to create second SSH session: %w", err)
-	}
-	defer session2.Close()
-
-	// Write the compose file content
-	writeCmd := fmt.Sprintf("cat > %s", composeFilePath)
-	session2.Stdin = strings.NewReader(composeContent)
-	if err := session2.Run(writeCmd); err != nil {
 		return fmt.Errorf("failed to write compose file: %w", err)
 	}
 
-	// Create a third session to set permissions
-	session3, err := h.Client.NewSession()
-	if err != nil {
-		return fmt.Errorf("failed to create third SSH session: %w", err)
-	}
-	defer session3.Close()
-
 	// Set appropriate permissions (readable and writable by owner)
 	chmodCmd := fmt.Sprintf("chmod 644 %s", composeFilePath)
-	if err := session3.Run(chmodCmd); err != nil {
+	_, _, err = connection.ExecuteSimpleCommand(h.Client, chmodCmd)
+	if err != nil {
 		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 

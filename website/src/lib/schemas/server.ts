@@ -4,8 +4,8 @@ export interface Server {
 	team_id: string;
 	name: string;
 	description?: string;
-	ip: string;
-	port: string;
+	host: string;
+	port: number;
 	user: string;
 	private_key_id: string;
 	updated_at: string;
