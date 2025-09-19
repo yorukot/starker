@@ -131,7 +131,7 @@ func (h *ServiceHandler) CreateServiceCompose(w http.ResponseWriter, r *http.Req
 	}
 
 	// Generate the composeProject from the compose file
-	namingGenerator := generator.NewNamingGenerator(service.ID, teamID, server.ID)
+	namingGenerator := generator.NewNamingGenerator(service.ID, teamID, server.ID, service.ProjectID)
 	composeProject, err := dockeryaml.ParseComposeContent(createServiceRequest.ComposeFile, namingGenerator.ProjectName())
 	if err != nil {
 		zap.L().Error("Failed to parse compose file", zap.Error(err))

@@ -17,13 +17,15 @@ type NamingGenerator struct {
 	serviceID string
 	teamID    string
 	serverID  string
+	projectID string
 }
 
-func NewNamingGenerator(serviceID, teamID, serverID string) *NamingGenerator {
+func NewNamingGenerator(serviceID, teamID, serverID, projectID string) *NamingGenerator {
 	return &NamingGenerator{
 		serviceID: serviceID,
 		teamID:    teamID,
 		serverID:  serverID,
+		projectID: projectID,
 	}
 }
 
@@ -37,6 +39,10 @@ func (ng *NamingGenerator) TeamID() string {
 
 func (ng *NamingGenerator) ServerID() string {
 	return ng.serverID
+}
+
+func (ng *NamingGenerator) ProjectID() string {
+	return ng.projectID
 }
 
 func (ng *NamingGenerator) ProjectName() string {

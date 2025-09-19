@@ -6,7 +6,7 @@
 	interface LogMessage {
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status' | 'step';
+		type: 'log' | 'error' | 'status';
 		message: string;
 	}
 
@@ -40,6 +40,7 @@
 		<div class="mt-4 flex-1 overflow-hidden">
 			<LogsViewer
 				{messages}
+				title=""
 				description="Service operation logs will appear here"
 				class="h-[calc(100vh-200px)]"
 			/>

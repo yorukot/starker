@@ -25,7 +25,7 @@ import (
 type createServerRequest struct {
 	Name         string  `json:"name" validate:"required,min=3,max=255"`
 	Description  *string `json:"description,omitempty" validate:"omitempty,max=500"`
-	Host        string  `json:"host" validate:"required,hostname_rfc1123|ip"`
+	Host         string  `json:"host" validate:"required,hostname_rfc1123|ip"`
 	Port         int     `validate:"required,numeric,min=1,max=65535"`
 	User         string  `json:"user" validate:"required,min=1,max=255"`
 	PrivateKeyID string  `json:"private_key_id" validate:"required"`

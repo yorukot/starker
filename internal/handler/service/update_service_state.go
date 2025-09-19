@@ -194,7 +194,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	}
 
 	// Parse the Docker Compose configuration
-	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID)
+	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID, service.ProjectID)
 	project, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, namingGenerator.ProjectName())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse compose file: %w", err)
@@ -238,8 +238,11 @@ func (h *ServiceHandler) executeStartOperation(ctx context.Context, tx pgx.Tx, s
 	}
 
 	// Start the Docker compose operation asynchronously in a goroutine
+	// Use context.Background() to ensure operation continues even if client disconnects
 	go func() {
-		dockerHandler.StartDockerCompose(ctx)
+		if err := dockerHandler.StartDockerCompose(context.Background()); err != nil {
+			zap.L().Error("Failed to start Docker compose", zap.Error(err))
+		}
 	}()
 
 	// Return the streaming result immediately
@@ -255,10 +258,10 @@ func (h *ServiceHandler) executeStopOperation(ctx context.Context, tx pgx.Tx, se
 	}
 
 	// Stop the Docker compose operation
-	err = dockerHandler.StopDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stop Docker compose: %w", err)
-	}
+	// Use context.Background() to ensure operation continues even if client disconnects
+	go func() {
+		dockerHandler.StopDockerCompose(context.Background())
+	}()
 
 	// Return the streaming result
 	return streamChan, nil
@@ -272,12 +275,14 @@ func (h *ServiceHandler) executeRestartOperation(ctx context.Context, tx pgx.Tx,
 		return nil, err
 	}
 
-	// Restart the Docker compose operation
-	err = dockerHandler.RestartDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to restart Docker compose: %w", err)
-	}
+	// Restart the Docker compose operation asynchronously in a goroutine
+	// Use context.Background() to ensure operation continues even if client disconnects
+	go func() {
+		if err := dockerHandler.RestartDockerCompose(context.Background()); err != nil {
+			zap.L().Error("Failed to restart Docker compose", zap.Error(err))
+		}
+	}()
 
-	// Return the streaming result
+	// Return the streaming result immediately
 	return streamChan, nil
 }

@@ -34,12 +34,12 @@
 	let logMessages: Array<{
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status' | 'step';
+		type: 'log' | 'error' | 'status';
 		message: string;
 	}> = $state([]);
 
 	// Add log message with timestamp and unique ID
-	function addLogMessage(type: 'log' | 'error' | 'info' | 'status' | 'step', message: string) {
+	function addLogMessage(type: 'log' | 'error' | 'status', message: string) {
 		logMessages = [
 			...logMessages,
 			{
@@ -55,7 +55,7 @@
 	async function handleSSEResponse(operationType: string, response: Response) {
 		// Open log sheet when operation starts
 		showLogSheet = true;
-		addLogMessage('info', `Starting ${operationType} operation...`);
+		addLogMessage('status', `Starting ${operationType} operation...`);
 
 		if (!response.body) {
 			addLogMessage('error', 'No response body for SSE stream');
@@ -92,15 +92,6 @@
 
 							switch (data.type) {
 								case 'log':
-									addLogMessage('log', data.message);
-									break;
-								case 'error':
-									addLogMessage('error', data.message);
-									break;
-								case 'step':
-									addLogMessage('log', data.message);
-									break;
-								case 'info':
 									// Check if this is a completion message (has state property)
 									if (data.state) {
 										if (service) {
@@ -112,7 +103,25 @@
 										invalidate(`project:${projectID}`);
 										return;
 									} else {
-										addLogMessage('info', data.message);
+										addLogMessage('log', data.message);
+									}
+									break;
+								case 'error':
+									addLogMessage('error', data.message);
+									break;
+								case 'status':
+									// Check if this is a completion message (has state property)
+									if (data.state) {
+										if (service) {
+											service.state = data.state;
+										}
+										addLogMessage('status', `Operation completed. Service state: ${data.state}`);
+										quickActionsRef?.resetStates();
+										// Reload container data when operation completes
+										invalidate(`project:${projectID}`);
+										return;
+									} else {
+										addLogMessage('status', data.message);
 									}
 									break;
 								default:

@@ -11,7 +11,7 @@ import (
 // RestartDockerCompose restarts all services defined in the Docker Compose configuration
 // with real-time progress streaming for container restart
 func (h *DockerHandler) RestartDockerCompose(ctx context.Context) error {
-	h.StreamChan.LogStep("Restarting Docker Compose services")
+	h.StreamChan.LogLog("Restarting Docker Compose services")
 
 	// Get the compose file path
 	serviceDataPath := h.NamingGenerator.GenerateServiceDataPath()
@@ -25,22 +25,22 @@ func (h *DockerHandler) RestartDockerCompose(ctx context.Context) error {
 	}
 
 	// Execute Docker Compose restart operations in sequence
-	if err := h.restartServices(ctx, composeFilePath); err != nil {
+	if err := h.restartServices(composeFilePath); err != nil {
 		return err // Error already sent through FinalError channel
 	}
 
-	h.StreamChan.LogStep("Docker Compose services restarted successfully")
+	h.StreamChan.LogLog("Docker Compose services restarted successfully")
 	h.StreamChan.DoneChan <- true
 	return nil
 }
 
 // restartServices restarts all services defined in the compose file
-func (h *DockerHandler) restartServices(ctx context.Context, composeFilePath string) error {
-	h.StreamChan.LogStep("Restarting Docker services")
+func (h *DockerHandler) restartServices(composeFilePath string) error {
+	h.StreamChan.LogLog("Restarting Docker services")
 
 	// Use docker compose restart command for graceful restart
 	restartCmd := fmt.Sprintf("docker compose -f %s restart", composeFilePath)
-	
+
 	// Execute the restart command with streaming
 	if err := connection.ExecuteCommand(h.Client, restartCmd, h.StreamChan); err != nil {
 		h.StreamChan.LogError(fmt.Sprintf("Failed to restart services: %v", err))

@@ -25,7 +25,7 @@ func ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.Strea
 	}
 	defer session.Close()
 
-	streamChan.LogStep(fmt.Sprintf("Executing command: %s", command))
+	streamChan.LogLog(fmt.Sprintf("Executing command: %s", command))
 
 	// Get stdout and stderr pipes
 	stdout, err := session.StdoutPipe()
@@ -75,7 +75,7 @@ func ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.Strea
 		streamChan.LogError(fmt.Sprintf("Command execution failed: %v", err))
 		streamChan.FinalError <- err
 	} else {
-		streamChan.LogStep("Command executed successfully")
+		streamChan.LogLog("Command executed successfully")
 	}
 
 	streamChan.DoneChan <- true
@@ -84,10 +84,10 @@ func ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.Strea
 
 // ExecuteMultipleCommands executes multiple SSH commands sequentially with real-time output streaming
 func ExecuteMultipleCommands(sshClient *ssh.Client, commands []string, streamChan core.StreamChan) error {
-	streamChan.LogStep(fmt.Sprintf("Executing %d commands sequentially", len(commands)))
+	streamChan.LogLog(fmt.Sprintf("Executing %d commands sequentially", len(commands)))
 
 	for i, command := range commands {
-		streamChan.LogStep(fmt.Sprintf("Command %d/%d: %s", i+1, len(commands), command))
+		streamChan.LogLog(fmt.Sprintf("Command %d/%d: %s", i+1, len(commands), command))
 
 		// Execute each command using the same connection
 		if err := ExecuteCommand(sshClient, command, streamChan); err != nil {
@@ -96,7 +96,7 @@ func ExecuteMultipleCommands(sshClient *ssh.Client, commands []string, streamCha
 		}
 	}
 
-	streamChan.LogStep("All commands executed successfully")
+	streamChan.LogLog("All commands executed successfully")
 	return nil
 }
 
@@ -129,9 +129,14 @@ func streamOutput(reader io.Reader, streamChan core.StreamChan, isError bool) {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
 			if isError {
-				streamChan.LogError(line)
+				// For stderr, check if it's actually a Docker progress message
+				if isDockerProgressMessage(line) {
+					streamChan.LogLog(line)
+				} else {
+					streamChan.LogError(line)
+				}
 			} else {
-				streamChan.LogInfo(line)
+				streamChan.LogLog(line)
 			}
 		}
 	}
@@ -139,4 +144,55 @@ func streamOutput(reader io.Reader, streamChan core.StreamChan, isError bool) {
 	if err := scanner.Err(); err != nil {
 		streamChan.LogError(fmt.Sprintf("Error reading output: %v", err))
 	}
+}
+
+// isDockerProgressMessage determines if a stderr line is actually Docker progress info
+func isDockerProgressMessage(line string) bool {
+	line = strings.ToLower(line)
+
+	// Docker progress and status messages that appear on stderr but aren't errors
+	progressKeywords := []string{
+		"pulling",
+		"pulled",
+		"downloading",
+		"downloaded",
+		"extracting",
+		"extracted",
+		"creating",
+		"created",
+		"starting",
+		"started",
+		"stopping",
+		"stopped",
+		"removing",
+		"removed",
+		"restarting",
+		"restarted",
+		"waiting",
+		"running",
+		"exited",
+	}
+
+	for _, keyword := range progressKeywords {
+		if strings.Contains(line, keyword) {
+			return true
+		}
+	}
+
+	// Check for container/service name patterns followed by colons (e.g., "app: Pulling")
+	if strings.Contains(line, ":") && (strings.Contains(line, "pull") || strings.Contains(line, "start") || strings.Contains(line, "creat")) {
+		return true
+	}
+
+	// Check for progress indicators (percentages, progress bars)
+	if strings.Contains(line, "%") || strings.Contains(line, "[") && strings.Contains(line, "]") {
+		return true
+	}
+
+	// Check for image/layer hash patterns (common in Docker progress)
+	if strings.Contains(line, "sha256:") {
+		return true
+	}
+
+	return false
 }
