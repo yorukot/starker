@@ -17,7 +17,7 @@
 	</div>
 
 	<!-- Content placeholder -->
-	<div class="flex-1 flex items-center justify-center text-muted-foreground">
+	<div class="flex flex-1 items-center justify-center text-muted-foreground">
 		<p>Custom domains configuration coming soon...</p>
 	</div>
 </div>

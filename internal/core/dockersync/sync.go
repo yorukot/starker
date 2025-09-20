@@ -2,11 +2,13 @@ package dockersync
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/jackc/pgx/v5"
 	"github.com/segmentio/ksuid"
+	"go.uber.org/zap"
 
 	"github.com/yorukot/starker/internal/models"
 	"github.com/yorukot/starker/internal/repository"
@@ -14,15 +16,18 @@ import (
 	"github.com/yorukot/starker/pkg/generator"
 )
 
-// This function going to sync all the container to database
+// SyncContainersToDB synchronizes containers defined in compose project with database records
 func SyncContainersToDB(ctx context.Context, dbTx pgx.Tx, connPool *connection.ConnectionPool, namingGenerator generator.NamingGenerator, composeProject types.Project) error {
 	// Get the service ID from the naming generator
 	serviceID := namingGenerator.GetLabels()["starker.service.id"]
 
+	zap.L().Debug("Starting container sync to database", zap.String("serviceID", serviceID), zap.Int("composeServices", len(composeProject.Services)))
+
 	// Get all existing containers from the database for this service
 	existingContainers, err := repository.GetServiceContainers(ctx, dbTx, serviceID)
 	if err != nil {
-		return err
+		zap.L().Error("Failed to get existing containers from database", zap.Error(err), zap.String("serviceID", serviceID))
+		return fmt.Errorf("failed to get existing containers: %w", err)
 	}
 
 	// Create a map of existing container names for efficient lookup
@@ -48,14 +53,16 @@ func SyncContainersToDB(ctx context.Context, dbTx pgx.Tx, connPool *connection.C
 				ServiceID:     serviceID,
 				ContainerID:   nil, // Will be populated when container is actually created
 				ContainerName: containerName,
-				State:         models.ContainerStateStopped, // Default state
+				State:         models.ContainerStateStopped, // Default state - will be updated by state verification
 				CreatedAt:     now,
 				UpdatedAt:     now,
 			}
 
 			if err := repository.CreateServiceContainer(ctx, dbTx, newContainer); err != nil {
-				return err
+				zap.L().Error("Failed to create container in database", zap.Error(err), zap.String("containerName", containerName))
+				return fmt.Errorf("failed to create container %s: %w", containerName, err)
 			}
+			zap.L().Debug("Created new container record", zap.String("containerName", containerName), zap.String("containerID", newContainer.ID))
 		}
 	}
 
@@ -68,11 +75,14 @@ func SyncContainersToDB(ctx context.Context, dbTx pgx.Tx, connPool *connection.C
 				existingContainer.UpdatedAt = time.Now()
 
 				if err := repository.UpdateServiceContainer(ctx, dbTx, existingContainer); err != nil {
-					return err
+					zap.L().Error("Failed to mark container as removed in database", zap.Error(err), zap.String("containerName", existingContainer.ContainerName))
+					return fmt.Errorf("failed to update container %s as removed: %w", existingContainer.ContainerName, err)
 				}
+				zap.L().Debug("Marked container as removed", zap.String("containerName", existingContainer.ContainerName))
 			}
 		}
 	}
 
+	zap.L().Debug("Container sync to database completed successfully", zap.String("serviceID", serviceID))
 	return nil
 }

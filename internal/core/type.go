@@ -48,7 +48,6 @@ func (sc StreamChan) LogLog(message string) {
 	}
 }
 
-
 func (sc StreamChan) LogProgress(progress ProgressMessage) {
 	sc.ProgressChan <- LogMessage{
 		Type: LogTypeProgress,
@@ -69,7 +68,6 @@ func LogLog(message string) LogMessage {
 		Message: message,
 	}
 }
-
 
 func NewStreamChan() StreamChan {
 	return StreamChan{

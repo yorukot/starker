@@ -8,7 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import LogsViewer from '$lib/components/logs-viewer.svelte';
-  import LogsIcon from '~icons/lucide/file-text';
+	import LogsIcon from '~icons/lucide/file-text';
 	import PlayIcon from '~icons/lucide/play';
 	import PauseIcon from '~icons/lucide/pause';
 	import AlertCircleIcon from '~icons/lucide/alert-circle';

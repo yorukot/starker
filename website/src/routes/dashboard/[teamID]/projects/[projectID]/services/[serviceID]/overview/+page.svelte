@@ -158,6 +158,8 @@
 				return 'bg-secondary/50 border-secondary/30';
 			case ServiceState.RESTARTING:
 				return 'bg-secondary/50 border-secondary/30';
+			case ServiceState.REBUILDING:
+				return 'bg-orange/50 border-orange/30';
 			default:
 				return 'bg-secondary/50 border-secondary/30';
 		}
@@ -178,7 +180,6 @@
 				return 'border-l-secondary';
 		}
 	}
-
 </script>
 
 <div class="flex h-full flex-col gap-6 p-6">
@@ -230,7 +231,8 @@
 			{#if service.description}
 				<Card.Content class="pt-0">
 					<p class="text-sm text-muted-foreground">
-						<span class="font-medium">Description:</span> {service.description}
+						<span class="font-medium">Description:</span>
+						{service.description}
 					</p>
 				</Card.Content>
 			{/if}
@@ -246,17 +248,21 @@
 			</Card.Header>
 			<Card.Content>
 				{#if containersError}
-					<div class="text-center py-8">
-						<p class="text-destructive text-sm">{containersError}</p>
+					<div class="py-8 text-center">
+						<p class="text-sm text-destructive">{containersError}</p>
 					</div>
 				{:else if containers.length > 0}
 					<div class="space-y-3">
 						{#each containers as container (container.id)}
-							<div class="flex items-center gap-3 rounded-lg border border-border/50 border-l-4 bg-card/30 p-4 transition-colors hover:bg-card/60 {getContainerBorderClass(container.state)}">
-								<ContainerIcon class="h-5 w-5 text-muted-foreground flex-shrink-0" />
+							<div
+								class="flex items-center gap-3 rounded-lg border border-l-4 border-border/50 bg-card/30 p-4 transition-colors hover:bg-card/60 {getContainerBorderClass(
+									container.state
+								)}"
+							>
+								<ContainerIcon class="h-5 w-5 flex-shrink-0 text-muted-foreground" />
 								<div class="min-w-0 flex-1">
-									<div class="flex items-center gap-2 mb-1">
-										<h4 class="font-medium text-sm truncate">{container.container_name}</h4>
+									<div class="mb-1 flex items-center gap-2">
+										<h4 class="truncate text-sm font-medium">{container.container_name}</h4>
 										<span class="text-xs text-muted-foreground capitalize">
 											{container.state}
 										</span>
@@ -264,12 +270,12 @@
 									<div class="flex items-center gap-4 text-xs text-muted-foreground">
 										{#if container.container_id}
 											<span>
-												<span class="font-medium">ID:</span> 
+												<span class="font-medium">ID:</span>
 												<span class="font-mono">{container.container_id.slice(0, 12)}...</span>
 											</span>
 										{/if}
 										<span>
-											<span class="font-medium">Created:</span> 
+											<span class="font-medium">Created:</span>
 											{new Date(container.created_at).toLocaleDateString()}
 										</span>
 									</div>
@@ -278,12 +284,12 @@
 						{/each}
 					</div>
 				{:else}
-					<div class="text-center py-8">
-						<div class="rounded-full border border-muted bg-muted/30 p-4 mx-auto w-fit mb-4">
+					<div class="py-8 text-center">
+						<div class="mx-auto mb-4 w-fit rounded-full border border-muted bg-muted/30 p-4">
 							<ContainerIcon class="h-8 w-8 text-muted-foreground/50" />
 						</div>
 						<div class="space-y-1">
-							<p class="font-medium text-sm">No containers found</p>
+							<p class="text-sm font-medium">No containers found</p>
 							<p class="text-xs text-muted-foreground">
 								Containers will appear here when the service is running
 							</p>
@@ -296,12 +302,14 @@
 		<!-- Additional service information cards can be added here -->
 		<Card.Root class="flex-1">
 			<Card.Content class="flex h-full items-center justify-center pt-6">
-				<p class="text-muted-foreground">Additional service metrics and information coming soon...</p>
+				<p class="text-muted-foreground">
+					Additional service metrics and information coming soon...
+				</p>
 			</Card.Content>
 		</Card.Root>
 	{:else}
 		<!-- No service data -->
-		<div class="flex-1 flex items-center justify-center text-muted-foreground">
+		<div class="flex flex-1 items-center justify-center text-muted-foreground">
 			<p>No service data available</p>
 		</div>
 	{/if}

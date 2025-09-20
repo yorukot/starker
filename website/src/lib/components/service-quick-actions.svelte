@@ -5,6 +5,7 @@
 	import PlayIcon from '~icons/lucide/play';
 	import StopIcon from '~icons/lucide/square';
 	import RestartIcon from '~icons/lucide/rotate-cw';
+	import RebuildIcon from '~icons/lucide/hammer';
 	import TerminalIcon from '~icons/lucide/terminal';
 	import type { Service } from '$lib/schemas/service';
 	import { ServiceState } from '$lib/schemas/service';
@@ -30,11 +31,13 @@
 	let isStarting = $state(false);
 	let isStopping = $state(false);
 	let isRestarting = $state(false);
+	let isRebuilding = $state(false);
 
 	function resetLoadingStates() {
 		isStarting = false;
 		isStopping = false;
 		isRestarting = false;
+		isRebuilding = false;
 	}
 
 	async function startService() {
@@ -115,6 +118,33 @@
 		}
 	}
 
+	async function rebuildService() {
+		if (service.state !== ServiceState.RUNNING && service.state !== ServiceState.STOPPED) return;
+
+		isRebuilding = true;
+		const previousState = service.state;
+		service.state = ServiceState.REBUILDING;
+
+		try {
+			const response = await authPatch(
+				`${PUBLIC_API_BASE_URL}/teams/${teamID}/projects/${projectID}/services/${serviceID}/state`,
+				{ state: 'rebuild' }
+			);
+
+			if (response.ok) {
+				onOperationStart('rebuild', response);
+			} else {
+				console.error('Failed to rebuild service:', response.statusText);
+				service.state = previousState;
+				isRebuilding = false;
+			}
+		} catch (error) {
+			console.error('Error rebuilding service:', error);
+			service.state = previousState;
+			isRebuilding = false;
+		}
+	}
+
 	export function resetStates() {
 		resetLoadingStates();
 	}
@@ -126,6 +156,16 @@
 			<PlayIcon class="h-4 w-4" />
 			{isStarting ? 'Starting...' : 'Start'}
 		</Button>
+		<Button
+			variant="outline"
+			onclick={rebuildService}
+			disabled={isRebuilding}
+			size="sm"
+			class="flex items-center gap-2"
+		>
+			<RebuildIcon class="h-4 w-4" />
+			{isRebuilding ? 'Rebuilding...' : 'Rebuild'}
+		</Button>
 	{:else if service.state === ServiceState.RUNNING}
 		<Button
 			variant="outline"
@@ -136,6 +176,16 @@
 		>
 			<RestartIcon class="h-4 w-4" />
 			{isRestarting ? 'Restarting...' : 'Restart'}
+		</Button>
+		<Button
+			variant="outline"
+			onclick={rebuildService}
+			disabled={isRebuilding}
+			size="sm"
+			class="flex items-center gap-2"
+		>
+			<RebuildIcon class="h-4 w-4" />
+			{isRebuilding ? 'Rebuilding...' : 'Rebuild'}
 		</Button>
 		<Button
 			variant="destructive"

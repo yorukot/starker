@@ -93,6 +93,8 @@
 				return 'bg-secondary/50 border-secondary/30';
 			case ServiceState.RESTARTING:
 				return 'bg-secondary/50 border-secondary/30';
+			case ServiceState.REBUILDING:
+				return 'bg-orange/50 border-orange/30';
 			default:
 				return 'bg-secondary/50 border-secondary/30';
 		}
@@ -287,9 +289,7 @@
 
 	<!-- Navigation Tabs with Actions -->
 	<div class="">
-		<div
-			class="scrollbar-hide flex items-center overflow-x-auto border-b border-border px-6"
-		>
+		<div class="scrollbar-hide flex items-center overflow-x-auto border-b border-border px-6">
 			<Tabs.Root value={activeTab()} onValueChange={handleTabChange}>
 				<Tabs.List>
 					{#each tabs as tab (tab.id)}

@@ -28,12 +28,12 @@ import (
 
 // updateServiceStateRequest represents a request to update service state
 type updateServiceStateRequest struct {
-	State string `json:"state" validate:"required,oneof=start stop restart" example:"start"` // Service state action (start, stop, restart)
+	State string `json:"state" validate:"required,oneof=start stop restart rebuild" example:"start"` // Service state action (start, stop, restart, rebuild)
 }
 
 // UpdateServiceState godoc
 // @Summary Update service state with SSE streaming
-// @Description Updates service state (start/stop/restart) with real-time progress streaming via Server-Sent Events
+// @Description Updates service state (start/stop/restart/rebuild) with real-time progress streaming via Server-Sent Events
 // @Tags service
 // @Accept json
 // @Produce text/event-stream
@@ -126,6 +126,8 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		service.State = models.ServiceStateStopping
 	case "restart":
 		service.State = models.ServiceStateRestarting
+	case "rebuild":
+		service.State = models.ServiceStateRebuilding
 	}
 	if err := repository.UpdateService(r.Context(), tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
@@ -145,6 +147,8 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 		return state == models.ServiceStateRunning
 	case "restart":
 		return state == models.ServiceStateRunning
+	case "rebuild":
+		return state == models.ServiceStateRunning || state == models.ServiceStateStopped
 	default:
 		return false
 	}
@@ -159,6 +163,8 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx,
 		return h.executeStopOperation(ctx, tx, service)
 	case "restart":
 		return h.executeRestartOperation(ctx, tx, service)
+	case "rebuild":
+		return h.executeRebuildOperation(ctx, tx, service)
 	default:
 		return nil, fmt.Errorf("unsupported operation: %s", operation)
 	}
@@ -280,6 +286,27 @@ func (h *ServiceHandler) executeRestartOperation(ctx context.Context, tx pgx.Tx,
 	go func() {
 		if err := dockerHandler.RestartDockerCompose(context.Background()); err != nil {
 			zap.L().Error("Failed to restart Docker compose", zap.Error(err))
+		}
+	}()
+
+	// Return the streaming result immediately
+	return streamChan, nil
+}
+
+// executeRebuildOperation handles the Docker compose rebuild operation
+// This performs a complete rebuild: stop -> sync -> start with updated compose configuration
+func (h *ServiceHandler) executeRebuildOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
+	// Setup Docker handler and streaming
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute the rebuild operation asynchronously in a goroutine
+	// Use context.Background() to ensure operation continues even if client disconnects
+	go func() {
+		if err := dockerHandler.RebuildDockerCompose(context.Background()); err != nil {
+			zap.L().Error("Failed to rebuild Docker compose", zap.Error(err))
 		}
 	}()
 
