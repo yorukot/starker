@@ -13,7 +13,6 @@ require (
 	github.com/segmentio/ksuid v1.0.4
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.40.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -67,6 +66,7 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
 

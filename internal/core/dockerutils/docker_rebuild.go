@@ -15,6 +15,11 @@ import (
 func (h *DockerHandler) RebuildDockerCompose(ctx context.Context) error {
 	h.StreamChan.LogLog("Starting Docker Compose rebuild operation")
 
+	// Ensure completion signal is always sent
+	defer func() {
+		h.StreamChan.DoneChan <- true
+	}()
+
 	// Get the compose file path
 	serviceDataPath := h.NamingGenerator.GenerateServiceDataPath()
 	composeFilePath := filepath.Join(serviceDataPath, "compose.yml")
@@ -30,29 +35,28 @@ func (h *DockerHandler) RebuildDockerCompose(ctx context.Context) error {
 	// Step 2: Stop all containers
 	h.StreamChan.LogLog("Stopping existing containers")
 	if err := h.stopContainersForRebuild(composeFilePath); err != nil {
-		return err // Error already sent through FinalError channel
+		return err
 	}
 
 	// Step 3: Sync containers to database
 	h.StreamChan.LogLog("Synchronizing container states to database")
 	if err := h.syncContainersToDatabase(); err != nil {
-		return err // Error already sent through FinalError channel
+		return err
 	}
 
 	// Step 4: Start containers with updated configuration
 	h.StreamChan.LogLog("Starting containers with updated configuration")
 	if err := h.startContainersForRebuild(composeFilePath); err != nil {
-		return err // Error already sent through FinalError channel
+		return err
 	}
 
 	// Step 5: Verify and update final states
 	h.StreamChan.LogLog("Verifying final container states")
 	if err := h.VerifyAndUpdateStates(ctx, composeFilePath); err != nil {
-		return err // Error already sent through FinalError channel
+		return err
 	}
 
 	h.StreamChan.LogLog("Docker Compose rebuild completed successfully")
-	h.StreamChan.DoneChan <- true
 	return nil
 }
 
@@ -63,8 +67,8 @@ func (h *DockerHandler) stopContainersForRebuild(composeFilePath string) error {
 	// Use docker compose down to stop and remove containers, networks
 	downCmd := fmt.Sprintf("docker compose -f %s down", composeFilePath)
 
-	// Execute the down command with streaming
-	if err := connection.ExecuteCommand(h.Client, downCmd, h.StreamChan); err != nil {
+	// Execute the down command with streaming (without DoneChan signal)
+	if err := connection.ExecuteCommandWithoutDone(h.Client, downCmd, h.StreamChan); err != nil {
 		h.StreamChan.LogError(fmt.Sprintf("Failed to stop containers: %v", err))
 		h.StreamChan.FinalError <- err
 		return err
@@ -106,8 +110,9 @@ func (h *DockerHandler) startContainersForRebuild(composeFilePath string) error 
 	// Use docker compose up to start containers with new configuration
 	upCmd := fmt.Sprintf("docker compose -f %s up -d", composeFilePath)
 
-	// Execute the up command with streaming
-	if err := connection.ExecuteCommand(h.Client, upCmd, h.StreamChan); err != nil {
+
+	// Execute the up command with streaming (without DoneChan signal)
+	if err := connection.ExecuteCommandWithoutDone(h.Client, upCmd, h.StreamChan); err != nil {
 		h.StreamChan.LogError(fmt.Sprintf("Failed to start containers: %v", err))
 		h.StreamChan.FinalError <- err
 		return err

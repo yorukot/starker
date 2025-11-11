@@ -99,7 +99,6 @@ func (h *DockerHandler) syncContainerStates(ctx context.Context, tx pgx.Tx, cont
 
 	// Process containers that exist in Docker
 	for _, container := range containers {
-		zap.L().Debug("Syncing container state", zap.String("container", container.Name), zap.String("state", container.State))
 		containerState := h.mapDockerStateToContainerState(container.State)
 
 		if existingContainer, exists := existingByName[container.Name]; exists {
@@ -111,7 +110,6 @@ func (h *DockerHandler) syncContainerStates(ctx context.Context, tx pgx.Tx, cont
 			if err := repository.UpdateServiceContainer(ctx, tx, *existingContainer); err != nil {
 				return fmt.Errorf("failed to update container: %w", err)
 			}
-			zap.L().Debug("Updated existing container", zap.String("container", container.Name), zap.String("state", string(containerState)))
 		} else {
 			// Create new container record
 			newContainer := models.ServiceContainer{

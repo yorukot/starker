@@ -119,6 +119,11 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 				successMessage = "Service restarted successfully"
 				finalState = "running"
+			case "rebuild":
+				service.State = models.ServiceStateRunning
+				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
+				successMessage = "Service rebuilt successfully"
+				finalState = "running"
 			default:
 				service.State = models.ServiceStateRunning
 				successMessage = "Service operation completed successfully"

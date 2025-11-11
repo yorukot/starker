@@ -118,17 +118,6 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Update service to initial status before streaming
-	switch newState {
-	case "start":
-		service.State = models.ServiceStateStarting
-	case "stop":
-		service.State = models.ServiceStateStopping
-	case "restart":
-		service.State = models.ServiceStateRestarting
-	case "rebuild":
-		service.State = models.ServiceStateRebuilding
-	}
 	if err := repository.UpdateService(r.Context(), tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
@@ -156,18 +145,24 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 
 // executeServiceOperation executes the Docker service operation and returns streaming result
 func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx, operation string, service *models.Service) (*core.StreamChan, error) {
-	switch operation {
-	case "start":
-		return h.executeStartOperation(ctx, tx, service)
-	case "stop":
-		return h.executeStopOperation(ctx, tx, service)
-	case "restart":
-		return h.executeRestartOperation(ctx, tx, service)
-	case "rebuild":
-		return h.executeRebuildOperation(ctx, tx, service)
-	default:
-		return nil, fmt.Errorf("unsupported operation: %s", operation)
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
+	if err != nil {
+		return nil, err
 	}
+
+	go func() {
+		switch operation {
+		case "start":
+			dockerHandler.StartDockerCompose(context.Background())
+		case "stop":
+			dockerHandler.StopDockerCompose(context.Background())
+		case "restart":
+			dockerHandler.RestartDockerCompose(context.Background())
+		case "rebuild":
+			dockerHandler.RebuildDockerCompose(context.Background())
+		}
+	}()
+	return streamChan, nil
 }
 
 // setupDockerHandler handles the common setup logic for Docker operations
@@ -233,83 +228,4 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	}
 
 	return dockerHandler, &streamChan, nil
-}
-
-// executeStartOperation handles the Docker compose start operation
-func (h *ServiceHandler) executeStartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start the Docker compose operation asynchronously in a goroutine
-	// Use context.Background() to ensure operation continues even if client disconnects
-	go func() {
-		if err := dockerHandler.StartDockerCompose(context.Background()); err != nil {
-			zap.L().Error("Failed to start Docker compose", zap.Error(err))
-		}
-	}()
-
-	// Return the streaming result immediately
-	return streamChan, nil
-}
-
-// executeStopOperation handles the Docker compose stop operation
-func (h *ServiceHandler) executeStopOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Stop the Docker compose operation
-	// Use context.Background() to ensure operation continues even if client disconnects
-	go func() {
-		dockerHandler.StopDockerCompose(context.Background())
-	}()
-
-	// Return the streaming result
-	return streamChan, nil
-}
-
-// executeRestartOperation handles the Docker compose restart operation
-func (h *ServiceHandler) executeRestartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Restart the Docker compose operation asynchronously in a goroutine
-	// Use context.Background() to ensure operation continues even if client disconnects
-	go func() {
-		if err := dockerHandler.RestartDockerCompose(context.Background()); err != nil {
-			zap.L().Error("Failed to restart Docker compose", zap.Error(err))
-		}
-	}()
-
-	// Return the streaming result immediately
-	return streamChan, nil
-}
-
-// executeRebuildOperation handles the Docker compose rebuild operation
-// This performs a complete rebuild: stop -> sync -> start with updated compose configuration
-func (h *ServiceHandler) executeRebuildOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Execute the rebuild operation asynchronously in a goroutine
-	// Use context.Background() to ensure operation continues even if client disconnects
-	go func() {
-		if err := dockerHandler.RebuildDockerCompose(context.Background()); err != nil {
-			zap.L().Error("Failed to rebuild Docker compose", zap.Error(err))
-		}
-	}()
-
-	// Return the streaming result immediately
-	return streamChan, nil
 }

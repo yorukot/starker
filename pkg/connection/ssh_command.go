@@ -82,6 +82,76 @@ func ExecuteCommand(sshClient *ssh.Client, command string, streamChan core.Strea
 	return err
 }
 
+// ExecuteCommandWithoutDone executes a single SSH command with real-time output streaming
+// but does not send a DoneChan signal, allowing the caller to control completion signaling
+func ExecuteCommandWithoutDone(sshClient *ssh.Client, command string, streamChan core.StreamChan) error {
+
+	// Create SSH session
+	session, err := sshClient.NewSession()
+	if err != nil {
+		streamChan.LogError(fmt.Sprintf("Failed to create SSH session: %v", err))
+		streamChan.FinalError <- err
+		return err
+	}
+	defer session.Close()
+
+	streamChan.LogLog(fmt.Sprintf("Executing command: %s", command))
+
+	// Get stdout and stderr pipes
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		streamChan.LogError(fmt.Sprintf("Failed to get stdout pipe: %v", err))
+		streamChan.FinalError <- err
+		return err
+	}
+
+	stderr, err := session.StderrPipe()
+	if err != nil {
+		streamChan.LogError(fmt.Sprintf("Failed to get stderr pipe: %v", err))
+		streamChan.FinalError <- err
+		return err
+	}
+
+	// Start the command
+	if err := session.Start(command); err != nil {
+		streamChan.LogError(fmt.Sprintf("Failed to start command: %v", err))
+		streamChan.FinalError <- err
+		return err
+	}
+
+	// Use WaitGroup to coordinate goroutines
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Stream stdout in real-time
+	go func() {
+		defer wg.Done()
+		streamOutput(stdout, streamChan, false)
+	}()
+
+	// Stream stderr in real-time
+	go func() {
+		defer wg.Done()
+		streamOutput(stderr, streamChan, true)
+	}()
+
+	// Wait for command to complete
+	err = session.Wait()
+
+	// Wait for all output to be processed
+	wg.Wait()
+
+	if err != nil {
+		streamChan.LogError(fmt.Sprintf("Command execution failed: %v", err))
+		streamChan.FinalError <- err
+	} else {
+		streamChan.LogLog("Command executed successfully")
+	}
+
+	// Note: No DoneChan signal - caller controls completion signaling
+	return err
+}
+
 // ExecuteMultipleCommands executes multiple SSH commands sequentially with real-time output streaming
 func ExecuteMultipleCommands(sshClient *ssh.Client, commands []string, streamChan core.StreamChan) error {
 	streamChan.LogLog(fmt.Sprintf("Executing %d commands sequentially", len(commands)))
