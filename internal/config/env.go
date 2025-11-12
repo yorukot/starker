@@ -40,6 +40,9 @@ type EnvConfig struct {
 	Debug   bool   `env:"DEBUG" envDefault:"false"`
 	AppEnv  AppEnv `env:"APP_ENV" envDefault:"prod"`
 	AppName string `env:"APP_NAME" envDefault:"starker"`
+	
+	// starker Optinal Setting
+	ServiceHealthCheckInterval int `env:"SERVICE_HEALTH_CHECK_INTERVAL" envDefault:"60"` // 60 seconds
 }
 
 var (
