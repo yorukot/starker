@@ -28,18 +28,18 @@ This is a SvelteKit website using Svelte 5 with TypeScript, TailwindCSS 4.0, and
 ### Core Structure
 
 - `src/routes/` - SvelteKit file-based routing
-  - `+page.svelte` - Page components
-  - `+layout.svelte` - Layout components
-  - `auth/` - Authentication pages (login, register)
-  - `dashboard/` - Main application dashboard with sidebar layout
+    - `+page.svelte` - Page components
+    - `+layout.svelte` - Layout components
+    - `auth/` - Authentication pages (login, register)
+    - `dashboard/` - Main application dashboard with sidebar layout
 - `src/lib/` - Shared library code
-  - `components/` - Reusable Svelte components
-    - `ui/` - shadcn-svelte UI primitives (button, card, sidebar, etc.)
-    - `auth/` - Authentication-specific components
-    - `sidebar/` - Navigation components with team/project structure
-  - `schemas/` - Validation schemas using Yup
-  - `utils.ts` - Utility functions (cn class merger, TypeScript helpers)
-  - `hooks/` - Svelte 5 runes and reactive utilities
+    - `components/` - Reusable Svelte components
+        - `ui/` - shadcn-svelte UI primitives (button, card, sidebar, etc.)
+        - `auth/` - Authentication-specific components
+        - `sidebar/` - Navigation components with team/project structure
+    - `schemas/` - Validation schemas using Yup
+    - `utils.ts` - Utility functions (cn class merger, TypeScript helpers)
+    - `hooks/` - Svelte 5 runes and reactive utilities
 
 ### UI Component System
 

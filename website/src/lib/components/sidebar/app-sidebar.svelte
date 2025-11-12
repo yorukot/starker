@@ -1,78 +1,78 @@
 <script lang="ts">
-	import LucideFolderOpen from '~icons/lucide/folder-open';
-	import LucideServer from '~icons/lucide/server';
-	import LucideSettings from '~icons/lucide/settings';
-	import LucideUsers from '~icons/lucide/users';
-	import LucideKeyRound from '~icons/lucide/key-round';
-	import { page } from '$app/state';
+    import LucideFolderOpen from '~icons/lucide/folder-open';
+    import LucideServer from '~icons/lucide/server';
+    import LucideSettings from '~icons/lucide/settings';
+    import LucideUsers from '~icons/lucide/users';
+    import LucideKeyRound from '~icons/lucide/key-round';
+    import { page } from '$app/state';
 
-	import NavMain from './nav-main.svelte';
-	import NavUser from './nav-user.svelte';
-	import TeamSwitcher from './team-switcher.svelte';
-	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import type { ComponentProps } from 'svelte';
-	import type { Team } from '$lib/schemas/team';
+    import NavMain from './nav-main.svelte';
+    import NavUser from './nav-user.svelte';
+    import TeamSwitcher from './team-switcher.svelte';
+    import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+    import type { ComponentProps } from 'svelte';
+    import type { Team } from '$lib/schemas/team';
 
-	let {
-		ref = $bindable(null),
-		collapsible = 'icon',
-		teams = [],
-		currentTeam = null,
-		user = null,
-		...restProps
-	}: ComponentProps<typeof Sidebar.Root> & {
-		teams: Team[];
-		currentTeam: Team | null;
-		user: import('$lib/schemas/user').User | null;
-	} = $props();
+    let {
+        ref = $bindable(null),
+        collapsible = 'icon',
+        teams = [],
+        currentTeam = null,
+        user = null,
+        ...restProps
+    }: ComponentProps<typeof Sidebar.Root> & {
+        teams: Team[];
+        currentTeam: Team | null;
+        user: import('$lib/schemas/user').User | null;
+    } = $props();
 
-	const teamID = $derived(page.params.teamID);
+    const teamID = $derived(page.params.teamID);
 
-	const data = $derived({
-		navMain: [
-			{
-				title: 'Projects',
-				url: `/dashboard/${teamID}/projects`,
-				icon: LucideFolderOpen,
-				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/projects`)
-			},
-			{
-				title: 'Servers',
-				url: `/dashboard/${teamID}/servers`,
-				icon: LucideServer,
-				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/servers`)
-			},
-			{
-				title: 'Keys',
-				url: `/dashboard/${teamID}/keys`,
-				icon: LucideKeyRound,
-				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/keys`)
-			},
-			{
-				title: 'Settings',
-				url: `/dashboard/${teamID}/settings`,
-				icon: LucideSettings,
-				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/settings`)
-			},
-			{
-				title: 'Teams',
-				url: `/dashboard/${teamID}/teams`,
-				icon: LucideUsers,
-				isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/teams`)
-			}
-		]
-	});
+    const data = $derived({
+        navMain: [
+            {
+                title: 'Projects',
+                url: `/dashboard/${teamID}/projects`,
+                icon: LucideFolderOpen,
+                isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/projects`)
+            },
+            {
+                title: 'Servers',
+                url: `/dashboard/${teamID}/servers`,
+                icon: LucideServer,
+                isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/servers`)
+            },
+            {
+                title: 'Keys',
+                url: `/dashboard/${teamID}/keys`,
+                icon: LucideKeyRound,
+                isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/keys`)
+            },
+            {
+                title: 'Settings',
+                url: `/dashboard/${teamID}/settings`,
+                icon: LucideSettings,
+                isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/settings`)
+            },
+            {
+                title: 'Teams',
+                url: `/dashboard/${teamID}/teams`,
+                icon: LucideUsers,
+                isActive: page.url.pathname.startsWith(`/dashboard/${teamID}/teams`)
+            }
+        ]
+    });
 </script>
 
 <Sidebar.Root {collapsible} {...restProps}>
-	<Sidebar.Header>
-		<TeamSwitcher {teams} {currentTeam} />
-	</Sidebar.Header>
-	<Sidebar.Content>
-		<NavMain items={data.navMain} />
-	</Sidebar.Content>
-	<Sidebar.Footer>
-		<NavUser {user} />
-	</Sidebar.Footer>
-	<Sidebar.Rail />
+    <Sidebar.Header>
+        <TeamSwitcher {teams} {currentTeam} />
+    </Sidebar.Header>
+    <Sidebar.Content>
+        <NavMain items={data.navMain} />
+    </Sidebar.Content>
+    <Sidebar.Footer>
+        <NavUser {user} />
+    </Sidebar.Footer>
+    <Sidebar.Rail />
 </Sidebar.Root>

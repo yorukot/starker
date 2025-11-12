@@ -1,7 +1,7 @@
 {
-	"permissions": {
-		"allow": ["Read(/Users/yorukot/Documents/code/starker/docs/**)"],
-		"deny": [],
-		"ask": []
-	}
+    "permissions": {
+        "allow": ["Read(/Users/yorukot/Documents/code/starker/docs/**)"],
+        "deny": [],
+        "ask": []
+    }
 }

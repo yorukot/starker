@@ -6,30 +6,30 @@ import type { PageLoad } from './$types';
 import type { Server } from '$lib/schemas/server';
 
 export const load: PageLoad = async ({ params, depends }) => {
-	const teamID = params.teamID;
-	depends(`servers:${teamID}`);
+    const teamID = params.teamID;
+    depends(`servers:${teamID}`);
 
-	try {
-		const response = await authGet(`${PUBLIC_API_BASE_URL}/teams/${teamID}/servers`);
+    try {
+        const response = await authGet(`${PUBLIC_API_BASE_URL}/teams/${teamID}/servers`);
 
-		if (!response.ok) {
-			return {
-				servers: [],
-				error: `Failed to fetch servers: ${response.status}`
-			};
-		}
+        if (!response.ok) {
+            return {
+                servers: [],
+                error: `Failed to fetch servers: ${response.status}`
+            };
+        }
 
-		const servers: Server[] = await response.json();
+        const servers: Server[] = await response.json();
 
-		return {
-			servers
-		};
-	} catch (error: unknown) {
-		console.error('Error fetching servers:', error);
+        return {
+            servers
+        };
+    } catch (error: unknown) {
+        console.error('Error fetching servers:', error);
 
-		return {
-			servers: [],
-			error: error instanceof Error ? error.message : 'Unknown error occurred'
-		};
-	}
+        return {
+            servers: [],
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        };
+    }
 };
