@@ -9,20 +9,19 @@ export const load = async () => {
     try {
         const response = await authGet(`${PUBLIC_API_BASE_URL}/teams`);
         if (!response.ok) {
-            goto('/dashboard/intro/new-team');
-            return {};
+            return { teams: [], error: `Failed to fetch teams: ${response.status}` };
         }
 
         const teams: Team[] = await response.json();
 
         if (teams.length === 0) {
-            goto('/dashboard/intro/new-team');
+            return { teams };
         } else {
             goto(`/dashboard/${teams[0].id}/projects`);
         }
     } catch (error) {
         console.error('Error fetching teams:', error);
-        goto('/dashboard/intro/new-team');
+        return { teams: [], error: 'Failed to fetch teams' };
     }
 
     return {};

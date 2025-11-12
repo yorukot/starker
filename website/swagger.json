@@ -1,8 +1,5 @@
 {
-    "schemes": [
-        "http",
-        "https"
-    ],
+    "schemes": ["http", "https"],
     "swagger": "2.0",
     "info": {
         "description": "starker Go API Template",
@@ -25,15 +22,9 @@
         "/auth/login": {
             "post": {
                 "description": "Authenticates a user with email and password, returns a refresh token cookie",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["auth"],
                 "summary": "User login",
                 "parameters": [
                     {
@@ -71,9 +62,7 @@
         "/auth/oauth/{provider}": {
             "get": {
                 "description": "Redirects user to OAuth provider for authentication",
-                "tags": [
-                    "oauth"
-                ],
+                "tags": ["oauth"],
                 "summary": "Initiate OAuth flow",
                 "parameters": [
                     {
@@ -117,15 +106,9 @@
         "/auth/oauth/{provider}/callback": {
             "get": {
                 "description": "Handles OAuth provider callback, processes authorization code, creates/links user accounts, and issues authentication tokens",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "oauth"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["oauth"],
                 "summary": "OAuth callback handler",
                 "parameters": [
                     {
@@ -175,15 +158,9 @@
         "/auth/refresh": {
             "post": {
                 "description": "Refreshes the access token and returns a new refresh token cookie",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["auth"],
                 "summary": "Refresh token",
                 "responses": {
                     "201": {
@@ -225,15 +202,9 @@
         "/auth/register": {
             "post": {
                 "description": "Creates a new user account with email and password",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["auth"],
                 "summary": "Register a new user",
                 "parameters": [
                     {
@@ -276,15 +247,9 @@
                     }
                 ],
                 "description": "Gets all teams that the authenticated user is a member of",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["team"],
                 "summary": "Get user's teams",
                 "responses": {
                     "200": {
@@ -329,15 +294,9 @@
                     }
                 ],
                 "description": "Creates a new team with the authenticated user as the owner",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["team"],
                 "summary": "Create a new team",
                 "parameters": [
                     {
@@ -386,15 +345,9 @@
                     }
                 ],
                 "description": "Gets a specific team by ID if the authenticated user is a member of it",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["team"],
                 "summary": "Get a specific team",
                 "parameters": [
                     {
@@ -451,15 +404,9 @@
                     }
                 ],
                 "description": "Deletes a team if the authenticated user is the owner",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["team"],
                 "summary": "Delete a team",
                 "parameters": [
                     {
@@ -516,15 +463,9 @@
                     }
                 ],
                 "description": "Updates a team's name if the authenticated user is the owner",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "team"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["team"],
                 "summary": "Update a team",
                 "parameters": [
                     {
@@ -604,15 +545,9 @@
                     }
                 ],
                 "description": "Retrieves all private keys associated with a specific team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "privatekey"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["privatekey"],
                 "summary": "Get all private keys for a team",
                 "parameters": [
                     {
@@ -672,15 +607,9 @@
                     }
                 ],
                 "description": "Creates a new private key for SSH authentication within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "privatekey"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["privatekey"],
                 "summary": "Create a new private key",
                 "parameters": [
                     {
@@ -748,15 +677,9 @@
                     }
                 ],
                 "description": "Retrieves a specific private key by ID within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "privatekey"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["privatekey"],
                 "summary": "Get a specific private key",
                 "parameters": [
                     {
@@ -826,15 +749,9 @@
                     }
                 ],
                 "description": "Deletes a specific private key by ID within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "privatekey"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["privatekey"],
                 "summary": "Delete a private key",
                 "parameters": [
                     {
@@ -892,15 +809,9 @@
                     }
                 ],
                 "description": "Updates a specific private key by ID within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "privatekey"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["privatekey"],
                 "summary": "Update a private key",
                 "parameters": [
                     {
@@ -981,12 +892,8 @@
                     }
                 ],
                 "description": "Retrieves all projects that belong to a specific team",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "project"
-                ],
+                "produces": ["application/json"],
+                "tags": ["project"],
                 "summary": "Get all projects in a team",
                 "parameters": [
                     {
@@ -1046,15 +953,9 @@
                     }
                 ],
                 "description": "Creates a new project within a team for managing deployments and configurations",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "project"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["project"],
                 "summary": "Create a new project",
                 "parameters": [
                     {
@@ -1122,12 +1023,8 @@
                     }
                 ],
                 "description": "Retrieves a specific project by its ID within a team",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "project"
-                ],
+                "produces": ["application/json"],
+                "tags": ["project"],
                 "summary": "Get a specific project",
                 "parameters": [
                     {
@@ -1197,15 +1094,9 @@
                     }
                 ],
                 "description": "Updates an existing project within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "project"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["project"],
                 "summary": "Update a project",
                 "parameters": [
                     {
@@ -1284,12 +1175,8 @@
                     }
                 ],
                 "description": "Deletes an existing project from a team",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "project"
-                ],
+                "produces": ["application/json"],
+                "tags": ["project"],
                 "summary": "Delete a project",
                 "parameters": [
                     {
@@ -1349,15 +1236,9 @@
                     }
                 ],
                 "description": "Retrieves all services belonging to a specific project within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Get all services for a project",
                 "parameters": [
                     {
@@ -1426,15 +1307,9 @@
                     }
                 ],
                 "description": "Creates a new service with Docker compose configuration within a team and project",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Create a new service",
                 "parameters": [
                     {
@@ -1509,15 +1384,9 @@
                     }
                 ],
                 "description": "Retrieves a specific service by its ID within a project and team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Get a single service by ID",
                 "parameters": [
                     {
@@ -1588,12 +1457,8 @@
                     }
                 ],
                 "description": "Deletes a service including stopping Docker containers, removing networks/volumes, and cleaning up all related database records",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Delete service with complete cleanup",
                 "parameters": [
                     {
@@ -1658,15 +1523,9 @@
                     }
                 ],
                 "description": "Updates service metadata (name, description, type) within a team and project",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Update service metadata",
                 "parameters": [
                     {
@@ -1754,15 +1613,9 @@
                     }
                 ],
                 "description": "Retrieves the Docker Compose configuration for a specific service",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Get service Docker Compose configuration",
                 "parameters": [
                     {
@@ -1833,15 +1686,9 @@
                     }
                 ],
                 "description": "Updates the Docker Compose configuration for a specific service",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"],
+                "tags": ["service"],
                 "summary": "Update service Docker Compose configuration",
                 "parameters": [
                     {
@@ -1911,15 +1758,9 @@
                     }
                 ],
                 "description": "Retrieves all containers associated with a specific service within a project and team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Get all containers for a service",
                 "parameters": [
                     {
@@ -1995,15 +1836,9 @@
                     }
                 ],
                 "description": "Retrieves Docker container logs for a specific service container with real-time streaming via Server-Sent Events",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"],
+                "tags": ["service"],
                 "summary": "Get container logs with SSE streaming",
                 "parameters": [
                     {
@@ -2099,15 +1934,9 @@
                     }
                 ],
                 "description": "Retrieves all environment variables for a specific service within a team and project",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Get all environment variables for a service",
                 "parameters": [
                     {
@@ -2187,15 +2016,9 @@
                     }
                 ],
                 "description": "Updates multiple existing environment variables for a specific service within a team and project",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["service"],
                 "summary": "Update multiple environment variables for a service",
                 "parameters": [
                     {
@@ -2286,15 +2109,9 @@
                     }
                 ],
                 "description": "Updates service state (start/stop/restart/rebuild) with real-time progress streaming via Server-Sent Events",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "service"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["text/event-stream"],
+                "tags": ["service"],
                 "summary": "Update service state with SSE streaming",
                 "parameters": [
                     {
@@ -2370,15 +2187,9 @@
                     }
                 ],
                 "description": "Gets all server configurations within a team that the user has access to",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "server"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["server"],
                 "summary": "Get all servers for a team",
                 "parameters": [
                     {
@@ -2438,15 +2249,9 @@
                     }
                 ],
                 "description": "Creates a new server configuration for SSH connections within a team. Tests the connection before saving.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "server"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["server"],
                 "summary": "Create a new server",
                 "parameters": [
                     {
@@ -2514,15 +2319,9 @@
                     }
                 ],
                 "description": "Gets a specific server configuration by ID within a team that the user has access to",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "server"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["server"],
                 "summary": "Get a specific server",
                 "parameters": [
                     {
@@ -2592,15 +2391,9 @@
                     }
                 ],
                 "description": "Updates an existing server configuration within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "server"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["server"],
                 "summary": "Update a server",
                 "parameters": [
                     {
@@ -2679,15 +2472,9 @@
                     }
                 ],
                 "description": "Deletes a specific server configuration by ID within a team",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "server"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["server"],
                 "summary": "Delete a server",
                 "parameters": [
                     {
@@ -2747,15 +2534,9 @@
                     }
                 ],
                 "description": "Retrieves the profile information of the currently authenticated user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "user"
-                ],
+                "consumes": ["application/json"],
+                "produces": ["application/json"],
+                "tags": ["user"],
                 "summary": "Get current user information",
                 "responses": {
                     "200": {
@@ -2801,10 +2582,7 @@
     "definitions": {
         "authsvc.LoginRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
+            "required": ["email", "password"],
             "properties": {
                 "email": {
                     "type": "string",
@@ -2819,11 +2597,7 @@
         },
         "authsvc.RegisterRequest": {
             "type": "object",
-            "required": [
-                "display_name",
-                "email",
-                "password"
-            ],
+            "required": ["display_name", "email", "password"],
             "properties": {
                 "display_name": {
                     "type": "string",
@@ -2843,12 +2617,7 @@
         },
         "models.ContainerState": {
             "type": "string",
-            "enum": [
-                "running",
-                "stopped",
-                "removed",
-                "exited"
-            ],
+            "enum": ["running", "stopped", "removed", "exited"],
             "x-enum-varnames": [
                 "ContainerStateRunning",
                 "ContainerStateStopped",
@@ -3171,14 +2940,7 @@
         },
         "models.ServiceState": {
             "type": "string",
-            "enum": [
-                "running",
-                "stopped",
-                "starting",
-                "stopping",
-                "restarting",
-                "rebuilding"
-            ],
+            "enum": ["running", "stopped", "starting", "stopping", "restarting", "rebuilding"],
             "x-enum-varnames": [
                 "ServiceStateRunning",
                 "ServiceStateStopped",
@@ -3240,10 +3002,7 @@
         },
         "privatekeysvc.CreatePrivateKeyRequest": {
             "type": "object",
-            "required": [
-                "name",
-                "private_key"
-            ],
+            "required": ["name", "private_key"],
             "properties": {
                 "description": {
                     "type": "string",
@@ -3278,9 +3037,7 @@
         },
         "projectsvc.CreateProjectRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
+            "required": ["name"],
             "properties": {
                 "description": {
                     "type": "string",
@@ -3295,9 +3052,7 @@
         },
         "projectsvc.UpdateProjectRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
+            "required": ["name"],
             "properties": {
                 "description": {
                     "type": "string",
@@ -3332,13 +3087,7 @@
         },
         "server.createServerRequest": {
             "type": "object",
-            "required": [
-                "host",
-                "name",
-                "port",
-                "private_key_id",
-                "user"
-            ],
+            "required": ["host", "name", "port", "private_key_id", "user"],
             "properties": {
                 "description": {
                     "type": "string",
@@ -3399,12 +3148,7 @@
         },
         "service.createServiceRequest": {
             "type": "object",
-            "required": [
-                "compose_file",
-                "name",
-                "server_id",
-                "type"
-            ],
+            "required": ["compose_file", "name", "server_id", "type"],
             "properties": {
                 "compose_file": {
                     "description": "Docker compose file content",
@@ -3432,19 +3176,14 @@
                 "type": {
                     "description": "Service type (docker or compose)",
                     "type": "string",
-                    "enum": [
-                        "docker",
-                        "compose"
-                    ],
+                    "enum": ["docker", "compose"],
                     "example": "docker"
                 }
             }
         },
         "service.updateServiceComposeRequest": {
             "type": "object",
-            "required": [
-                "compose_file"
-            ],
+            "required": ["compose_file"],
             "properties": {
                 "compose_file": {
                     "type": "string"
@@ -3470,9 +3209,7 @@
         },
         "service.updateServiceEnvironmentsRequest": {
             "type": "object",
-            "required": [
-                "environments"
-            ],
+            "required": ["environments"],
             "properties": {
                 "environments": {
                     "type": "array",
@@ -3495,12 +3232,7 @@
                     "minLength": 3
                 },
                 "status": {
-                    "enum": [
-                        "running",
-                        "stopped",
-                        "starting",
-                        "stopping"
-                    ],
+                    "enum": ["running", "stopped", "starting", "stopping"],
                     "allOf": [
                         {
                             "$ref": "#/definitions/models.ServiceState"
@@ -3509,37 +3241,25 @@
                 },
                 "type": {
                     "type": "string",
-                    "enum": [
-                        "docker",
-                        "compose"
-                    ]
+                    "enum": ["docker", "compose"]
                 }
             }
         },
         "service.updateServiceStateRequest": {
             "type": "object",
-            "required": [
-                "state"
-            ],
+            "required": ["state"],
             "properties": {
                 "state": {
                     "description": "Service state action (start, stop, restart, rebuild)",
                     "type": "string",
-                    "enum": [
-                        "start",
-                        "stop",
-                        "restart",
-                        "rebuild"
-                    ],
+                    "enum": ["start", "stop", "restart", "rebuild"],
                     "example": "start"
                 }
             }
         },
         "team.UpdateTeamRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
+            "required": ["name"],
             "properties": {
                 "name": {
                     "type": "string",
@@ -3550,9 +3270,7 @@
         },
         "team.createTeamRequest": {
             "type": "object",
-            "required": [
-                "name"
-            ],
+            "required": ["name"],
             "properties": {
                 "name": {
                     "type": "string",

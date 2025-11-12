@@ -11,7 +11,13 @@
     import { authPost } from '$lib/api/client.js';
     import type { Team } from '$lib/schemas/team';
 
-    let serverError = '';
+    let {
+        onSuccess
+    }: {
+        onSuccess?: (team: Team) => void;
+    } = $props();
+
+    let serverError = $state('');
 
     const { form, errors, isSubmitting } = createForm<TeamForm>({
         extend: validator({ schema: teamSchema }),
@@ -31,7 +37,12 @@
         },
         onSuccess: (data: unknown) => {
             const team = data as Team;
-            goto(`/dashboard/${team.id}/projects`);
+            if (onSuccess) {
+                onSuccess(team);
+            } else {
+                // Default behavior: redirect to new team
+                goto(`/dashboard/${team.id}/projects`);
+            }
         },
         onError: (error: unknown) => {
             console.error('Team creation error:', error);

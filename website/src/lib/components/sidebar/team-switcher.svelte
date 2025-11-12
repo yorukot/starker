@@ -9,9 +9,12 @@
     import LucidePlus from '~icons/lucide/plus';
     import type { Team } from '$lib/schemas/team';
     import { generateTeamAvatar } from '$lib/utils/avatar';
+    import NewTeamDialog from '$lib/components/team/new-team-dialog.svelte';
 
     let { teams, currentTeam }: { teams: Team[]; currentTeam: Team | null } = $props();
     const sidebar = useSidebar();
+
+    let showNewTeamDialog = $state(false);
 
     const activeTeam = $derived(currentTeam || teams[0] || null);
 
@@ -20,6 +23,12 @@
         const newPath = currentPath.replace(/^\/dashboard\/[^/]+/, `/dashboard/${team.id}`);
         await goto(newPath);
         await invalidate('team:current');
+    }
+
+    function handleNewTeamSuccess(team: Team) {
+        showNewTeamDialog = false;
+        // Navigate to the new team's projects page
+        goto(`/dashboard/${team.id}/projects`);
     }
 </script>
 
@@ -72,10 +81,7 @@
                     </DropdownMenu.Item>
                 {/each}
                 <DropdownMenu.Separator />
-                <DropdownMenu.Item
-                    onSelect={() => goto('/dashboard/intro/new-team')}
-                    class="gap-2 p-2"
-                >
+                <DropdownMenu.Item onSelect={() => (showNewTeamDialog = true)} class="gap-2 p-2">
                     <div
                         class="flex size-6 items-center justify-center rounded-md border bg-transparent"
                     >
@@ -87,3 +93,5 @@
         </DropdownMenu.Root>
     </Sidebar.MenuItem>
 </Sidebar.Menu>
+
+<NewTeamDialog bind:open={showNewTeamDialog} onSuccess={handleNewTeamSuccess} />
