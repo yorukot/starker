@@ -115,13 +115,13 @@ definitions:
         description: Server description
         example: Main production server
         type: string
+      host:
+        description: Server host
+        example: 192.168.1.100
+        type: string
       id:
         description: Unique identifier for the server
         example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
-        type: string
-      ip:
-        description: Server IP address
-        example: 192.168.1.100
         type: string
       name:
         description: Server name
@@ -129,8 +129,8 @@ definitions:
         type: string
       port:
         description: SSH port
-        example: "22"
-        type: string
+        example: 22
+        type: integer
       private_key_id:
         description: Associated private key ID
         example: 01ARZ3NDEKTSV4RRFFQ69G5FAV
@@ -289,6 +289,7 @@ definitions:
     - starting
     - stopping
     - restarting
+    - rebuilding
     type: string
     x-enum-varnames:
     - ServiceStateRunning
@@ -296,6 +297,7 @@ definitions:
     - ServiceStateStarting
     - ServiceStateStopping
     - ServiceStateRestarting
+    - ServiceStateRebuilding
   models.Team:
     properties:
       created_at:
@@ -401,16 +403,16 @@ definitions:
       description:
         maxLength: 500
         type: string
-      ip:
+      host:
         type: string
       name:
         maxLength: 255
         minLength: 3
         type: string
       port:
-        maxLength: 5
-        minLength: 1
-        type: string
+        maximum: 65535
+        minimum: 1
+        type: integer
       private_key_id:
         type: string
       user:
@@ -418,7 +420,7 @@ definitions:
         minLength: 1
         type: string
     required:
-    - ip
+    - host
     - name
     - port
     - private_key_id
@@ -429,16 +431,16 @@ definitions:
       description:
         maxLength: 500
         type: string
-      ip:
+      host:
         type: string
       name:
         maxLength: 255
         minLength: 3
         type: string
       port:
-        maxLength: 5
-        minLength: 1
-        type: string
+        maximum: 5
+        minimum: 1
+        type: integer
       private_key_id:
         type: string
       user:
@@ -504,7 +506,6 @@ definitions:
       environments:
         items:
           $ref: '#/definitions/service.updateServiceEnvironmentItem'
-        minItems: 1
         type: array
     required:
     - environments
@@ -535,11 +536,12 @@ definitions:
   service.updateServiceStateRequest:
     properties:
       state:
-        description: Service state action (start, stop, restart)
+        description: Service state action (start, stop, restart, rebuild)
         enum:
         - start
         - stop
         - restart
+        - rebuild
         example: start
         type: string
     required:
@@ -1686,17 +1688,12 @@ paths:
         schema:
           $ref: '#/definitions/service.updateServiceComposeRequest'
       produces:
-      - application/json
+      - text/event-stream
       responses:
         "200":
-          description: Compose config updated successfully
+          description: SSE stream of compose update and rebuild progress
           schema:
-            allOf:
-            - $ref: '#/definitions/response.SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.ServiceComposeConfig'
-              type: object
+            type: string
         "400":
           description: Invalid request body, team access denied, or service not found
           schema:
@@ -1767,7 +1764,7 @@ paths:
       summary: Get all containers for a service
       tags:
       - service
-  /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{containerID}/logs:
+  /teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{contUNAUTHORIZEDainerID}/logs:
     get:
       consumes:
       - application/json
@@ -1962,8 +1959,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Updates service state (start/stop/restart) with real-time progress
-        streaming via Server-Sent Events
+      description: Updates service state (start/stop/restart/rebuild) with real-time
+        progress streaming via Server-Sent Events
       parameters:
       - description: Team ID
         in: path
