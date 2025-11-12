@@ -72,7 +72,10 @@
                     </DropdownMenu.Item>
                 {/each}
                 <DropdownMenu.Separator />
-                <DropdownMenu.Item class="gap-2 p-2">
+                <DropdownMenu.Item
+                    onSelect={() => goto('/dashboard/intro/new-team')}
+                    class="gap-2 p-2"
+                >
                     <div
                         class="flex size-6 items-center justify-center rounded-md border bg-transparent"
                     >
