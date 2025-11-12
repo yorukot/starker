@@ -3,6 +3,7 @@
     import { Input } from '$lib/components/ui/input/index.js';
     import { Label } from '$lib/components/ui/label/index.js';
     import { Textarea } from '$lib/components/ui/textarea/index.js';
+    import { Separator } from '$lib/components/ui/separator/index.js';
     import * as Alert from '$lib/components/ui/alert/index.js';
     import * as Card from '$lib/components/ui/card/index.js';
     import * as Select from '$lib/components/ui/select/index.js';
@@ -230,7 +231,7 @@
                             {#if streamingLogs.length === 0}
                                 <p class="text-muted-foreground">Waiting for logs...</p>
                             {:else}
-                                {#each streamingLogs as log, i (i)}
+                                {#each streamingLogs as log, index (index)}
                                     <div class="mb-1 break-words whitespace-pre-wrap">
                                         {log}
                                     </div>
@@ -336,7 +337,7 @@
                 {/if}
             </div>
 
-            <div class="my-6 border-t border-border"></div>
+            <Separator />
 
             <h3 class="text-lg font-semibold">Repository Configuration</h3>
             <p class="mb-4 text-sm text-muted-foreground">
@@ -394,7 +395,7 @@
                 </p>
             </div>
 
-            <div class="my-6 border-t border-border"></div>
+            <Separator />
 
             <h3 class="text-lg font-semibold">Deployment Settings</h3>
             <p class="mb-4 text-sm text-muted-foreground">
@@ -419,8 +420,6 @@
                     the repository.
                 </p>
             </div>
-
-            <div class="my-6 border-t border-border"></div>
 
             <!-- Actions -->
             <div class="flex items-center justify-end gap-4">
