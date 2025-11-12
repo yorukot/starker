@@ -6,6 +6,7 @@
     import * as Alert from '$lib/components/ui/alert/index.js';
     import * as Card from '$lib/components/ui/card/index.js';
     import * as Select from '$lib/components/ui/select/index.js';
+
     import LucideArrowLeft from '~icons/lucide/arrow-left';
     import LucideGitBranch from '~icons/lucide/git-branch';
     import LucideLoader2 from '~icons/lucide/loader-2';
@@ -229,7 +230,7 @@
                             {#if streamingLogs.length === 0}
                                 <p class="text-muted-foreground">Waiting for logs...</p>
                             {:else}
-                                {#each streamingLogs as log}
+                                {#each streamingLogs as log, i (i)}
                                     <div class="mb-1 break-words whitespace-pre-wrap">
                                         {log}
                                     </div>
@@ -258,176 +259,168 @@
             class:pointer-events-none={isStreaming}
             class:opacity-75={isStreaming}
         >
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>Service Configuration</Card.Title>
-                    <Card.Description>Configure your service name and description</Card.Description>
-                </Card.Header>
-                <Card.Content class="space-y-4">
-                    <div class="space-y-2">
-                        <Label for="name">Service Name *</Label>
-                        <Input
-                            id="name"
-                            name="name"
-                            placeholder="my-web-app"
-                            class={$errors.name ? 'border-destructive' : ''}
-                        />
-                        {#if $errors.name}
-                            <p class="text-sm text-destructive">{$errors.name[0]}</p>
-                        {/if}
-                    </div>
+            <h3 class="text-lg font-semibold">Service Configuration</h3>
+            <p class="mb-4 text-sm text-muted-foreground">
+                Configure your service name, description, and target server
+            </p>
 
-                    <div class="space-y-2">
-                        <Label for="description">Description</Label>
-                        <Textarea
-                            id="description"
-                            name="description"
-                            placeholder="A brief description of your service (optional)"
-                            rows={3}
-                            class={$errors.description ? 'border-destructive' : ''}
-                        />
-                        {#if $errors.description}
-                            <p class="text-sm text-destructive">{$errors.description[0]}</p>
-                        {/if}
-                    </div>
+            <div class="space-y-2">
+                <Label for="name">Service Name *</Label>
+                <Input
+                    id="name"
+                    name="name"
+                    placeholder="my-web-app"
+                    class={$errors.name ? 'border-destructive' : ''}
+                />
+                {#if $errors.name}
+                    <p class="text-sm text-destructive">{$errors.name[0]}</p>
+                {/if}
+            </div>
 
-                    <div class="space-y-2">
-                        <Label for="server_id">Target Server *</Label>
-                        {#if servers.length === 0}
-                            <div class="flex flex-col gap-2">
-                                <p class="text-sm text-muted-foreground">
-                                    No servers available. You need to add a server before creating
-                                    services.
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onclick={() =>
-                                        goto(`/dashboard/${page.params.teamID}/servers/new`)}
-                                >
-                                    Add Server
-                                </Button>
-                            </div>
-                        {:else}
-                            <Select.Root type="single" bind:value={$formData.server_id}>
-                                <Select.Trigger
-                                    class="w-full {$errors.server_id ? 'border-destructive' : ''}"
-                                >
-                                    {selectedServerName}
-                                </Select.Trigger>
-                                <Select.Content>
-                                    <Select.Group>
-                                        {#each servers as server (server.id)}
-                                            <Select.Item value={server.id} label={server.name}>
-                                                <div class="flex flex-col">
-                                                    <div class="font-medium">{server.name}</div>
-                                                    {#if server.description}
-                                                        <div class="text-xs text-muted-foreground">
-                                                            {server.description}
-                                                        </div>
-                                                    {/if}
-                                                </div>
-                                            </Select.Item>
-                                        {/each}
-                                    </Select.Group>
-                                </Select.Content>
-                            </Select.Root>
-                            {#if $errors.server_id}
-                                <p class="text-sm text-destructive">{$errors.server_id[0]}</p>
-                            {/if}
-                        {/if}
-                    </div>
-                </Card.Content>
-            </Card.Root>
+            <div class="space-y-2">
+                <Label for="description">Description</Label>
+                <Textarea
+                    id="description"
+                    name="description"
+                    placeholder="A brief description of your service (optional)"
+                    rows={3}
+                    class={$errors.description ? 'border-destructive' : ''}
+                />
+                {#if $errors.description}
+                    <p class="text-sm text-destructive">{$errors.description[0]}</p>
+                {/if}
+            </div>
 
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>Repository Configuration</Card.Title>
-                    <Card.Description
-                        >Configure the Git repository to clone and deploy</Card.Description
-                    >
-                </Card.Header>
-                <Card.Content class="space-y-4">
-                    <div class="space-y-2">
-                        <Label for="repo_url">Repository URL *</Label>
-                        <Input
-                            id="repo_url"
-                            name="repo_url"
-                            placeholder="https://github.com/user/my-app.git"
-                            class={$errors.repo_url ? 'border-destructive' : ''}
-                        />
-                        {#if $errors.repo_url}
-                            <p class="text-sm text-destructive">{$errors.repo_url[0]}</p>
-                        {/if}
-                        <p class="text-xs text-muted-foreground">
-                            Supports both HTTPS and SSH URLs. Must be accessible from the target
-                            server.
+            <div class="space-y-2">
+                <Label for="server_id">Target Server *</Label>
+                {#if servers.length === 0}
+                    <div class="flex flex-col gap-2">
+                        <p class="text-sm text-muted-foreground">
+                            No servers available. You need to add a server before creating services.
                         </p>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="branch">Branch *</Label>
-                        <Input
-                            id="branch"
-                            name="branch"
-                            placeholder="main"
-                            class={$errors.branch ? 'border-destructive' : ''}
-                        />
-                        {#if $errors.branch}
-                            <p class="text-sm text-destructive">{$errors.branch[0]}</p>
-                        {/if}
-                        <p class="text-xs text-muted-foreground">
-                            The Git branch to clone and deploy from.
-                        </p>
-                    </div>
-
-                    <div class="space-y-2">
-                        <Label for="docker_compose_file_path">Custom Docker Compose File Path</Label
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onclick={() => goto(`/dashboard/${page.params.teamID}/servers/new`)}
                         >
-                        <Input
-                            id="docker_compose_file_path"
-                            name="docker_compose_file_path"
-                            placeholder="docker-compose.prod.yml"
-                            class={$errors.docker_compose_file_path ? 'border-destructive' : ''}
-                        />
-                        {#if $errors.docker_compose_file_path}
-                            <p class="text-sm text-destructive">
-                                {$errors.docker_compose_file_path[0]}
-                            </p>
-                        {/if}
-                        <p class="text-xs text-muted-foreground">
-                            Optional: Specify a custom path to the Docker Compose file. If not
-                            provided, common locations will be automatically searched.
-                        </p>
+                            Add Server
+                        </Button>
                     </div>
-                </Card.Content>
-            </Card.Root>
+                {:else}
+                    <Select.Root type="single" bind:value={$formData.server_id}>
+                        <Select.Trigger
+                            class="w-full {$errors.server_id ? 'border-destructive' : ''}"
+                        >
+                            {selectedServerName}
+                        </Select.Trigger>
+                        <Select.Content>
+                            <Select.Group>
+                                {#each servers as server (server.id)}
+                                    <Select.Item value={server.id} label={server.name}>
+                                        <div class="flex flex-col">
+                                            <div class="font-medium">{server.name}</div>
+                                            {#if server.description}
+                                                <div class="text-xs text-muted-foreground">
+                                                    {server.description}
+                                                </div>
+                                            {/if}
+                                        </div>
+                                    </Select.Item>
+                                {/each}
+                            </Select.Group>
+                        </Select.Content>
+                    </Select.Root>
+                    {#if $errors.server_id}
+                        <p class="text-sm text-destructive">{$errors.server_id[0]}</p>
+                    {/if}
+                {/if}
+            </div>
 
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>Deployment Settings</Card.Title>
-                    <Card.Description>Configure deployment behavior and automation</Card.Description
-                    >
-                </Card.Header>
-                <Card.Content class="space-y-4">
-                    <div class="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            id="auto_deploy"
-                            name="auto_deploy"
-                            bind:checked={$formData.auto_deploy}
-                            class="h-4 w-4 rounded border border-border text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        />
-                        <Label for="auto_deploy" class="cursor-pointer">
-                            Enable auto-deploy on repository changes
-                        </Label>
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                        When enabled, the service will automatically update when changes are
-                        detected in the repository.
+            <div class="my-6 border-t border-border"></div>
+
+            <h3 class="text-lg font-semibold">Repository Configuration</h3>
+            <p class="mb-4 text-sm text-muted-foreground">
+                Configure the Git repository to clone and deploy
+            </p>
+
+            <div class="space-y-2">
+                <Label for="repo_url">Repository URL *</Label>
+                <Input
+                    id="repo_url"
+                    name="repo_url"
+                    placeholder="https://github.com/user/my-app.git"
+                    class={$errors.repo_url ? 'border-destructive' : ''}
+                />
+                {#if $errors.repo_url}
+                    <p class="text-sm text-destructive">{$errors.repo_url[0]}</p>
+                {/if}
+                <p class="text-xs text-muted-foreground">
+                    Supports both HTTPS and SSH URLs. Must be accessible from the target server.
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <Label for="branch">Branch *</Label>
+                <Input
+                    id="branch"
+                    name="branch"
+                    placeholder="main"
+                    class={$errors.branch ? 'border-destructive' : ''}
+                />
+                {#if $errors.branch}
+                    <p class="text-sm text-destructive">{$errors.branch[0]}</p>
+                {/if}
+                <p class="text-xs text-muted-foreground">
+                    The Git branch to clone and deploy from.
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <Label for="docker_compose_file_path">Custom Docker Compose File Path</Label>
+                <Input
+                    id="docker_compose_file_path"
+                    name="docker_compose_file_path"
+                    placeholder="docker-compose.prod.yml"
+                    class={$errors.docker_compose_file_path ? 'border-destructive' : ''}
+                />
+                {#if $errors.docker_compose_file_path}
+                    <p class="text-sm text-destructive">
+                        {$errors.docker_compose_file_path[0]}
                     </p>
-                </Card.Content>
-            </Card.Root>
+                {/if}
+                <p class="text-xs text-muted-foreground">
+                    Optional: Specify a custom path to the Docker Compose file. If not provided,
+                    common locations will be automatically searched.
+                </p>
+            </div>
+
+            <div class="my-6 border-t border-border"></div>
+
+            <h3 class="text-lg font-semibold">Deployment Settings</h3>
+            <p class="mb-4 text-sm text-muted-foreground">
+                Configure deployment behavior and automation
+            </p>
+
+            <div class="space-y-2">
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id="auto_deploy"
+                        name="auto_deploy"
+                        bind:checked={$formData.auto_deploy}
+                        class="h-4 w-4 rounded border border-border text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    />
+                    <Label for="auto_deploy" class="cursor-pointer">
+                        Enable auto-deploy on repository changes
+                    </Label>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                    When enabled, the service will automatically update when changes are detected in
+                    the repository.
+                </p>
+            </div>
+
+            <div class="my-6 border-t border-border"></div>
 
             <!-- Actions -->
             <div class="flex items-center justify-end gap-4">
