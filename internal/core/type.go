@@ -24,9 +24,8 @@ type LogType string
 
 const (
 	LogTypeError    LogType = "error"
-	LogTypeInfo     LogType = "info"
+	LogTypeLog      LogType = "log"
 	LogTypeProgress LogType = "progress"
-	LogTypeStep     LogType = "step"
 )
 
 type LogMessage struct {
@@ -42,16 +41,9 @@ func (sc StreamChan) LogError(message string) {
 	}
 }
 
-func (sc StreamChan) LogInfo(message string) {
+func (sc StreamChan) LogLog(message string) {
 	sc.LogChan <- LogMessage{
-		Type:    LogTypeInfo,
-		Message: message,
-	}
-}
-
-func (sc StreamChan) LogStep(message string) {
-	sc.LogChan <- LogMessage{
-		Type:    LogTypeStep,
+		Type:    LogTypeLog,
 		Message: message,
 	}
 }
@@ -70,16 +62,9 @@ func LogError(message string) LogMessage {
 	}
 }
 
-func LogInfo(message string) LogMessage {
+func LogLog(message string) LogMessage {
 	return LogMessage{
-		Type:    LogTypeInfo,
-		Message: message,
-	}
-}
-
-func LogStep(message string) LogMessage {
-	return LogMessage{
-		Type:    LogTypeStep,
+		Type:    LogTypeLog,
 		Message: message,
 	}
 }

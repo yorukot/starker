@@ -34,7 +34,7 @@
 		} else if (language === 'toml') {
 			langExtension = StreamLanguage.define(toml);
 		} else {
-      langExtension = StreamLanguage.define(properties);
+			langExtension = StreamLanguage.define(properties);
 		}
 
 		const startState = EditorState.create({

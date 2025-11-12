@@ -29,12 +29,12 @@ type updateServiceComposeRequest struct {
 // @Description Updates the Docker Compose configuration for a specific service
 // @Tags service
 // @Accept json
-// @Produce json
+// @Produce text/event-stream
 // @Param teamID path string true "Team ID"
 // @Param projectID path string true "Project ID"
 // @Param serviceID path string true "Service ID"
 // @Param request body updateServiceComposeRequest true "Service compose update request"
-// @Success 200 {object} response.SuccessResponse{data=models.ServiceComposeConfig} "Compose config updated successfully"
+// @Success 200 {string} string "SSE stream of compose update and rebuild progress"
 // @Failure 400 {object} response.ErrorResponse "Invalid request body, team access denied, or service not found"
 // @Failure 401 {object} response.ErrorResponse "User not authenticated"
 // @Failure 500 {object} response.ErrorResponse "Internal server error"
@@ -117,11 +117,15 @@ func (h *ServiceHandler) UpdateServiceCompose(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Commit transaction
-	repository.CommitTransaction(tx, r.Context())
+	// Commit the transaction
+	if err := tx.Commit(r.Context()); err != nil {
+		zap.L().Error("Failed to commit transaction", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to commit transaction", "FAILED_TO_COMMIT_TRANSACTION")
+		return
+	}
 
-	// Return the updated compose config
-	response.RespondWithJSON(w, http.StatusOK, updatedComposeConfig)
+	// Return success response
+	response.RespondWithJSON(w, http.StatusOK, nil)
 }
 
 // UpdateServiceComposeFromRequest updates a compose config model with new values from update request

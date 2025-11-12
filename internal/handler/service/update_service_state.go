@@ -28,12 +28,12 @@ import (
 
 // updateServiceStateRequest represents a request to update service state
 type updateServiceStateRequest struct {
-	State string `json:"state" validate:"required,oneof=start stop restart" example:"start"` // Service state action (start, stop, restart)
+	State string `json:"state" validate:"required,oneof=start stop restart rebuild" example:"start"` // Service state action (start, stop, restart, rebuild)
 }
 
 // UpdateServiceState godoc
 // @Summary Update service state with SSE streaming
-// @Description Updates service state (start/stop/restart) with real-time progress streaming via Server-Sent Events
+// @Description Updates service state (start/stop/restart/rebuild) with real-time progress streaming via Server-Sent Events
 // @Tags service
 // @Accept json
 // @Produce text/event-stream
@@ -118,15 +118,6 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Update service to initial status before streaming
-	switch newState {
-	case "start":
-		service.State = models.ServiceStateStarting
-	case "stop":
-		service.State = models.ServiceStateStopping
-	case "restart":
-		service.State = models.ServiceStateRestarting
-	}
 	if err := repository.UpdateService(r.Context(), tx, *service); err != nil {
 		zap.L().Error("Failed to update initial service status", zap.Error(err))
 		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
@@ -145,6 +136,8 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 		return state == models.ServiceStateRunning
 	case "restart":
 		return state == models.ServiceStateRunning
+	case "rebuild":
+		return state == models.ServiceStateRunning || state == models.ServiceStateStopped
 	default:
 		return false
 	}
@@ -152,16 +145,24 @@ func checkStateIsRight(state models.ServiceState, newState string) bool {
 
 // executeServiceOperation executes the Docker service operation and returns streaming result
 func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx, operation string, service *models.Service) (*core.StreamChan, error) {
-	switch operation {
-	case "start":
-		return h.executeStartOperation(ctx, tx, service)
-	case "stop":
-		return h.executeStopOperation(ctx, tx, service)
-	case "restart":
-		return h.executeRestartOperation(ctx, tx, service)
-	default:
-		return nil, fmt.Errorf("unsupported operation: %s", operation)
+	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
+	if err != nil {
+		return nil, err
 	}
+
+	go func() {
+		switch operation {
+		case "start":
+			dockerHandler.StartDockerCompose(context.Background())
+		case "stop":
+			dockerHandler.StopDockerCompose(context.Background())
+		case "restart":
+			dockerHandler.RestartDockerCompose(context.Background())
+		case "rebuild":
+			dockerHandler.RebuildDockerCompose(context.Background())
+		}
+	}()
+	return streamChan, nil
 }
 
 // setupDockerHandler handles the common setup logic for Docker operations
@@ -194,7 +195,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	}
 
 	// Parse the Docker Compose configuration
-	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID)
+	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID, service.ProjectID)
 	project, err := dockeryaml.ParseComposeContent(composeConfig.ComposeFile, namingGenerator.ProjectName())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse compose file: %w", err)
@@ -208,8 +209,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	// Get Docker client from connection pool
 	connectionID := namingGenerator.ConnectionID()
 	// Build SSH connection string
-	sshHost := fmt.Sprintf("%s@%s:%s", server.User, server.IP, server.Port)
-	dockerClient, err := h.ConnectionPool.GetDockerConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
+	sshClient, err := h.ConnectionPool.GetSSHConnection(connectionID, server.Host, server.Port, server.User, []byte(privateKey.PrivateKey))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get Docker connection: %w", err)
 	}
@@ -219,7 +219,7 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 
 	// Create Docker handler
 	dockerHandler := &dockerutils.DockerHandler{
-		Client:          dockerClient,
+		Client:          sshClient,
 		Project:         project,
 		NamingGenerator: namingGenerator,
 		DB:              h.DB,
@@ -228,58 +228,4 @@ func (h *ServiceHandler) setupDockerHandler(ctx context.Context, tx pgx.Tx, serv
 	}
 
 	return dockerHandler, &streamChan, nil
-}
-
-// executeStartOperation handles the Docker compose start operation
-func (h *ServiceHandler) executeStartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start the Docker compose operation
-	err = dockerHandler.StartDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start Docker compose: %w", err)
-	}
-
-	// Return the streaming result
-	return streamChan, nil
-}
-
-// executeStopOperation handles the Docker compose stop operation
-func (h *ServiceHandler) executeStopOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Stop the Docker compose operation
-	err = dockerHandler.StopDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stop Docker compose: %w", err)
-	}
-
-	// Return the streaming result
-	return streamChan, nil
-}
-
-// executeRestartOperation handles the Docker compose restart operation
-func (h *ServiceHandler) executeRestartOperation(ctx context.Context, tx pgx.Tx, service *models.Service) (*core.StreamChan, error) {
-	// Setup Docker handler and streaming
-	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
-	if err != nil {
-		return nil, err
-	}
-
-	// Restart the Docker compose operation
-	err = dockerHandler.RestartDockerCompose(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to restart Docker compose: %w", err)
-	}
-
-	// Return the streaming result
-	return streamChan, nil
 }

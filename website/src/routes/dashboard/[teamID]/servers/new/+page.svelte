@@ -32,8 +32,8 @@
 		initialValues: {
 			name: '',
 			description: '',
-			ip: '',
-			port: '22',
+			host: '',
+			port: 22,
 			user: '',
 			private_key_id: ''
 		},
@@ -45,8 +45,8 @@
 				{
 					name: values.name.trim(),
 					description: values.description?.trim() || '',
-					ip: values.ip.trim(),
-					port: values.port.trim(),
+					host: values.host.trim(),
+					port: values.port,
 					user: values.user.trim(),
 					private_key_id: values.private_key_id
 				}
@@ -169,17 +169,17 @@
 			<!-- IP and Port Row -->
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 				<div class="col-span-2 space-y-2">
-					<Label for="ip">IP Address / Hostname *</Label>
+					<Label for="host">Host / IP Address *</Label>
 					<Input
-						id="ip"
-						name="ip"
+						id="host"
+						name="host"
 						type="text"
 						placeholder="192.168.1.100 or server.example.com"
 						required
-						class={$errors.ip ? 'border-destructive' : ''}
+						class={$errors.host ? 'border-destructive' : ''}
 					/>
-					{#if $errors.ip}
-						<span class="text-sm text-destructive">{$errors.ip[0]}</span>
+					{#if $errors.host}
+						<span class="text-sm text-destructive">{$errors.host[0]}</span>
 					{/if}
 				</div>
 				<div class="space-y-2">

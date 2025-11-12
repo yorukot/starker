@@ -4,7 +4,8 @@ export enum ServiceState {
 	STOPPED = 'stopped',
 	STARTING = 'starting',
 	STOPPING = 'stopping',
-	RESTARTING = 'restarting'
+	RESTARTING = 'restarting',
+	REBUILDING = 'rebuilding'
 }
 
 // Service type

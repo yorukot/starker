@@ -38,7 +38,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 	// Send initial event
 	data, _ := json.Marshal(map[string]interface{}{
 		"message": "Starting Docker service",
-		"type":    "info",
+		"type":    "log",
 	})
 	fmt.Fprintf(w, "data: %s\n\n", data)
 	flusher.Flush()
@@ -119,6 +119,11 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 				successMessage = "Service restarted successfully"
 				finalState = "running"
+			case "rebuild":
+				service.State = models.ServiceStateRunning
+				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
+				successMessage = "Service rebuilt successfully"
+				finalState = "running"
 			default:
 				service.State = models.ServiceStateRunning
 				successMessage = "Service operation completed successfully"
@@ -151,7 +156,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			// Send success completion event with operation-specific message
 			data, _ := json.Marshal(map[string]interface{}{
 				"message": successMessage,
-				"type":    core.LogTypeInfo,
+				"type":    core.LogTypeLog,
 				"state":   finalState,
 			})
 			fmt.Fprintf(w, "data: %s\n\n", data)
@@ -169,7 +174,7 @@ func StreamContainerLogs(ctx context.Context, w http.ResponseWriter, logsReader 
 	}
 
 	sendEvent := createEventSender(flusher, w)
-	sendEvent(core.LogInfo(fmt.Sprintf("Starting log stream for container: %s", containerName)))
+	sendEvent(core.LogLog(fmt.Sprintf("Starting log stream for container: %s", containerName)))
 
 	lineNumber := 0
 	header := make([]byte, 8)
@@ -240,7 +245,7 @@ func handleReadError(err error, n int, lineNumber int, containerName string, sen
 			"container":  containerName,
 		}
 		completionMsg := core.LogMessage{
-			Type:    core.LogTypeInfo,
+			Type:    core.LogTypeLog,
 			Message: fmt.Sprintf("Log stream completed. Total lines: %d", lineNumber),
 			Data:    completionData,
 		}
@@ -294,10 +299,94 @@ func processLogPayload(payload []byte, streamType byte, containerName string, st
 func getStreamInfo(streamType byte) (string, core.LogType) {
 	switch streamType {
 	case 1: // stdout
-		return "stdout", core.LogTypeInfo
+		return "stdout", core.LogTypeLog
 	case 2: // stderr
 		return "stderr", core.LogTypeError
 	default: // unknown stream type, treat as stdout
-		return "stdout", core.LogTypeInfo
+		return "stdout", core.LogTypeLog
+	}
+}
+
+// StreamContainerLogsSSE handles SSE streaming of Docker container logs using StreamChan
+func StreamContainerLogsSSE(ctx context.Context, w http.ResponseWriter, streamChan *core.StreamChan, containerName string) {
+	flusher := setupSSEHeaders(w)
+	if flusher == nil {
+		return
+	}
+
+	sendEvent := createEventSender(flusher, w)
+	sendEvent(core.LogLog(fmt.Sprintf("Starting log stream for container: %s", containerName)))
+
+	lineNumber := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			zap.L().Info("Client disconnected from log stream")
+			return
+
+		case logMsg := <-streamChan.LogChan:
+			lineNumber++
+			// Enhance log message with container context
+			logData := map[string]interface{}{
+				"line":        logMsg.Message,
+				"line_number": lineNumber,
+				"container":   containerName,
+				"stream":      "stdout",
+			}
+			enhancedMsg := core.LogMessage{
+				Type:    logMsg.Type,
+				Message: logMsg.Message,
+				Data:    logData,
+			}
+			sendEvent(enhancedMsg)
+
+		case errMsg := <-streamChan.ErrChan:
+			lineNumber++
+			// Enhance error message with container context
+			logData := map[string]interface{}{
+				"line":        errMsg.Message,
+				"line_number": lineNumber,
+				"container":   containerName,
+				"stream":      "stderr",
+			}
+			enhancedMsg := core.LogMessage{
+				Type:    errMsg.Type,
+				Message: errMsg.Message,
+				Data:    logData,
+			}
+			sendEvent(enhancedMsg)
+
+		case progressMsg := <-streamChan.ProgressChan:
+			// Stream progress messages (if any)
+			sendEvent(progressMsg)
+
+		case finalErr := <-streamChan.FinalError:
+			// Log streaming failed
+			zap.L().Error("Container log streaming failed", zap.Error(finalErr))
+			data, _ := json.Marshal(map[string]interface{}{
+				"message": fmt.Sprintf("Log streaming failed: %v", finalErr),
+				"type":    "error",
+			})
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+			return
+
+		case <-streamChan.DoneChan:
+			// Log streaming completed
+			zap.L().Info("Container log streaming completed")
+			completionData := map[string]interface{}{
+				"line_count": lineNumber,
+				"completed":  true,
+				"container":  containerName,
+			}
+			completionMsg := core.LogMessage{
+				Type:    core.LogTypeLog,
+				Message: fmt.Sprintf("Log stream completed. Total lines: %d", lineNumber),
+				Data:    completionData,
+			}
+			sendEvent(completionMsg)
+			return
+		}
 	}
 }

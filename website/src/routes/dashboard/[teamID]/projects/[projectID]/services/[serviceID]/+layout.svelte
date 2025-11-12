@@ -30,7 +30,7 @@
 	let logMessages: Array<{
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status' | 'step';
+		type: 'log' | 'error' | 'status';
 		message: string;
 	}> = $state([]);
 
@@ -93,13 +93,15 @@
 				return 'bg-secondary/50 border-secondary/30';
 			case ServiceState.RESTARTING:
 				return 'bg-secondary/50 border-secondary/30';
+			case ServiceState.REBUILDING:
+				return 'bg-orange/50 border-orange/30';
 			default:
 				return 'bg-secondary/50 border-secondary/30';
 		}
 	}
 
 	// Add log message with timestamp and unique ID
-	function addLogMessage(type: 'log' | 'error' | 'info' | 'status' | 'step', message: string) {
+	function addLogMessage(type: 'log' | 'error' | 'status', message: string) {
 		logMessages = [
 			...logMessages,
 			{
@@ -115,7 +117,7 @@
 	async function handleSSEResponse(operationType: string, response: Response) {
 		// Open log sheet when operation starts
 		showLogSheet = true;
-		addLogMessage('info', `Starting ${operationType} operation...`);
+		addLogMessage('status', `Starting ${operationType} operation...`);
 
 		if (!response.body) {
 			addLogMessage('error', 'No response body for SSE stream');
@@ -152,15 +154,6 @@
 
 							switch (data.type) {
 								case 'log':
-									addLogMessage('log', data.message);
-									break;
-								case 'error':
-									addLogMessage('error', data.message);
-									break;
-								case 'step':
-									addLogMessage('log', data.message);
-									break;
-								case 'info':
 									// Check if this is a completion message (has state property)
 									if (data.state) {
 										if (service) {
@@ -170,7 +163,23 @@
 										quickActionsRef?.resetStates();
 										return;
 									} else {
-										addLogMessage('info', data.message);
+										addLogMessage('log', data.message);
+									}
+									break;
+								case 'error':
+									addLogMessage('error', data.message);
+									break;
+								case 'status':
+									// Check if this is a completion message (has state property)
+									if (data.state) {
+										if (service) {
+											service.state = data.state;
+										}
+										addLogMessage('status', `Operation completed. Service state: ${data.state}`);
+										quickActionsRef?.resetStates();
+										return;
+									} else {
+										addLogMessage('status', data.message);
 									}
 									break;
 								default:
@@ -193,15 +202,6 @@
 						const data = JSON.parse(jsonData);
 						switch (data.type) {
 							case 'log':
-								addLogMessage('log', data.message);
-								break;
-							case 'error':
-								addLogMessage('error', data.message);
-								break;
-							case 'step':
-								addLogMessage('log', data.message);
-								break;
-							case 'info':
 								// Check if this is a completion message (has state property)
 								if (data.state) {
 									if (service) {
@@ -211,7 +211,23 @@
 									quickActionsRef?.resetStates();
 									return;
 								} else {
-									addLogMessage('info', data.message);
+									addLogMessage('log', data.message);
+								}
+								break;
+							case 'error':
+								addLogMessage('error', data.message);
+								break;
+							case 'status':
+								// Check if this is a completion message (has state property)
+								if (data.state) {
+									if (service) {
+										service.state = data.state;
+									}
+									addLogMessage('status', `Operation completed. Service state: ${data.state}`);
+									quickActionsRef?.resetStates();
+									return;
+								} else {
+									addLogMessage('status', data.message);
 								}
 								break;
 							default:
@@ -273,9 +289,7 @@
 
 	<!-- Navigation Tabs with Actions -->
 	<div class="">
-		<div
-			class="scrollbar-hide flex items-center overflow-x-auto border-b border-border px-6"
-		>
+		<div class="scrollbar-hide flex items-center overflow-x-auto border-b border-border px-6">
 			<Tabs.Root value={activeTab()} onValueChange={handleTabChange}>
 				<Tabs.List>
 					{#each tabs as tab (tab.id)}

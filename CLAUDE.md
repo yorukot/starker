@@ -76,8 +76,10 @@ The application implements OAuth2 (Google) and JWT-based authentication:
 The platform implements a complete Docker service orchestration system with real-time streaming:
 
 **Core Components:**
+- `internal/core/` - Core Docker operations with streaming support and state management
+- `internal/core/dockerutils/` - Docker operation handlers (start, stop, restart, state verification)
 - `pkg/dockerpool/` - Connection pooling for Docker API clients over SSH
-- `pkg/dockeryaml/` - Docker Compose file parsing and validation
+- `pkg/dockeryaml/` - Docker Compose file parsing and validation, including container status parsing
 - `pkg/generator/` - Consistent naming and labeling for Docker resources
 - `internal/handler/service/utils/` - Docker operation utilities with SSE streaming support
 
@@ -95,8 +97,9 @@ The platform implements a complete Docker service orchestration system with real
 
 **Streaming Operations:**
 - Real-time progress streaming for image pulls, container starts/stops, and build operations
-- `StreamingResult` channels for stdout, stderr, errors, and completion signals
+- `StreamChan` channels with separate log, error, progress, and completion channels
 - JSON parsing of Docker API progress events with detailed layer-by-layer updates
+- Automatic container state synchronization and verification after operations
 - Proper error handling and graceful degradation
 
 ### Code Style & Conventions

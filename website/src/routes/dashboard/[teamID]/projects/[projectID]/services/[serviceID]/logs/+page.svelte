@@ -8,7 +8,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import LogsViewer from '$lib/components/logs-viewer.svelte';
-  import LogsIcon from '~icons/lucide/file-text';
+	import LogsIcon from '~icons/lucide/file-text';
 	import PlayIcon from '~icons/lucide/play';
 	import PauseIcon from '~icons/lucide/pause';
 	import AlertCircleIcon from '~icons/lucide/alert-circle';
@@ -19,7 +19,7 @@
 	interface LogMessage {
 		id: string;
 		timestamp: string;
-		type: 'log' | 'error' | 'info' | 'status';
+		type: 'log' | 'error' | 'status';
 		message: string;
 	}
 
@@ -54,7 +54,7 @@
 	const selectedContainerName = $derived(selectedContainer?.container_name || 'Select a container');
 
 	// Add log message with timestamp and unique ID
-	function addLogMessage(type: 'log' | 'error' | 'info' | 'status', message: string) {
+	function addLogMessage(type: 'log' | 'error' | 'status', message: string) {
 		logMessages = [
 			...logMessages,
 			{
@@ -97,7 +97,7 @@
 			streamController = new AbortController();
 
 			addLogMessage(
-				'info',
+				'status',
 				`Starting log stream for container: ${selectedContainer?.container_name}`
 			);
 
@@ -162,8 +162,8 @@
 									case 'error':
 										addLogMessage('error', data.message);
 										break;
-									case 'info':
-										addLogMessage('info', data.message);
+									case 'status':
+										addLogMessage('status', data.message);
 										break;
 									default:
 										// Handle raw log messages
@@ -191,8 +191,8 @@
 								case 'error':
 									addLogMessage('error', data.message);
 									break;
-								case 'info':
-									addLogMessage('info', data.message);
+								case 'status':
+									addLogMessage('status', data.message);
 									break;
 								default:
 									addLogMessage('log', data.message || JSON.stringify(data));

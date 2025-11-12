@@ -5,7 +5,6 @@
 package service
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -53,7 +52,7 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 
 	// Parse query parameters for log options
 	logOptions := dockerutils.LogOptions{
-		Follow:     r.URL.Query().Get("follow") != "false", // Default to true for real-time streaming
+		Follow:     r.URL.Query().Get("follow") == "true", // Default to false for compatibility
 		Tail:       r.URL.Query().Get("tail"),
 		Timestamps: r.URL.Query().Get("timestamps") == "true",
 	}
@@ -148,35 +147,38 @@ func (h *ServiceHandler) GetContainerLogs(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Get Docker client from connection pool
-	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID)
+	// Get SSH client from connection pool
+	namingGenerator := generator.NewNamingGenerator(service.ID, service.TeamID, service.ServerID, service.ProjectID)
 	connectionID := namingGenerator.ConnectionID()
-	sshHost := fmt.Sprintf("%s@%s:%s", server.User, server.IP, server.Port)
-	dockerClient, err := h.ConnectionPool.GetDockerConnection(connectionID, sshHost, []byte(privateKey.PrivateKey))
+	sshClient, err := h.ConnectionPool.GetSSHConnection(connectionID, server.Host, server.Port, server.User, []byte(privateKey.PrivateKey))
 	if err != nil {
-		zap.L().Error("Failed to get Docker connection", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get Docker connection", "FAILED_TO_GET_DOCKER_CONNECTION")
+		zap.L().Error("Failed to get SSH connection", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get SSH connection", "FAILED_TO_GET_SSH_CONNECTION")
 		return
 	}
 
-	// Create Docker handler with proper StreamChan initialization for log operations
+	// Create streaming channels
+	streamChan := core.NewStreamChan()
+
+	// Create Docker handler with proper initialization
 	dockerHandler := &dockerutils.DockerHandler{
-		Client:     dockerClient,
-		StreamChan: core.NewStreamChan(),
+		Client:          sshClient,
+		NamingGenerator: namingGenerator,
+		DB:              h.DB,
+		ConnectionPool:  h.ConnectionPool,
+		StreamChan:      streamChan,
 	}
 
 	// Commit transaction since we're moving to streaming
 	repository.CommitTransaction(tx, r.Context())
 
-	// Get container logs
-	logsReader, err := dockerHandler.GetContainerLogs(r.Context(), *container.ContainerID, logOptions)
-	if err != nil {
-		zap.L().Error("Failed to get container logs", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to get container logs", "FAILED_TO_GET_CONTAINER_LOGS")
-		return
-	}
+	// Stream container logs using the same pattern as service operations
+	go func() {
+		if err := dockerHandler.GetContainerLogsStreaming(r.Context(), *container.ContainerID, logOptions); err != nil {
+			zap.L().Error("Failed to stream container logs", zap.Error(err))
+		}
+	}()
 
-	defer logsReader.Close()
-	// Stream container logs using utility function
-	utils.StreamContainerLogs(r.Context(), w, logsReader, container.ContainerName)
+	// Stream the logs output using the same utility as service operations
+	utils.StreamContainerLogsSSE(r.Context(), w, &streamChan, container.ContainerName)
 }

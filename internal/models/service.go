@@ -10,6 +10,7 @@ const (
 	ServiceStateStarting   ServiceState = "starting"
 	ServiceStateStopping   ServiceState = "stopping"
 	ServiceStateRestarting ServiceState = "restarting"
+	ServiceStateRebuilding ServiceState = "rebuilding"
 )
 
 type ContainerState string

@@ -1,5 +1,12 @@
 import * as yup from 'yup';
 
+const ipv4Regex =
+	/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+const ipv6Regex =
+	/^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:)*::([0-9a-fA-F]{1,4}:)*[0-9a-fA-F]{1,4}|::)$/;
+const hostnameRegex =
+	/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
 export const createServerSchema = yup.object({
 	name: yup
 		.string()
@@ -7,26 +14,20 @@ export const createServerSchema = yup.object({
 		.min(1, 'Name must be at least 1 character')
 		.max(100, 'Name must be less than 100 characters'),
 	description: yup.string().max(500, 'Description must be less than 500 characters'),
-	ip: yup
+	host: yup
 		.string()
-		.required('IP address is required')
-		.test('valid-ip', 'Please enter a valid IP address or hostname', (value) => {
+		.required('Host / IP address is required')
+		.test('valid-host', 'Please enter a valid IP address or hostname', (value) => {
 			if (!value) return false;
-			// Basic validation for IP or hostname
-			const ipRegex =
-				/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-			const hostnameRegex =
-				/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-			return ipRegex.test(value) || hostnameRegex.test(value);
+			if (value.length > 253) return false;
+			return ipv4Regex.test(value) || ipv6Regex.test(value) || hostnameRegex.test(value);
 		}),
 	port: yup
-		.string()
+		.number()
 		.required('Port is required')
-		.test('valid-port', 'Port must be between 1 and 65535', (value) => {
-			if (!value) return false;
-			const port = parseInt(value, 10);
-			return !isNaN(port) && port >= 1 && port <= 65535;
-		}),
+		.integer('Port must be an integer')
+		.min(1, 'Port must be at least 1')
+		.max(65535, 'Port must be at most 65535'),
 	user: yup
 		.string()
 		.required('Username is required')
@@ -42,26 +43,20 @@ export const updateServerSchema = yup.object({
 		.min(1, 'Name must be at least 1 character')
 		.max(100, 'Name must be less than 100 characters'),
 	description: yup.string().max(500, 'Description must be less than 500 characters'),
-	ip: yup
+	host: yup
 		.string()
-		.required('IP address is required')
-		.test('valid-ip', 'Please enter a valid IP address or hostname', (value) => {
+		.required('Host / IP address is required')
+		.test('valid-host', 'Please enter a valid IP address or hostname', (value) => {
 			if (!value) return false;
-			// Basic validation for IP or hostname
-			const ipRegex =
-				/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-			const hostnameRegex =
-				/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-			return ipRegex.test(value) || hostnameRegex.test(value);
+			if (value.length > 253) return false;
+			return ipv4Regex.test(value) || ipv6Regex.test(value) || hostnameRegex.test(value);
 		}),
 	port: yup
-		.string()
+		.number()
 		.required('Port is required')
-		.test('valid-port', 'Port must be between 1 and 65535', (value) => {
-			if (!value) return false;
-			const port = parseInt(value, 10);
-			return !isNaN(port) && port >= 1 && port <= 65535;
-		}),
+		.integer('Port must be an integer')
+		.min(1, 'Port must be at least 1')
+		.max(65535, 'Port must be at most 65535'),
 	user: yup
 		.string()
 		.required('Username is required')

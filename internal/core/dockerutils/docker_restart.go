@@ -3,43 +3,50 @@ package dockerutils
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
-	"go.uber.org/zap"
-
-	"github.com/yorukot/starker/internal/core"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
-// RestartDockerCompose restarts the docker compose orchestration by stopping everything and then starting fresh
-// This ensures Docker Compose changes are applied by doing a complete stop/remove/start cycle
-func (dh *DockerHandler) RestartDockerCompose(ctx context.Context) error {
-	// Start Docker restart orchestration in a goroutine for streaming
-	go func() {
-		// Log start of Docker restart orchestration
-		dh.StreamChan.LogStep("Starting Docker restart orchestration")
+// RestartDockerCompose restarts all services defined in the Docker Compose configuration
+// with real-time progress streaming for container restart
+func (h *DockerHandler) RestartDockerCompose(ctx context.Context) error {
+	h.StreamChan.LogLog("Restarting Docker Compose services")
 
-		// Phase 1: Stop everything
-		dh.StreamChan.LogStep("Stopping and removing existing resources")
+	// Get the compose file path
+	serviceDataPath := h.NamingGenerator.GenerateServiceDataPath()
+	composeFilePath := filepath.Join(serviceDataPath, "compose.yml")
 
-		err := dh.StopDockerCompose(ctx)
-		if err != nil {
-			zap.L().Error("Failed to initiate stop phase in RestartDockerCompose", zap.Error(err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to initiate stop phase: %w", err)
-			return
-		}
+	// First, ensure the compose file is written to the server
+	if err := h.WriteDockerCompose(); err != nil {
+		h.StreamChan.LogError(fmt.Sprintf("Failed to write compose file: %v", err))
+		h.StreamChan.FinalError <- err
+		return err
+	}
 
-		// Phase 2: Start everything fresh
-		dh.StreamChan.LogStep("Starting fresh orchestration")
+	// Execute Docker Compose restart operations in sequence
+	if err := h.restartServices(composeFilePath); err != nil {
+		return err // Error already sent through FinalError channel
+	}
 
-		err = dh.StartDockerCompose(ctx)
-		if err != nil {
-			zap.L().Error("Failed to initiate start phase in RestartDockerCompose", zap.Error(err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to initiate start phase: %w", err)
-			return
-		}
+	h.StreamChan.LogLog("Docker Compose services restarted successfully")
+	h.StreamChan.DoneChan <- true
+	return nil
+}
 
-		// The StartDockerCompose will handle its own completion signaling
-		dh.StreamChan.LogChan <- core.LogInfo("Docker restart orchestration initiated successfully")
-	}()
+// restartServices restarts all services defined in the compose file
+func (h *DockerHandler) restartServices(composeFilePath string) error {
+	h.StreamChan.LogLog("Restarting Docker services")
+
+	// Use docker compose restart command for graceful restart
+	restartCmd := fmt.Sprintf("docker compose -f %s restart", composeFilePath)
+
+	// Execute the restart command with streaming
+	if err := connection.ExecuteCommand(h.Client, restartCmd, h.StreamChan); err != nil {
+		h.StreamChan.LogError(fmt.Sprintf("Failed to restart services: %v", err))
+		h.StreamChan.FinalError <- err
+		return err
+	}
 
 	return nil
 }

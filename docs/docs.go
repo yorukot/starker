@@ -1839,7 +1839,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "text/event-stream"
                 ],
                 "tags": [
                     "service"
@@ -1879,21 +1879,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Compose config updated successfully",
+                        "description": "SSE stream of compose update and rebuild progress",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/response.SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/models.ServiceComposeConfig"
-                                        }
-                                    }
-                                }
-                            ]
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -2001,7 +1989,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{containerID}/logs": {
+        "/teams/{teamID}/projects/{projectID}/services/{serviceID}/containers/{contUNAUTHORIZEDainerID}/logs": {
             "get": {
                 "security": [
                     {
@@ -2299,7 +2287,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates service state (start/stop/restart) with real-time progress streaming via Server-Sent Events",
+                "description": "Updates service state (start/stop/restart/rebuild) with real-time progress streaming via Server-Sent Events",
                 "consumes": [
                     "application/json"
                 ],
@@ -2963,15 +2951,15 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Main production server"
                 },
+                "host": {
+                    "description": "Server host",
+                    "type": "string",
+                    "example": "192.168.1.100"
+                },
                 "id": {
                     "description": "Unique identifier for the server",
                     "type": "string",
                     "example": "01ARZ3NDEKTSV4RRFFQ69G5FAV"
-                },
-                "ip": {
-                    "description": "Server IP address",
-                    "type": "string",
-                    "example": "192.168.1.100"
                 },
                 "name": {
                     "description": "Server name",
@@ -2980,8 +2968,8 @@ const docTemplate = `{
                 },
                 "port": {
                     "description": "SSH port",
-                    "type": "string",
-                    "example": "22"
+                    "type": "integer",
+                    "example": 22
                 },
                 "private_key_id": {
                     "description": "Associated private key ID",
@@ -3190,14 +3178,16 @@ const docTemplate = `{
                 "stopped",
                 "starting",
                 "stopping",
-                "restarting"
+                "restarting",
+                "rebuilding"
             ],
             "x-enum-varnames": [
                 "ServiceStateRunning",
                 "ServiceStateStopped",
                 "ServiceStateStarting",
                 "ServiceStateStopping",
-                "ServiceStateRestarting"
+                "ServiceStateRestarting",
+                "ServiceStateRebuilding"
             ]
         },
         "models.Team": {
@@ -3345,7 +3335,7 @@ const docTemplate = `{
         "server.createServerRequest": {
             "type": "object",
             "required": [
-                "ip",
+                "host",
                 "name",
                 "port",
                 "private_key_id",
@@ -3356,7 +3346,7 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 500
                 },
-                "ip": {
+                "host": {
                     "type": "string"
                 },
                 "name": {
@@ -3365,9 +3355,9 @@ const docTemplate = `{
                     "minLength": 3
                 },
                 "port": {
-                    "type": "string",
-                    "maxLength": 5,
-                    "minLength": 1
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 1
                 },
                 "private_key_id": {
                     "type": "string"
@@ -3386,7 +3376,7 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 500
                 },
-                "ip": {
+                "host": {
                     "type": "string"
                 },
                 "name": {
@@ -3395,9 +3385,9 @@ const docTemplate = `{
                     "minLength": 3
                 },
                 "port": {
-                    "type": "string",
-                    "maxLength": 5,
-                    "minLength": 1
+                    "type": "integer",
+                    "maximum": 5,
+                    "minimum": 1
                 },
                 "private_key_id": {
                     "type": "string"
@@ -3488,7 +3478,6 @@ const docTemplate = `{
             "properties": {
                 "environments": {
                     "type": "array",
-                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/service.updateServiceEnvironmentItem"
                     }
@@ -3536,12 +3525,13 @@ const docTemplate = `{
             ],
             "properties": {
                 "state": {
-                    "description": "Service state action (start, stop, restart)",
+                    "description": "Service state action (start, stop, restart, rebuild)",
                     "type": "string",
                     "enum": [
                         "start",
                         "stop",
-                        "restart"
+                        "restart",
+                        "rebuild"
                     ],
                     "example": "start"
                 }

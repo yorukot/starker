@@ -2,6 +2,7 @@ package privatekey
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -40,13 +41,13 @@ func (h *PrivateKeyHandler) CreatePrivateKey(w http.ResponseWriter, r *http.Requ
 	// Get the private key from the request body
 	var createPrivateKeyRequest privatekeysvc.CreatePrivateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&createPrivateKeyRequest); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
+		response.RespondWithError(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err), "INVALID_REQUEST_BODY")
 		return
 	}
 
 	// Validate the private key
 	if err := privatekeysvc.PrivateKeyValidate(createPrivateKeyRequest); err != nil {
-		response.RespondWithError(w, http.StatusBadRequest, "Invalid request body", "INVALID_REQUEST_BODY")
+		response.RespondWithError(w, http.StatusBadRequest, "Private key validation failed", "INVALID_PRIVATE_KEY")
 		return
 	}
 

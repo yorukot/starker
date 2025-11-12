@@ -3,109 +3,73 @@ package dockerutils
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
-	"go.uber.org/zap"
-
-	"github.com/yorukot/starker/internal/core"
-	"github.com/yorukot/starker/internal/core/dockersync"
-	"github.com/yorukot/starker/internal/repository"
+	"github.com/yorukot/starker/pkg/connection"
 )
 
-// StartDockerCompose starts the docker compose orchestration in a goroutine with streaming output
-func (dh *DockerHandler) StartDockerCompose(ctx context.Context) error {
-	// Start Docker orchestration in a goroutine for streaming
-	go func() {
-		// Create a new transaction for the goroutine
-		tx, err := repository.StartTransaction(dh.DB, ctx)
-		if err != nil {
-			zap.L().Error("Failed to begin transaction in StartDockerCompose", zap.Error(err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to begin transaction: %w", err)
-			return
-		}
+// StartDockerCompose starts all services defined in the Docker Compose configuration
+// with real-time progress streaming for image pulls and container startup
+func (h *DockerHandler) StartDockerCompose(ctx context.Context) error {
+	h.StreamChan.LogLog("Starting Docker Compose services")
 
-		defer func() {
-			// Rollback transaction if it hasn't been committed
-			repository.DeferRollback(tx, ctx)
-			dh.StreamChan.DoneChan <- true
-		}()
+	// First, ensure the compose file is written to the server
+	if err := h.WriteDockerCompose(); err != nil {
+		h.StreamChan.LogError(fmt.Sprintf("Failed to write compose file: %v", err))
+		h.StreamChan.FinalError <- err
+		return err
+	}
 
-		// Log start of Docker orchestration
-		dh.StreamChan.LogChan <- core.LogStep("Starting Docker orchestration")
+	// Get the compose file path
+	serviceDataPath := h.NamingGenerator.GenerateServiceDataPath()
+	composeFilePath := filepath.Join(serviceDataPath, "compose.yml")
 
-		// Use SyncContainersToDB to sync the container to db first
-		dh.StreamChan.LogChan <- core.LogStep("Syncing containers to database")
+	// Execute Docker Compose operations in sequence
+	if err := h.pullImages(composeFilePath); err != nil {
+		return err
+	}
 
-		err = dockersync.SyncContainersToDB(ctx, tx, dh.ConnectionPool, *dh.NamingGenerator, *dh.Project)
-		if err != nil {
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to sync containers to database: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to sync containers to database: %w", err)
-			return
-		}
+	if err := h.startServices(composeFilePath); err != nil {
+		return err
+	}
 
-		dh.StreamChan.LogChan <- core.LogInfo("Successfully synced containers to database")
+	if err := h.VerifyAndUpdateStates(ctx, composeFilePath); err != nil {
+		return err
+	}
 
-		// Pull the Docker images
-		dh.StreamChan.LogChan <- core.LogStep("Starting image pull process")
+	h.StreamChan.LogLog("Docker Compose services started successfully")
+	h.StreamChan.DoneChan <- true
+	return nil
+}
 
-		// +-------------------------------------------+
-		// |Start Docker Pull                          |
-		// +-------------------------------------------+
-		err = dh.PullDockerImages(ctx, tx)
-		if err != nil {
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to pull Docker images: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to pull Docker images: %w", err)
-			return
-		}
+// pullImages pulls all required Docker images with progress streaming
+func (h *DockerHandler) pullImages(composeFilePath string) error {
+	h.StreamChan.LogLog("Pulling Docker images")
 
-		// Create Docker networks
-		dh.StreamChan.LogChan <- core.LogStep("Creating Docker networks")
+	pullCmd := fmt.Sprintf("docker compose -f %s pull", composeFilePath)
 
-		// +-------------------------------------------+
-		// |Start Docker Networks                      |
-		// +-------------------------------------------+
-		err = dh.StartDockerNetworks(ctx, tx)
-		if err != nil {
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker networks: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to create Docker networks: %w", err)
-			return
-		}
+	// Execute the pull command with streaming
+	if err := connection.ExecuteCommand(h.Client, pullCmd, h.StreamChan); err != nil {
+		h.StreamChan.LogError(fmt.Sprintf("Failed to pull images: %v", err))
+		h.StreamChan.FinalError <- err
+		return err
+	}
 
-		// Create Docker volumes
-		dh.StreamChan.LogChan <- core.LogStep("Creating Docker volumes")
+	return nil
+}
 
-		// +-------------------------------------------+
-		// |Start Create Volume                        |
-		// +-------------------------------------------+
-		err = dh.StartDockerVolumes(ctx, tx)
-		if err != nil {
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to create Docker volumes: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to create Docker volumes: %w", err)
-			return
-		}
+// startServices starts all services defined in the compose file
+func (h *DockerHandler) startServices(composeFilePath string) error {
+	h.StreamChan.LogLog("Starting Docker services")
 
-		// Create and start Docker containers
-		dh.StreamChan.LogChan <- core.LogStep("Creating and starting Docker containers")
+	startCmd := fmt.Sprintf("docker compose -f %s up -d", composeFilePath)
 
-		// +-------------------------------------------+
-		// |Start Docker Containers                    |
-		// +-------------------------------------------+
-		err = dh.StartDockerContainers(ctx, tx)
-		if err != nil {
-			dh.StreamChan.ErrChan <- core.LogError(fmt.Sprintf("Failed to start Docker containers: %v", err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to start Docker containers: %w", err)
-			return
-		}
-
-		// Commit the transaction on successful completion
-		if err := tx.Commit(ctx); err != nil {
-			zap.L().Error("Failed to commit transaction in StartDockerCompose", zap.Error(err))
-			dh.StreamChan.FinalError <- fmt.Errorf("failed to commit transaction: %w", err)
-			return
-		}
-
-		// Docker orchestration completed successfully
-		dh.StreamChan.LogChan <- core.LogInfo("Docker orchestration completed successfully")
-	}()
+	// Execute the start command with streaming
+	if err := connection.ExecuteCommand(h.Client, startCmd, h.StreamChan); err != nil {
+		h.StreamChan.LogError(fmt.Sprintf("Failed to start services: %v", err))
+		h.StreamChan.FinalError <- err
+		return err
+	}
 
 	return nil
 }
