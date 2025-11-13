@@ -13,6 +13,15 @@ const (
 	ServiceStateRebuilding ServiceState = "rebuilding"
 )
 
+type ServiceOperation string
+
+const (
+	ServiceOperationStart   ServiceOperation = "start"
+	ServiceOperationStop    ServiceOperation = "stop"
+	ServiceOperationRestart ServiceOperation = "restart"
+	ServiceOperationRebuild ServiceOperation = "rebuild"
+)
+
 type ContainerState string
 
 const (

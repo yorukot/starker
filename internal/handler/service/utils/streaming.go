@@ -105,34 +105,34 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			var finalState string
 
 			switch operation {
-			case "start":
+			case string(models.ServiceOperationStart):
 				service.State = models.ServiceStateRunning
 				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 				successMessage = "Service started successfully"
-				finalState = "running"
-			case "stop":
+				finalState = string(models.ServiceStateRunning)
+			case string(models.ServiceOperationStop):
 				service.State = models.ServiceStateStopped
 				successMessage = "Service stopped successfully"
-				finalState = "stopped"
-			case "restart":
+				finalState = string(models.ServiceStateStopped)
+			case string(models.ServiceOperationRestart):
 				service.State = models.ServiceStateRunning
 				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 				successMessage = "Service restarted successfully"
-				finalState = "running"
-			case "rebuild":
+				finalState = string(models.ServiceStateRunning)
+			case string(models.ServiceOperationRebuild):
 				service.State = models.ServiceStateRunning
 				service.LastDeployedAt = &[]time.Time{time.Now()}[0]
 				successMessage = "Service rebuilt successfully"
-				finalState = "running"
+				finalState = string(models.ServiceStateRunning)
 			default:
 				service.State = models.ServiceStateRunning
 				successMessage = "Service operation completed successfully"
-				finalState = "running"
+				finalState = string(models.ServiceStateRunning)
 			}
 
 			if err := repository.UpdateService(ctx, *tx, *service); err != nil {
 				zap.L().Error("Failed to update service state", zap.Error(err))
-				data, _ := json.Marshal(map[string]interface{}{
+				data, _ := json.Marshal(map[string]any{
 					"message": "Failed to update service state in database",
 					"type":    "error",
 				})
@@ -144,7 +144,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			// Commit the transaction
 			if err := (*tx).Commit(ctx); err != nil {
 				zap.L().Error("Failed to commit transaction", zap.Error(err))
-				data, _ := json.Marshal(map[string]interface{}{
+				data, _ := json.Marshal(map[string]any{
 					"message": "Failed to commit database transaction",
 					"type":    "error",
 				})
@@ -154,7 +154,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 			}
 
 			// Send success completion event with operation-specific message
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": successMessage,
 				"type":    core.LogTypeLog,
 				"state":   finalState,

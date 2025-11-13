@@ -28,7 +28,7 @@ import (
 
 // updateServiceStateRequest represents a request to update service state
 type updateServiceStateRequest struct {
-	State string `json:"state" validate:"required,oneof=start stop restart rebuild" example:"start"` // Service state action (start, stop, restart, rebuild)
+	State models.ServiceOperation `json:"state" validate:"required,oneof=start stop restart rebuild" example:"start"` // Service state action (start, stop, restart, rebuild)
 }
 
 // UpdateServiceState godoc
@@ -110,6 +110,22 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// Update service to intermediate state and commit before Docker operation starts
+	if err := updateServiceStateToIntermediate(r.Context(), tx, service, newState); err != nil {
+		zap.L().Error("Failed to update service to intermediate state", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service state", "FAILED_TO_UPDATE_SERVICE_STATE")
+		return
+	}
+
+	// Start a new transaction for the streaming operation
+	tx, err = repository.StartTransaction(h.DB, r.Context())
+	if err != nil {
+		zap.L().Error("Failed to begin streaming transaction", zap.Error(err))
+		response.RespondWithError(w, http.StatusInternalServerError, "Failed to begin transaction", "FAILED_TO_BEGIN_TRANSACTION")
+		return
+	}
+	defer repository.DeferRollback(tx, r.Context())
+
 	// Execute the service operation
 	result, err := h.executeServiceOperation(r.Context(), tx, newState, service)
 	if err != nil {
@@ -118,33 +134,60 @@ func (h *ServiceHandler) UpdateServiceState(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := repository.UpdateService(r.Context(), tx, *service); err != nil {
-		zap.L().Error("Failed to update initial service status", zap.Error(err))
-		response.RespondWithError(w, http.StatusInternalServerError, "Failed to update service status", "FAILED_TO_UPDATE_SERVICE_STATUS")
-		return
-	}
-
 	// Stream the operation with real-time updates
-	utils.StreamServiceOutputWithUpdate(r.Context(), w, result, service, &tx, newState)
+	utils.StreamServiceOutputWithUpdate(r.Context(), w, result, service, &tx, string(newState))
 }
 
-func checkStateIsRight(state models.ServiceState, newState string) bool {
+func checkStateIsRight(state models.ServiceState, newState models.ServiceOperation) bool {
 	switch newState {
-	case "start":
+	case models.ServiceOperationStart:
 		return state == models.ServiceStateStopped
-	case "stop":
+	case models.ServiceOperationStop:
 		return state == models.ServiceStateRunning
-	case "restart":
+	case models.ServiceOperationRestart:
 		return state == models.ServiceStateRunning
-	case "rebuild":
+	case models.ServiceOperationRebuild:
 		return state == models.ServiceStateRunning || state == models.ServiceStateStopped
 	default:
 		return false
 	}
 }
 
+// updateServiceStateToIntermediate updates the service to an intermediate state and commits the transaction
+func updateServiceStateToIntermediate(ctx context.Context, tx pgx.Tx, service *models.Service, operation models.ServiceOperation) error {
+	// Map operation to intermediate state
+	var intermediateState models.ServiceState
+	switch operation {
+	case models.ServiceOperationStart:
+		intermediateState = models.ServiceStateStarting
+	case models.ServiceOperationStop:
+		intermediateState = models.ServiceStateStopping
+	case models.ServiceOperationRestart:
+		intermediateState = models.ServiceStateRestarting
+	case models.ServiceOperationRebuild:
+		intermediateState = models.ServiceStateRebuilding
+	default:
+		return fmt.Errorf("unknown operation: %s", operation)
+	}
+
+	// Update service state
+	service.State = intermediateState
+
+	// Update the service in database
+	if err := repository.UpdateService(ctx, tx, *service); err != nil {
+		return fmt.Errorf("failed to update service to intermediate state: %w", err)
+	}
+
+	// Commit the transaction to persist the intermediate state
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit intermediate state: %w", err)
+	}
+
+	return nil
+}
+
 // executeServiceOperation executes the Docker service operation and returns streaming result
-func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx, operation string, service *models.Service) (*core.StreamChan, error) {
+func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx, operation models.ServiceOperation, service *models.Service) (*core.StreamChan, error) {
 	dockerHandler, streamChan, err := h.setupDockerHandler(ctx, tx, service)
 	if err != nil {
 		return nil, err
@@ -152,13 +195,13 @@ func (h *ServiceHandler) executeServiceOperation(ctx context.Context, tx pgx.Tx,
 
 	go func() {
 		switch operation {
-		case "start":
+		case models.ServiceOperationStart:
 			dockerHandler.StartDockerCompose(context.Background())
-		case "stop":
+		case models.ServiceOperationStop:
 			dockerHandler.StopDockerCompose(context.Background())
-		case "restart":
+		case models.ServiceOperationRestart:
 			dockerHandler.RestartDockerCompose(context.Background())
-		case "rebuild":
+		case models.ServiceOperationRebuild:
 			dockerHandler.RebuildDockerCompose(context.Background())
 		}
 	}()
