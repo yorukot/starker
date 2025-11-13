@@ -28,8 +28,8 @@ import (
 // @Param provider path string true "OAuth provider (e.g., google, github)"
 // @Param next query string false "Redirect URL after successful OAuth linking"
 // @Success 307 {string} string "Redirect to OAuth provider"
-// @Failure 400 {object} map[string]interface{} "Invalid provider or bad request"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Failure 400 {object} map[string]any "Invalid provider or bad request"
+// @Failure 500 {object} map[string]any "Internal server error"
 // @Router /auth/oauth/{provider} [get]
 func (h *OAuthHandler) OAuthEntry(w http.ResponseWriter, r *http.Request) {
 	// Parse the provider

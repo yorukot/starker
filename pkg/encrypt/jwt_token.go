@@ -44,7 +44,7 @@ func (j *JWTSecret) GenerateAccessToken(issuer string, subject string, expiresAt
 // ValidateAccessTokenAndGetClaims validate the access token and get the claims
 func (j *JWTSecret) ValidateAccessTokenAndGetClaims(token string) (bool, AccessTokenClaims, error) {
 	claims := jwt.MapClaims{}
-	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
 		return []byte(j.Secret), nil
 	})
 
@@ -118,7 +118,7 @@ func (j *JWTSecret) GenerateOAuthState(state string, redirectURI string, expires
 // ValidateOAuthStateAndGetClaims validate the oauth state and get the claims
 func (j *JWTSecret) ValidateOAuthStateAndGetClaims(token string) (bool, OAuthStateClaims, error) {
 	claims := jwt.MapClaims{}
-	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (any, error) {
 		return []byte(j.Secret), nil
 	})
 

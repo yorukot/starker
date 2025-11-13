@@ -36,7 +36,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 	}
 
 	// Send initial event
-	data, _ := json.Marshal(map[string]interface{}{
+	data, _ := json.Marshal(map[string]any{
 		"message": "Starting Docker service",
 		"type":    "log",
 	})
@@ -52,7 +52,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 
 		case logMsg := <-streamChan.LogChan:
 			// Stream log message
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": logMsg.Message,
 				"type":    string(logMsg.Type),
 			})
@@ -61,7 +61,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 
 		case errMsg := <-streamChan.ErrChan:
 			// Stream error message
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": errMsg.Message,
 				"type":    string(errMsg.Type),
 			})
@@ -70,7 +70,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 
 		case progressMsg := <-streamChan.ProgressChan:
 			// Stream progress message
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": progressMsg.Message,
 				"type":    string(progressMsg.Type),
 				"data":    progressMsg.Data,
@@ -88,7 +88,7 @@ func StreamServiceOutputWithUpdate(ctx context.Context, w http.ResponseWriter, s
 				zap.L().Error("Failed to rollback service state", zap.Error(updateErr))
 			}
 
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": fmt.Sprintf("Operation failed: %v", finalErr),
 				"type":    "error",
 			})
@@ -328,7 +328,7 @@ func StreamContainerLogsSSE(ctx context.Context, w http.ResponseWriter, streamCh
 		case logMsg := <-streamChan.LogChan:
 			lineNumber++
 			// Enhance log message with container context
-			logData := map[string]interface{}{
+			logData := map[string]any{
 				"line":        logMsg.Message,
 				"line_number": lineNumber,
 				"container":   containerName,
@@ -344,7 +344,7 @@ func StreamContainerLogsSSE(ctx context.Context, w http.ResponseWriter, streamCh
 		case errMsg := <-streamChan.ErrChan:
 			lineNumber++
 			// Enhance error message with container context
-			logData := map[string]interface{}{
+			logData := map[string]any{
 				"line":        errMsg.Message,
 				"line_number": lineNumber,
 				"container":   containerName,
@@ -364,7 +364,7 @@ func StreamContainerLogsSSE(ctx context.Context, w http.ResponseWriter, streamCh
 		case finalErr := <-streamChan.FinalError:
 			// Log streaming failed
 			zap.L().Error("Container log streaming failed", zap.Error(finalErr))
-			data, _ := json.Marshal(map[string]interface{}{
+			data, _ := json.Marshal(map[string]any{
 				"message": fmt.Sprintf("Log streaming failed: %v", finalErr),
 				"type":    "error",
 			})
@@ -375,7 +375,7 @@ func StreamContainerLogsSSE(ctx context.Context, w http.ResponseWriter, streamCh
 		case <-streamChan.DoneChan:
 			// Log streaming completed
 			zap.L().Info("Container log streaming completed")
-			completionData := map[string]interface{}{
+			completionData := map[string]any{
 				"line_count": lineNumber,
 				"completed":  true,
 				"container":  containerName,

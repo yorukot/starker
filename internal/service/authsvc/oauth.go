@@ -75,7 +75,7 @@ func OAuthVerifyTokenAndGetUserInfo(ctx context.Context, rawIDToken string, toke
 	}
 
 	// Extract claims from verified token
-	var tokenClaims map[string]interface{}
+	var tokenClaims map[string]any
 	if err := verifiedToken.Claims(&tokenClaims); err != nil {
 		return nil, fmt.Errorf("failed to extract claims: %w", err)
 	}
