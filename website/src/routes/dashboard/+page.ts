@@ -9,6 +9,10 @@ export const load = async () => {
     try {
         const response = await authGet(`${PUBLIC_API_BASE_URL}/teams`);
         if (!response.ok) {
+            if (response.status === 401) {
+                goto('/auth/login');
+                return {};
+            }
             return { teams: [], error: `Failed to fetch teams: ${response.status}` };
         }
 
