@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { goto } from '$app/navigation';
+    import { browser } from '$app/environment';
     import * as Avatar from '$lib/components/ui/avatar/index.js';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
     import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -14,6 +16,17 @@
 
     let { user }: { user: User | null } = $props();
     const sidebar = useSidebar();
+
+    async function logout() {
+        if (!browser) return;
+
+        // Clear tokens from sessionStorage
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('token_expiry');
+
+        // Redirect to login page
+        await goto('/auth/login');
+    }
 
     const avatarSrc = $derived(
         user?.avatar ||
@@ -91,7 +104,7 @@
                     </DropdownMenu.Item>
                 </DropdownMenu.Group>
                 <DropdownMenu.Separator />
-                <DropdownMenu.Item>
+                <DropdownMenu.Item onclick={logout}>
                     <LucideLogOut />
                     Log out
                 </DropdownMenu.Item>
