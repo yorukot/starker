@@ -1,12 +1,11 @@
 package server
 
 import (
-	"github.com/jackc/pgx/v5/pgxpool"
-
+	"github.com/yorukot/starker/internal/handler"
 	"github.com/yorukot/starker/pkg/connection"
 )
 
 type ServerHandler struct {
-	DB         *pgxpool.Pool
+	handler.App
 	DockerPool *connection.ConnectionPool
 }

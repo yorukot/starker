@@ -96,21 +96,20 @@ func run(mode string) error {
 	}
 	defer db.Close()
 
-	// Initialize Redis for worker
+	// Initialize Redis
 	var redisClient *redis.Client
-	if mode == "worker" || mode == "both" {
-		redisClient, err = database.InitRedis()
-		if err != nil {
-			zap.L().Fatal("Failed to initialize Redis", zap.Error(err))
-			return err
-		}
-		defer redisClient.Close()
+
+	redisClient, err = database.InitRedis()
+	if err != nil {
+		zap.L().Fatal("Failed to initialize Redis", zap.Error(err))
+		return err
 	}
+	defer redisClient.Close()
 
 	// Start services based on mode
 	if mode == "api" || mode == "both" {
 		r := chi.NewRouter()
-		go startAPI(r, db)
+		go startAPI(r, db, redisClient)
 		zap.L().Info("API server started")
 	}
 

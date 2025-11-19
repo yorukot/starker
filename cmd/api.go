@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/yorukot/starker/internal/config"
 	"github.com/yorukot/starker/internal/handler"
@@ -17,7 +20,7 @@ import (
 )
 
 // startAPI starts the API server
-func startAPI(r chi.Router, db *pgxpool.Pool) {
+func startAPI(r chi.Router, db *pgxpool.Pool, redisClient *redis.Client) {
 	var err error
 	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
 	r.Use(chiMiddleware.StripSlashes)
@@ -32,7 +35,16 @@ func startAPI(r chi.Router, db *pgxpool.Pool) {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))
 
-	setupRouter(r, &handler.App{DB: db})
+	// Create asynq client for enqueuing tasks
+	cfg := config.Env()
+	redisAddr := fmt.Sprintf("%s:%s", cfg.RedisHost, cfg.RedisPort)
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{
+		Addr:     redisAddr,
+		Password: cfg.RedisPassword,
+	})
+	defer asynqClient.Close()
+
+	setupRouter(r, &handler.App{DB: db, Redis: redisClient, AsynqClient: asynqClient})
 
 	zap.L().Info("Starting server on http://localhost:" + config.Env().Port)
 	zap.L().Info("Environment: " + string(config.Env().AppEnv))
