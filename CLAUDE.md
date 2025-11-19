@@ -103,6 +103,22 @@ The platform implements a complete Docker service orchestration system with real
 - Proper error handling and graceful degradation
 
 ### Code Style & Conventions
+
+**Follow the [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md)**
+
+Key Uber style requirements:
+- **Use `require` for test assertions:** Always use `github.com/stretchr/testify/require` instead of `assert` for test assertions. `require` stops test execution on failure, preventing cascading failures and unclear error messages.
+- **Prefer `make` for slices and maps:** Use `make([]T, 0, cap)` or `make(map[K]V, cap)` with capacity hints when size is known.
+- **Avoid naked returns:** Always use explicit return values for clarity.
+- **Use consistent receiver names:** Use short, consistent receiver names (e.g., `c` for `Client`, not `this` or `self`).
+- **Group similar declarations:** Use `const` and `var` blocks for related declarations.
+- **Reduce nesting:** Handle errors and edge cases early with guard clauses to reduce nesting.
+- **Avoid `init()`:** Prefer explicit initialization over `init()` functions.
+- **Use table-driven tests:** Structure tests with test cases in slices for clarity and maintainability.
+- **Prefer strconv over fmt:** Use `strconv` for primitive conversions instead of `fmt.Sprintf`.
+- **Avoid embedding types in public structs:** Embed types only when necessary and be aware of leaked implementation details.
+
+Project-specific conventions:
 - **Error Handling:** Use custom error codes and structured error responses via `response.RespondWithError()`
 - **Transactions:** Always use database transactions for data modifications with proper rollback handling
 - **Logging:** Use structured logging with zap.L() for errors and warnings
