@@ -9,6 +9,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/redis/go-redis/v9"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
@@ -95,6 +96,17 @@ func run(mode string) error {
 	}
 	defer db.Close()
 
+	// Initialize Redis for worker
+	var redisClient *redis.Client
+	if mode == "worker" || mode == "both" {
+		redisClient, err = database.InitRedis()
+		if err != nil {
+			zap.L().Fatal("Failed to initialize Redis", zap.Error(err))
+			return err
+		}
+		defer redisClient.Close()
+	}
+
 	// Start services based on mode
 	if mode == "api" || mode == "both" {
 		r := chi.NewRouter()
@@ -103,7 +115,7 @@ func run(mode string) error {
 	}
 
 	if mode == "worker" || mode == "both" {
-		go startWorker()
+		go startWorker(db, redisClient)
 		zap.L().Info("Worker started")
 	}
 
