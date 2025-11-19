@@ -1,25 +1,21 @@
 package main
 
 import (
-	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
-	chiMiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/joho/godotenv/autoload"
-	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 
 	_ "github.com/yorukot/starker/docs"
 	"github.com/yorukot/starker/internal/config"
 	"github.com/yorukot/starker/internal/database"
-	"github.com/yorukot/starker/internal/handler"
-	"github.com/yorukot/starker/internal/middleware"
-	"github.com/yorukot/starker/internal/router"
 	"github.com/yorukot/starker/pkg/logger"
-	"github.com/yorukot/starker/pkg/response"
 )
 
 // @title starker Go API Template
@@ -48,72 +44,74 @@ import (
 func main() {
 	logger.InitLogger()
 
+	app := &cli.App{
+		Name:  "starker",
+		Usage: "Starker server application",
+		Commands: []*cli.Command{
+			{
+				Name:  "api",
+				Usage: "Run API server only",
+				Action: func(c *cli.Context) error {
+					return run("api")
+				},
+			},
+			{
+				Name:  "worker",
+				Usage: "Run worker only",
+				Action: func(c *cli.Context) error {
+					return run("worker")
+				},
+			},
+			{
+				Name:  "both",
+				Usage: "Run both API server and worker",
+				Action: func(c *cli.Context) error {
+					return run("both")
+				},
+			},
+		},
+		Action: func(c *cli.Context) error {
+			// Default action: run both
+			return run("both")
+		},
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		zap.L().Fatal("Application error", zap.Error(err))
+	}
+}
+
+func run(mode string) error {
 	_, err := config.InitConfig()
 	if err != nil {
 		zap.L().Fatal("Error initializing config", zap.Error(err))
-		return
+		return err
 	}
-
-	r := chi.NewRouter()
 
 	db, err := database.InitDatabase()
 	if err != nil {
 		zap.L().Fatal("Failed to initialize database", zap.Error(err))
+		return err
 	}
 	defer db.Close()
 
-	r.Use(middleware.ZapLoggerMiddleware(zap.L()))
-	r.Use(chiMiddleware.StripSlashes)
-
-	// CORS configuration
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://" + config.Env().FrontendDomain, "https://" + config.Env().FrontendDomain},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "Cache-Control", "DNT", "User-Agent", "Referer", "Sec-CH-UA", "Sec-CH-UA-Mobile", "Sec-CH-UA-Platform", "Sec-Fetch-Dest", "Sec-Fetch-Mode", "Sec-Fetch-Site"},
-		ExposedHeaders:   []string{"Link", "Cache-Control", "Content-Type"},
-		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
-
-	setupRouter(r, &handler.App{DB: db})
-
-	zap.L().Info("Starting server on http://localhost:" + config.Env().Port)
-	zap.L().Info("Environment: " + string(config.Env().AppEnv))
-
-	err = http.ListenAndServe(":"+config.Env().Port, r)
-	if err != nil {
-		zap.L().Fatal("Failed to start server", zap.Error(err))
-	}
-}
-
-// setupRouter sets up the router
-func setupRouter(r chi.Router, app *handler.App) {
-	r.Route("/api", func(r chi.Router) {
-		router.AuthRouter(r, app)
-		router.UserRouter(r, app)
-		router.TeamRouter(r, app)
-		router.PrivateKeyRouter(r, app)
-		router.ServerRouter(r, app)
-		router.ProjectRouter(r, app)
-		router.ServiceRouter(r, app)
-	})
-
-	if config.Env().AppEnv == config.AppEnvDev {
-		r.Get("/swagger/*", httpSwagger.WrapHandler)
+	// Start services based on mode
+	if mode == "api" || mode == "both" {
+		r := chi.NewRouter()
+		go startAPI(r, db)
+		zap.L().Info("API server started")
 	}
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
+	if mode == "worker" || mode == "both" {
+		go startWorker()
+		zap.L().Info("Worker started")
+	}
 
-	// Not found handler
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		response.RespondWithError(w, http.StatusNotFound, "Not Found", "NOT_FOUND")
-	})
+	// Wait for interrupt signal to gracefully shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		response.RespondWithError(w, http.StatusMethodNotAllowed, "Method Not Allowed", "METHOD_NOT_ALLOWED")
-	})
-
-	zap.L().Info("Router setup complete")
+	zap.L().Info("Shutting down...")
+	return nil
 }

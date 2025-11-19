@@ -1,7 +1,7 @@
 BINARY_NAME=starker
 
 build:
-	go build -o tmp/$(BINARY_NAME) cmd/main.go
+	go build -o tmp/$(BINARY_NAME) ./cmd
 
 run: build
 	./tmp/$(BINARY_NAME)
@@ -10,7 +10,13 @@ web:
 	cd website && pnpm run dev
 
 dev:
-	air --build.cmd "go build -o tmp/$(BINARY_NAME) cmd/main.go" --build.bin "./tmp/$(BINARY_NAME)"
+	air --build.cmd "go build -o tmp/$(BINARY_NAME) ./cmd" --build.bin "./tmp/$(BINARY_NAME)"
+
+api:
+	air --build.cmd "go build -o tmp/$(BINARY_NAME) ./cmd" --build.bin "./tmp/$(BINARY_NAME) api"
+
+worker:
+	air --build.cmd "go build -o tmp/$(BINARY_NAME) ./cmd" --build.bin "./tmp/$(BINARY_NAME) worker"
 
 test:
 	go test ./...
