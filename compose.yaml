@@ -10,8 +10,18 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    container_name: starker-dragonfly
+    environment:
+      - DFLY_requirepass=starker-dragonfly-password
+    ports:
+      - "6379:6379"
+    volumes:
+      - dragonfly_data:/data
 
 # TODO: Add starker to the services
 
 volumes:
   postgres_data:
+  dragonfly_data:

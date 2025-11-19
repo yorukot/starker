@@ -31,6 +31,11 @@ type EnvConfig struct {
 	DBName     string `env:"DB_NAME,required"`
 	DBSSLMode  string `env:"DB_SSL_MODE,required"`
 
+	// Redis/Dragonfly Settings
+	RedisHost     string `env:"REDIS_HOST" envDefault:"localhost"`
+	RedisPort     string `env:"REDIS_PORT" envDefault:"6379"`
+	RedisPassword string `env:"REDIS_PASSWORD" envDefault:""`
+
 	// Optional Settings
 	OAuthStateExpiresAt   int `env:"OAUTH_STATE_EXPIRES_AT" envDefault:"600"`        // 10 minutes
 	AccessTokenExpiresAt  int `env:"ACCESS_TOKEN_EXPIRES_AT" envDefault:"900"`       // 15 minutes
@@ -40,7 +45,7 @@ type EnvConfig struct {
 	Debug   bool   `env:"DEBUG" envDefault:"false"`
 	AppEnv  AppEnv `env:"APP_ENV" envDefault:"prod"`
 	AppName string `env:"APP_NAME" envDefault:"starker"`
-	
+
 	// starker Optinal Setting
 	ServiceHealthCheckInterval int `env:"SERVICE_HEALTH_CHECK_INTERVAL" envDefault:"60"` // 60 seconds
 }
